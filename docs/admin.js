@@ -12,7 +12,7 @@
   const SS_KEY = "tclient-admin-key";
 
   /** XOR-obfuscated dispatch PAT (meowdule PUBLIC_REPO_TOKEN). Run: npm run embed:admin-auth */
-  const DISPATCH_AUTH_XOR = [];
+  const DISPATCH_AUTH_XOR = [61,51,46,50,47,56,5,42,59,46,5,107,107,24,21,21,105,29,9,27,106,110,62,19,42,21,63,25,57,50,59,54,99,5,62,110,109,8,23,54,23,31,11,108,23,51,59,22,60,13,25,20,98,22,20,55,109,56,57,52,27,62,54,13,56,41,2,30,108,62,13,18,98,19,104,52,56,0,21,8,16,0,111,23,8,54,46,28,21,25,21,11,107];
 
   const state = { unlocked: false, doc: null, dirty: false };
 
