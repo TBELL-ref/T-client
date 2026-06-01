@@ -1,21 +1,20 @@
-# T-client Public
+# T-client
 
 Public GitHub Pages shell for the QA lead dashboard.
 
-## Phase 6 UX
-- Table-first layout for leads, dedupe review, and manual queue
-- KPI summary cards
-- Quick filter presets (A등급, 리포트 필요, 미팅 필요, etc.)
-- Column sort on lead table
-- Expandable company job-post groups with failure highlighting
-- B2B report-style palette (neutral + warm accent, no AI gradient)
-
-## Phase 7 Security + deploy
-- Pre-deploy snapshot audit blocks sensitive patterns
-- Pages deploy runs only after audit passes
-- No secrets in this repository
+## Live data
+- First crawl snapshot: 8 QA hiring companies, 14 job posts
+- Data file: `docs/data/snapshot.json` (served on Pages)
 
 ## Principles
 - No crawler/business logic
 - No secrets
-- Read-only UI from `data/snapshot.json`
+- Read-only UI from snapshot JSON
+
+## UX
+- Table-first layout, KPI cards, filter presets
+- Company job groups, dedupe review, manual queue tabs
+
+## Deploy
+- GitHub Pages source: `/docs`
+- Workflow audits snapshot before deploy
