@@ -1,4 +1,5 @@
 const state = {
+  rawRows: [],
   rows: [],
   dedupeCandidates: [],
   manualReviewQueue: [],
@@ -14,7 +15,8 @@ const PRESETS = [
   { id: "meeting", label: "미팅 추천", apply: () => setFilters({ action: "meeting", exclude: "active" }, { keepPreset: true }) },
   { id: "contact", label: "담당자 확보", apply: () => setFilters({ contact: "yes", exclude: "active" }, { keepPreset: true }) },
   { id: "startup", label: "스타트업·미확인", apply: () => setFilters({ tier: "startup", exclude: "active" }, { keepPreset: true }) },
-  { id: "all", label: "전체", apply: () => setFilters({ grade: "", action: "", contact: "", exclude: "", tier: "" }, { keepPreset: true }) }
+  { id: "favorites", label: "즐겨찾기", apply: () => setFilters({ favorite: "yes", exclude: "active" }, { keepPreset: true }) },
+  { id: "all", label: "전체", apply: () => setFilters({ grade: "", action: "", contact: "", exclude: "", tier: "", favorite: "" }, { keepPreset: true }) }
 ];
 
 const byId = (id) => document.getElementById(id);
@@ -31,6 +33,16 @@ function iconSvg(name) {
 
 function displayName(row) {
   return row.companyNameKo || row.companyName || "-";
+}
+
+function favoriteStar(row, interactive = false) {
+  if (!row.userFavorite && !interactive) return "";
+  const filled = row.userFavorite ? "★" : "☆";
+  const cls = row.userFavorite ? "star-on" : "star-off";
+  if (!interactive || !window.TClientAdmin?.isUnlocked()) {
+    return row.userFavorite ? `<span class="star ${cls}" title="즐겨찾기">${filled}</span>` : "";
+  }
+  return `<button type="button" class="star-btn ${cls}" data-fav="${escapeAttr(row.companyId)}" title="즐겨찾기">${filled}</button>`;
 }
 
 function tierBadge(row) {
@@ -206,6 +218,9 @@ function passesFilters(row) {
   if (tierFilter === "startup" && !["startup", "unknown"].includes(row.companyTier)) return false;
   if (tierFilter === "enterprise" && row.companyTier !== "enterprise") return false;
   if (tierFilter === "mid" && row.companyTier !== "mid") return false;
+  if (row.userHidden && !window.TClientAdmin?.isUnlocked()) return false;
+  const favFilter = byId("favorite")?.value;
+  if (favFilter === "yes" && !row.userFavorite) return false;
   if (!row.posts?.length) return false;
   return true;
 }
@@ -286,9 +301,10 @@ function renderLeadsTable() {
           ${filtered
             .map(
               (row, idx) => `
-            <tr class="${row.excluded ? "row-excluded" : ""}${hasFailedPosts(row) ? " row-failure" : ""}${rowTierClass(row)}">
+            <tr class="${row.excluded ? "row-excluded" : ""}${row.userHidden ? " row-hidden-admin" : ""}${hasFailedPosts(row) ? " row-failure" : ""}${rowTierClass(row)}">
               <td class="cell-company">
                 <div class="company-line">
+                  ${favoriteStar(row, true)}
                   <strong>${escapeHtml(displayName(row))}</strong>
                   ${tierBadge(row)}
                   ${scaleBadge(row)}
@@ -312,6 +328,62 @@ function renderLeadsTable() {
 
   filtered.forEach((row, idx) => {
     byId("leads").querySelector(`[data-detail="${idx}"]`)?.addEventListener("click", () => openDetail(row));
+    byId("leads").querySelector(`[data-fav="${row.companyId}"]`)?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleFavorite(row.companyId);
+    });
+  });
+}
+
+function renderAdminEditSection(row) {
+  if (!window.TClientAdmin?.isUnlocked()) return "";
+  const e = window.TClientAdmin.getEntry(row.companyId);
+  return `
+    <section class="detail-section admin-edit-box">
+      <h3>관리자 수정</h3>
+      <div class="admin-form">
+        <label><input type="checkbox" id="admHidden" ${e.hidden ? "checked" : ""} /> 목록에서 숨김</label>
+        <label><input type="checkbox" id="admFav" ${row.userFavorite ? "checked" : ""} /> 즐겨찾기</label>
+        <label>표시 회사명 <input type="text" id="admNameKo" value="${escapeAttr(e.companyNameKo || row.companyNameKo || "")}" /></label>
+        <label>등급 <select id="admGrade"><option value="">(유지)</option><option value="A" ${e.leadGrade === "A" ? "selected" : ""}>A</option><option value="B" ${e.leadGrade === "B" ? "selected" : ""}>B</option><option value="C" ${e.leadGrade === "C" ? "selected" : ""}>C</option></select></label>
+        <label>이메일 <input type="email" id="admEmail" value="${escapeAttr(e.email ?? row.email ?? "")}" /></label>
+        <label>메모 <textarea id="admNotes" rows="2">${escapeHtml(e.notes ?? row.manualNotes ?? "")}</textarea></label>
+        <label>제외 사유 <input type="text" id="admExclude" value="${escapeAttr(e.excludeReason ?? row.excludeReason ?? "")}" placeholder="입력 시 제외 처리" /></label>
+        <button type="button" class="btn-primary" id="admSaveRow">저장</button>
+      </div>
+    </section>`;
+}
+
+function toggleFavorite(companyId) {
+  if (!window.TClientAdmin?.isUnlocked()) return;
+  const entry = window.TClientAdmin.getEntry(companyId);
+  window.TClientAdmin.setEntry(companyId, { favorite: !entry.favorite });
+  reloadRowsWithAdmin();
+  refreshViews();
+}
+
+function reloadRowsWithAdmin() {
+  state.rows = state.rawRows.map((row) => {
+    const enriched = enrichRow(row);
+    return window.TClientAdmin ? window.TClientAdmin.applyToRow(enriched) : enriched;
+  });
+}
+
+function bindAdminEditRow(row) {
+  byId("admSaveRow")?.addEventListener("click", () => {
+    window.TClientAdmin.setEntry(row.companyId, {
+      hidden: byId("admHidden").checked,
+      favorite: byId("admFav").checked,
+      companyNameKo: byId("admNameKo").value.trim(),
+      leadGrade: byId("admGrade").value,
+      email: byId("admEmail").value.trim(),
+      notes: byId("admNotes").value.trim(),
+      excludeReason: byId("admExclude").value.trim()
+    });
+    reloadRowsWithAdmin();
+    refreshViews();
+    openDetail(state.rows.find((r) => r.companyId === row.companyId) ?? row);
+    setAdminStatus("저장됨 (로컬). GitHub 저장은 상단 관리자 패널.");
   });
 }
 
@@ -361,7 +433,9 @@ function openDetail(row) {
         : ""
     }
     ${row.excludeReason ? `<p class="warn">제외: ${escapeHtml(row.excludeReason)}</p>` : ""}
+    ${renderAdminEditSection(row)}
   `;
+  bindAdminEditRow(row);
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden", "false");
 }
@@ -530,12 +604,90 @@ function refreshViews() {
   renderGroups();
 }
 
+function setAdminStatus(msg) {
+  const el = byId("adminStatus");
+  if (el) el.textContent = msg;
+}
+
+function setAdminUi(unlocked) {
+  byId("adminBadge")?.classList.toggle("hidden", !unlocked);
+  byId("adminTools")?.classList.toggle("hidden", !unlocked);
+  byId("adminLoginForm")?.classList.toggle("hidden", unlocked);
+  document.querySelectorAll(".admin-only").forEach((el) => el.classList.toggle("hidden", !unlocked));
+  if (unlocked && byId("adminGhPat")) {
+    byId("adminGhPat").value = window.TClientAdmin.getPat() ? "••••••••" : "";
+  }
+}
+
+function bindAdmin() {
+  const panel = byId("adminPanel");
+  byId("adminUnlockBtn")?.addEventListener("click", () => {
+    panel.classList.toggle("hidden");
+    panel.setAttribute("aria-hidden", panel.classList.contains("hidden") ? "true" : "false");
+    if (window.TClientAdmin.isUnlocked()) setAdminUi(true);
+  });
+
+  byId("adminLoginBtn")?.addEventListener("click", () => {
+    const pw = byId("adminPassword").value;
+    if (window.TClientAdmin.unlock(pw)) {
+      setAdminUi(true);
+      setAdminStatus("관리자 모드");
+      byId("adminPassword").value = "";
+      refreshViews();
+    } else {
+      setAdminStatus("비밀번호가 올바르지 않습니다.");
+    }
+  });
+
+  byId("adminLogout")?.addEventListener("click", () => {
+    window.TClientAdmin.lock();
+    setAdminUi(false);
+    setAdminStatus("");
+    panel.classList.add("hidden");
+    refreshViews();
+  });
+
+  byId("adminGhPat")?.addEventListener("change", (e) => {
+    const v = e.target.value.trim();
+    if (v && !v.startsWith("•")) window.TClientAdmin.setPat(v);
+  });
+
+  byId("adminSaveGithub")?.addEventListener("click", async () => {
+    setAdminStatus("GitHub 저장 중…");
+    try {
+      await window.TClientAdmin.saveToGitHub();
+      setAdminStatus("GitHub에 저장했습니다. 크롤 후에도 overrides.json이 유지됩니다.");
+    } catch (err) {
+      setAdminStatus(err.message || String(err));
+    }
+  });
+
+  byId("adminExport")?.addEventListener("click", () => window.TClientAdmin.exportJson());
+  byId("adminImport")?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      await window.TClientAdmin.importJson(file);
+      reloadRowsWithAdmin();
+      refreshViews();
+      setAdminStatus("가져오기 완료");
+    } catch {
+      setAdminStatus("JSON 형식 오류");
+    }
+    e.target.value = "";
+  });
+
+  if (window.TClientAdmin.isUnlocked()) setAdminUi(true);
+}
+
 async function boot() {
   try {
+    await window.TClientAdmin.initDoc();
     const res = await fetch("./data/snapshot.json");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const snapshot = await res.json();
-    state.rows = (snapshot.rows ?? []).map(enrichRow);
+    state.rawRows = snapshot.rows ?? [];
+    state.rows = state.rawRows.map((row) => window.TClientAdmin.applyToRow(enrichRow(row)));
     state.dedupeCandidates = snapshot.dedupeCandidates ?? [];
     state.manualReviewQueue = snapshot.manualReviewQueue ?? [];
     state.failureSummary = snapshot.failureSummary ?? {};
@@ -543,8 +695,10 @@ async function boot() {
 
     byId("meta").innerHTML = `<div>${formatDate(snapshot.generatedAt)}</div><div>회사 ${snapshot.totalCompanies || 0} · 공고 ${snapshot.totalPosts || 0}</div>`;
 
-    ["search", "grade", "action", "contact", "exclude", "tier", "sort"].forEach((id) => {
-      byId(id).addEventListener("input", () => {
+    ["search", "grade", "action", "contact", "exclude", "tier", "favorite", "sort"].forEach((id) => {
+      const el = byId(id);
+      if (!el) return;
+      el.addEventListener("input", () => {
         state.activePreset = "";
         renderPresets();
         refreshViews();
@@ -552,6 +706,7 @@ async function boot() {
     });
 
     bindModal();
+    bindAdmin();
     renderPresets();
     bindTabs();
     refreshViews();

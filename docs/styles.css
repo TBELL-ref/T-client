@@ -39,6 +39,146 @@ body {
   margin-bottom: 20px;
 }
 
+.top-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.admin-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-admin {
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.btn-admin:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.admin-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid #fdba74;
+}
+
+.admin-panel {
+  margin-bottom: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.admin-panel-inner {
+  padding: 16px 20px;
+}
+
+.admin-panel h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.admin-panel label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.admin-panel input[type="password"],
+.admin-panel input[type="text"],
+.admin-panel input[type="email"],
+.admin-panel select,
+.admin-panel textarea {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.btn-file {
+  display: inline-block;
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.admin-status {
+  margin: 10px 0 0;
+  font-size: 12px;
+}
+
+.admin-edit-box {
+  border: 1px dashed var(--accent);
+  background: var(--accent-soft);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.admin-form label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.star-btn,
+.star {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px 0 0;
+  line-height: 1;
+}
+
+.star-on { color: #eab308; }
+.star-off { color: var(--muted); }
+
+tbody tr.row-hidden-admin {
+  opacity: 0.55;
+  background: #fef3c7 !important;
+}
+
+.hidden {
+  display: none !important;
+}
+
 .eyebrow {
   margin: 0 0 4px;
   font-size: 12px;
