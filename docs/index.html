@@ -3,24 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>QA Lead Console</title>
+    <meta name="description" content="T-client — QA 채용 리드 크롤링·영업 관리" />
+    <title>T-client</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="./styles.css" />
+    <script defer src="./icons.js"></script>
     <script defer src="./admin.js"></script>
     <script defer src="./app.js"></script>
   </head>
   <body>
-    <div class="layout">
-      <header class="top">
-        <div>
-          <p class="eyebrow">영업 리드 관리</p>
-          <h1>QA Lead Console</h1>
-        </div>
-        <div class="top-actions">
+    <div class="app">
+      <header class="site-header">
+        <a class="brand" href="./" aria-label="T-client 홈">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-text">
+            <span class="brand-name">T-client</span>
+            <span class="brand-desc">QA 리드 크롤링 · 영업 콘솔</span>
+          </span>
+        </a>
+        <div class="header-end">
           <div id="meta" class="meta"></div>
           <div class="admin-bar">
             <span id="adminBadge" class="admin-badge hidden" title="관리자 모드">관리자</span>
             <div class="admin-anchor">
-              <button type="button" id="adminUnlockBtn" class="btn-admin" aria-expanded="false" aria-controls="adminPopover">관리</button>
+              <button type="button" id="adminUnlockBtn" class="btn-ghost btn-admin" aria-expanded="false" aria-controls="adminPopover">
+                <span class="btn-icon" data-icon="settings"></span>
+                관리
+              </button>
               <div id="adminPopover" class="admin-popover hidden" aria-hidden="true">
                 <div id="adminLoginForm" class="admin-popover-section">
                   <p class="admin-popover-title">관리자 인증</p>
@@ -32,7 +42,7 @@
                   <p class="admin-popover-hint">즐겨찾기·상세 수정 · 로컬 자동 저장</p>
                   <div class="admin-popover-actions">
                     <button type="button" id="adminSaveGithub" class="btn-primary btn-sm">저장 반영</button>
-                    <button type="button" id="adminExport" class="btn-sm">내보내기</button>
+                    <button type="button" id="adminExport" class="btn-sm">보내기</button>
                     <label class="btn-sm btn-file">가져오기<input type="file" id="adminImport" accept="application/json" hidden /></label>
                     <button type="button" id="adminLogout" class="btn-sm">잠금</button>
                   </div>
@@ -44,64 +54,69 @@
         </div>
       </header>
 
-      <section id="kpi" class="kpi-grid"></section>
+      <section id="dashboard" class="dashboard" aria-label="대시보드"></section>
 
-      <section class="filter-panel">
-        <div class="filter-row">
-          <input id="search" type="search" placeholder="한글 회사명, 도메인 검색" />
-          <select id="grade">
+      <section class="toolbar">
+        <div class="search-box">
+          <span class="search-icon" data-icon="search"></span>
+          <input id="search" type="search" placeholder="회사명, 도메인, 업종 검색" />
+        </div>
+        <div class="filter-chips">
+          <select id="grade" class="select-pill" aria-label="등급">
             <option value="">등급 전체</option>
             <option value="A">A</option>
             <option value="B">B</option>
             <option value="C">C</option>
           </select>
-          <select id="action">
+          <select id="action" class="select-pill" aria-label="액션">
             <option value="">액션 전체</option>
             <option value="proposal">제안 추천</option>
             <option value="meeting">미팅 추천</option>
             <option value="inquiry">문의 추천</option>
           </select>
-          <select id="contact">
+          <select id="contact" class="select-pill" aria-label="담당자">
             <option value="">담당자 전체</option>
             <option value="yes">확보</option>
             <option value="no">미확보</option>
           </select>
-          <select id="exclude">
+          <select id="exclude" class="select-pill" aria-label="제외">
             <option value="">제외 전체</option>
             <option value="active">활성</option>
             <option value="excluded">제외</option>
           </select>
-          <select id="tier">
+          <select id="tier" class="select-pill" aria-label="규모">
             <option value="">규모 전체</option>
             <option value="startup">스타트업·미확인</option>
             <option value="mid">중견</option>
             <option value="enterprise">대기업</option>
           </select>
-          <select id="favorite" class="admin-only hidden">
+          <select id="favorite" class="select-pill admin-only hidden" aria-label="즐겨찾기">
             <option value="">즐겨찾기 전체</option>
             <option value="yes">즐겨찾기만</option>
           </select>
         </div>
-        <div class="filter-row secondary">
+        <div class="toolbar-row">
           <div id="presets" class="presets"></div>
-          <select id="sort">
-            <option value="priority">우선순위순</option>
-            <option value="grade">등급순</option>
-            <option value="recent">최근 수집순</option>
-            <option value="name">회사명순</option>
-          </select>
-          <span id="resultCount" class="result-count"></span>
+          <div class="toolbar-end">
+            <select id="sort" class="select-pill" aria-label="정렬">
+              <option value="priority">우선순위순</option>
+              <option value="grade">등급순</option>
+              <option value="recent">최근 수집순</option>
+              <option value="name">회사명순</option>
+            </select>
+            <span id="resultCount" class="result-count"></span>
+          </div>
         </div>
       </section>
 
       <nav class="tabs" aria-label="보기 전환">
-        <button data-tab="leads" class="active">리드 표</button>
-        <button data-tab="groups">회사별 공고</button>
-        <button data-tab="dedupe">중복 후보</button>
-        <button data-tab="manual">수동 검토</button>
+        <button type="button" data-tab="leads" class="tab active">리드 표</button>
+        <button type="button" data-tab="groups" class="tab">회사별 공고</button>
+        <button type="button" data-tab="dedupe" class="tab">중복 후보</button>
+        <button type="button" data-tab="manual" class="tab">수동 검토</button>
       </nav>
 
-      <main>
+      <main class="main-panels">
         <div id="leads" class="panel"></div>
         <div id="groups" class="panel hidden"></div>
         <div id="dedupe" class="panel hidden"></div>
@@ -114,7 +129,9 @@
       <div class="modal-panel" role="dialog" aria-labelledby="detailTitle">
         <header class="modal-header">
           <h2 id="detailTitle"></h2>
-          <button type="button" class="modal-close" data-close="1" aria-label="닫기">×</button>
+          <button type="button" class="modal-close" data-close="1" aria-label="닫기">
+            <span data-icon="x"></span>
+          </button>
         </header>
         <div id="detailBody" class="modal-body"></div>
       </div>

@@ -19,16 +19,20 @@ const PRESETS = [
   { id: "all", label: "전체", apply: () => setFilters({ grade: "", action: "", contact: "", exclude: "", tier: "", favorite: "" }, { keepPreset: true }) }
 ];
 
+const GRADE_COLORS = { A: "#00c471", B: "#3b82f6", C: "#94a3b8" };
+
 const byId = (id) => document.getElementById(id);
 
-function iconSvg(name) {
-  const icons = {
-    chevron:
-      '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="none" stroke="currentColor" stroke-width="2" d="M9 6l6 6-6 6"/></svg>',
-    external:
-      '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="none" stroke="currentColor" stroke-width="2" d="M14 3h7v7M10 14L21 3M21 14v7H3V3h7"/></svg>'
-  };
-  return icons[name] ?? "";
+function iconSvg(name, size = 14) {
+  if (window.TIcons?.svg) return window.TIcons.svg(name, { size });
+  return "";
+}
+
+function hydrateIcons(root = document) {
+  root.querySelectorAll("[data-icon]").forEach((el) => {
+    const name = el.dataset.icon;
+    if (name) el.innerHTML = iconSvg(name, el.classList.contains("search-icon") ? 18 : 16);
+  });
 }
 
 function displayName(row) {
@@ -400,20 +404,95 @@ function sortRows(rows) {
   return list;
 }
 
-function renderKpi() {
-  const s = state.gradeSummary;
-  const items = [
-    { label: "A", value: s.A ?? 0 },
-    { label: "B", value: s.B ?? 0 },
-    { label: "C", value: s.C ?? 0 },
-    { label: "제안 추천", value: s.proposalRecommend ?? s.reportRequired ?? 0 },
-    { label: "미팅 추천", value: s.meetingRecommend ?? s.meetingRequired ?? 0 },
-    { label: "프로필 확보", value: s.profileComplete ?? 0 },
-    { label: "문의 추천", value: s.inquiryRecommend ?? 0 }
-  ];
-  byId("kpi").innerHTML = items
-    .map((item) => `<div class="kpi-card"><div class="kpi-label">${item.label}</div><div class="kpi-value">${item.value}</div></div>`)
+function computeGradeCounts() {
+  const active = state.rows.filter((r) => !r.excluded && !r.userHidden);
+  const counts = { A: 0, B: 0, C: 0 };
+  for (const r of active) {
+    if (counts[r.leadGrade] !== undefined) counts[r.leadGrade]++;
+  }
+  return counts;
+}
+
+function renderGradeDonut(counts) {
+  const total = (counts.A || 0) + (counts.B || 0) + (counts.C || 0);
+  if (!total) {
+    return `<p class="muted">표시할 리드가 없습니다.</p>`;
+  }
+  const pctA = ((counts.A / total) * 100).toFixed(1);
+  const pctB = ((counts.B / total) * 100).toFixed(1);
+  const pctC = ((counts.C / total) * 100).toFixed(1);
+  const endA = (counts.A / total) * 100;
+  const endB = endA + (counts.B / total) * 100;
+  const gradient = `conic-gradient(
+    ${GRADE_COLORS.A} 0 ${endA}%,
+    ${GRADE_COLORS.B} ${endA}% ${endB}%,
+    ${GRADE_COLORS.C} ${endB}% 100%
+  )`;
+
+  const legend = ["A", "B", "C"]
+    .map((g) => {
+      const n = counts[g] || 0;
+      const pct = total ? ((n / total) * 100).toFixed(1) : "0.0";
+      return `<li>
+        <span class="legend-dot" style="background:${GRADE_COLORS[g]}"></span>
+        <span class="legend-grade grade-${g}">${g}</span>
+        <span class="legend-count">${n}건</span>
+        <span class="legend-pct">${pct}%</span>
+      </li>`;
+    })
     .join("");
+
+  return `
+    <div class="donut-panel">
+      <div class="donut-ring" style="background:${gradient}" title="A ${pctA}% · B ${pctB}% · C ${pctC}%">
+        <div class="donut-hole">
+          <span class="donut-total">${total}</span>
+          <span class="donut-label">활성 리드</span>
+        </div>
+      </div>
+      <ul class="donut-legend">${legend}</ul>
+    </div>`;
+}
+
+function renderDashboard() {
+  const s = state.gradeSummary;
+  const gradeCounts = computeGradeCounts();
+  const totalCompanies = state.rows.filter((r) => !r.userHidden).length;
+  const totalPosts = state.rows.reduce((n, r) => n + (r.posts?.length || 0), 0);
+  const proposal = s.proposalRecommend ?? s.reportRequired ?? 0;
+  const profile = s.profileComplete ?? 0;
+
+  const stats = [
+    { icon: "building", label: "수집 회사", value: totalCompanies, sub: "숨김 제외" },
+    { icon: "briefcase", label: "QA 공고", value: totalPosts, sub: "전체 공고 수" },
+    { icon: "target", label: "제안 추천", value: proposal, sub: "액션 기준" },
+    { icon: "users", label: "프로필 확보", value: profile, sub: "사업자·업종" },
+    { icon: "mail", label: "문의 추천", value: s.inquiryRecommend ?? 0, sub: "담당자·등급" },
+    { icon: "layers", label: "제외", value: s.excluded ?? state.rows.filter((r) => r.excluded).length, sub: "비활성" }
+  ];
+
+  byId("dashboard").innerHTML = `
+    <article class="dash-card dash-chart">
+      <h2 class="dash-card-title">${iconSvg("chart", 18)} 등급 분포</h2>
+      ${renderGradeDonut(gradeCounts)}
+    </article>
+    <div class="dash-stats">
+      ${stats
+        .map(
+          (item) => `
+        <div class="stat-card">
+          <span class="stat-icon">${iconSvg(item.icon, 18)}</span>
+          <span class="stat-label">${escapeHtml(item.label)}</span>
+          <span class="stat-value">${item.value}</span>
+          <span class="stat-sub">${escapeHtml(item.sub)}</span>
+        </div>`
+        )
+        .join("")}
+    </div>`;
+}
+
+function renderKpi() {
+  renderDashboard();
 }
 
 function renderPresets() {
@@ -604,7 +683,7 @@ function openDetail(row) {
             <tr>
               <td>${escapeHtml(post.title)}</td>
               <td>${escapeHtml(post.sourceLabel || post.source)}</td>
-              <td><a class="link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${iconSvg("external")} 열기</a></td>
+              <td><a class="link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${iconSvg("external", 14)} 열기</a></td>
             </tr>`
             )
             .join("")}
@@ -643,6 +722,7 @@ function openDetail(row) {
   `;
 
   if (admin) bindDetailEdits(row);
+  hydrateIcons(modal);
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden", "false");
 }
@@ -705,7 +785,7 @@ function renderGroups() {
               <tr class="${p.failureReason ? "row-failure" : ""}">
                 <td>${escapeHtml(p.title)}</td>
                 <td>${escapeHtml(p.sourceLabel || p.source)}</td>
-                <td><a class="link" href="${escapeAttr(p.url)}" target="_blank" rel="noreferrer">${iconSvg("external")}</a></td>
+                <td><a class="link" href="${escapeAttr(p.url)}" target="_blank" rel="noreferrer">${iconSvg("external", 14)}</a></td>
               </tr>`
               )
               .join("")}
@@ -795,9 +875,9 @@ function formatDate(value) {
 }
 
 function bindTabs() {
-  document.querySelectorAll(".tabs button").forEach((btn) => {
+  document.querySelectorAll(".tabs .tab").forEach((btn) => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".tabs button").forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll(".tabs .tab").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       ["leads", "groups", "dedupe", "manual"].forEach((id) => byId(id).classList.add("hidden"));
       byId(btn.dataset.tab).classList.remove("hidden");
@@ -916,7 +996,9 @@ async function boot() {
     state.failureSummary = snapshot.failureSummary ?? {};
     state.gradeSummary = snapshot.gradeSummary ?? {};
 
-    byId("meta").innerHTML = `<div>${formatDate(snapshot.generatedAt)}</div><div>회사 ${snapshot.totalCompanies || 0} · 공고 ${snapshot.totalPosts || 0}</div>`;
+    byId("meta").innerHTML = `<strong>T-client</strong><span>${formatDate(snapshot.generatedAt)} 갱신</span><span>회사 ${snapshot.totalCompanies || 0} · 공고 ${snapshot.totalPosts || 0}</span>`;
+
+    hydrateIcons();
 
     ["search", "grade", "action", "contact", "exclude", "tier", "favorite", "sort"].forEach((id) => {
       const el = byId(id);
