@@ -1,0 +1,221 @@
+{
+  "generatedAt": "2026-06-01T04:30:00.000Z",
+  "totalCompanies": 8,
+  "totalPosts": 14,
+  "totalManualReview": 1,
+  "failureSummary": { "blocked": 1, "timeout": 1 },
+  "gradeSummary": {
+    "A": 3,
+    "B": 3,
+    "C": 2,
+    "excluded": 0,
+    "reportRequired": 4,
+    "meetingRequired": 6,
+    "contactSecured": 6
+  },
+  "rows": [
+    {
+      "companyId": "cmp_toss",
+      "companyName": "toss",
+      "domain": "toss.im",
+      "lastCollectedAt": "2026-06-01T00:00:00.000Z",
+      "leadGrade": "A",
+      "priorityScore": "95",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "email": "recruit@toss.im",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "excluded": false,
+      "posts": [
+        { "id": "job_toss_1", "title": "QA Automation Engineer", "url": "https://toss.im/career/jobs/qa-automation", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" },
+        { "id": "job_toss_2", "title": "Senior QA Engineer (Platform)", "url": "https://toss.im/career/jobs/senior-qa-platform", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" },
+        { "id": "job_toss_3", "title": "QA Lead - Payments", "url": "https://toss.im/career/jobs/qa-lead-payments", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" }
+      ]
+    },
+    {
+      "companyId": "cmp_baemin",
+      "companyName": "baemin",
+      "domain": "woowahan.com",
+      "lastCollectedAt": "2026-06-01T00:00:00.000Z",
+      "leadGrade": "A",
+      "priorityScore": "88",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "email": "jobs@woowahan.com",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "excluded": false,
+      "posts": [
+        { "id": "job_baemin_1", "title": "QA Engineer (Delivery App)", "url": "https://career.woowahan.com/jobs/qa-delivery", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" },
+        { "id": "job_baemin_2", "title": "Test Automation Engineer", "url": "https://career.woowahan.com/jobs/test-automation", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" }
+      ]
+    },
+    {
+      "companyId": "cmp_karrot",
+      "companyName": "karrot",
+      "domain": "karrotmarket.com",
+      "lastCollectedAt": "2026-05-31T09:00:00.000Z",
+      "leadGrade": "A",
+      "priorityScore": "82",
+      "scoreReason": "domain:+15|email_medium:+15|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "email": "recruit@daangn.com",
+      "emailConfidence": "medium",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "excluded": false,
+      "posts": [
+        { "id": "job_karrot_1", "title": "QA Engineer", "url": "https://jobs.lever.co/karrot/qa-engineer", "source": "lever", "status": "new", "failureReason": "", "failureCategory": "" },
+        { "id": "job_karrot_2", "title": "SDET - Marketplace", "url": "https://jobs.lever.co/karrot/sdet-marketplace", "source": "lever", "status": "new", "failureReason": "", "failureCategory": "" }
+      ]
+    },
+    {
+      "companyId": "cmp_sendbird",
+      "companyName": "sendbird",
+      "domain": "sendbird.com",
+      "lastCollectedAt": "2026-05-31T09:00:00.000Z",
+      "leadGrade": "B",
+      "priorityScore": "65",
+      "scoreReason": "domain:+15|email_medium:+15|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "no",
+      "meetingRequired": "yes",
+      "email": "careers@sendbird.com",
+      "emailConfidence": "medium",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "excluded": false,
+      "posts": [
+        { "id": "job_sendbird_1", "title": "Senior QA Engineer (Chat SDK)", "url": "https://boards.greenhouse.io/sendbird/jobs/qa-sdk", "source": "greenhouse", "status": "new", "failureReason": "", "failureCategory": "" }
+      ]
+    },
+    {
+      "companyId": "cmp_29cm",
+      "companyName": "29cm",
+      "domain": "29cm.co.kr",
+      "lastCollectedAt": "2026-05-30T09:00:00.000Z",
+      "leadGrade": "B",
+      "priorityScore": "58",
+      "scoreReason": "domain:+15|email_medium:+15|contact_secured:+20|posts_1:+10|qa_title:+15",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "no",
+      "meetingRequired": "yes",
+      "email": "hr@29cm.co.kr",
+      "emailConfidence": "medium",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "excluded": false,
+      "posts": [
+        { "id": "job_29cm_1", "title": "QA Engineer (E-commerce)", "url": "https://www.wanted.co.kr/wd/29cm-qa", "source": "wanted", "status": "new", "failureReason": "", "failureCategory": "" }
+      ]
+    },
+    {
+      "companyId": "cmp_loplat",
+      "companyName": "loplat",
+      "domain": "loplat.com",
+      "lastCollectedAt": "2026-05-30T09:00:00.000Z",
+      "leadGrade": "B",
+      "priorityScore": "52",
+      "scoreReason": "domain:+15|email_low:+5|posts_1:+10|qa_title:+15|verifiable_service:+15",
+      "salesStage": "new",
+      "contactSecured": "no",
+      "reportRequired": "no",
+      "meetingRequired": "no",
+      "email": "hello@loplat.com",
+      "emailConfidence": "low",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "excluded": false,
+      "posts": [
+        { "id": "job_loplat_1", "title": "QA / Test Engineer (Location Platform)", "url": "https://loplat.com/careers/qa", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" }
+      ]
+    },
+    {
+      "companyId": "cmp_zigbang",
+      "companyName": "zigbang",
+      "domain": "zigbang.com",
+      "lastCollectedAt": "2026-05-29T09:00:00.000Z",
+      "leadGrade": "C",
+      "priorityScore": "35",
+      "scoreReason": "domain:+15|posts_1:+10|qa_title:+15",
+      "salesStage": "new",
+      "contactSecured": "no",
+      "reportRequired": "no",
+      "meetingRequired": "no",
+      "email": "",
+      "emailConfidence": "low",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "excluded": false,
+      "posts": [
+        { "id": "job_zigbang_1", "title": "Junior QA Engineer", "url": "https://zigbang.com/career/qa-junior", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" }
+      ]
+    },
+    {
+      "companyId": "cmp_spoon",
+      "companyName": "spoonradio",
+      "domain": "spooncast.net",
+      "lastCollectedAt": "2026-05-28T09:00:00.000Z",
+      "leadGrade": "C",
+      "priorityScore": "25",
+      "scoreReason": "posts_1:+10|qa_title:+15",
+      "salesStage": "new",
+      "contactSecured": "no",
+      "reportRequired": "no",
+      "meetingRequired": "no",
+      "email": "",
+      "emailConfidence": "low",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "excluded": false,
+      "posts": [
+        { "id": "job_spoon_1", "title": "QA Engineer (Audio Streaming)", "url": "https://boards.greenhouse.io/spoonradio/jobs/qa", "source": "greenhouse", "status": "failed", "failureReason": "http_403", "failureCategory": "blocked" }
+      ]
+    }
+  ],
+  "dedupeCandidates": [
+    {
+      "candidate_id": "cmp_toss_cmp_baemin",
+      "company_id_left": "cmp_toss",
+      "company_id_right": "cmp_baemin",
+      "company_name_left": "toss",
+      "company_name_right": "baemin",
+      "match_basis": "same_root_domain:false",
+      "review_status": "pending"
+    },
+    {
+      "candidate_id": "cmp_karrot_cmp_29cm",
+      "company_id_left": "cmp_karrot",
+      "company_id_right": "cmp_29cm",
+      "company_name_left": "karrot",
+      "company_name_right": "29cm",
+      "match_basis": "name_similarity:0.31",
+      "review_status": "pending"
+    }
+  ],
+  "manualReviewQueue": [
+    {
+      "url": "https://www.wanted.co.kr/wd/blocked-qa-page",
+      "status": "manual_review",
+      "failureReason": "blocked_content_detected",
+      "failureCategory": "blocked",
+      "retryCount": "3",
+      "lastProcessedAt": "2026-05-31T09:00:00.000Z",
+      "notes": "max_retries_reached"
+    }
+  ]
+}
