@@ -196,7 +196,7 @@ th, td {
   padding: 11px 14px;
   text-align: left;
   border-bottom: 1px solid var(--line);
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 th {
@@ -233,9 +233,57 @@ tbody tr.row-failure td {
   background: #fffbeb;
 }
 
+.cell-company {
+  vertical-align: top;
+}
+
 .cell-company strong {
   display: block;
   font-weight: 600;
+}
+
+.company-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.company-line strong {
+  display: inline;
+}
+
+.tier-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid var(--line);
+  background: #f9fafb;
+  color: var(--muted);
+}
+
+.tier-badge.tier-enterprise {
+  color: #7c2d12;
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.tier-badge.tier-mid {
+  color: #1e40af;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.tier-badge.tier-startup {
+  color: var(--ok);
+  border-color: #bbf7d0;
+  background: #f0fdf4;
 }
 
 .cell-company span {
@@ -317,10 +365,15 @@ tbody tr.row-failure td {
 }
 
 .cell-actions {
+  vertical-align: middle;
+}
+
+.action-badges {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  min-width: 180px;
+  align-items: center;
+  max-width: 220px;
 }
 
 .action-badge {
@@ -366,6 +419,10 @@ tbody tr.row-failure td {
   align-items: center;
   justify-content: center;
   padding: 20px;
+}
+
+.modal.hidden {
+  display: none;
 }
 
 .modal-backdrop {
@@ -423,11 +480,10 @@ tbody tr.row-failure td {
   letter-spacing: 0.04em;
 }
 
-.action-row {
+.action-row .action-badges {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 8px;
 }
 
 .reason-list {

@@ -32,6 +32,13 @@ function displayName(row) {
   return row.companyNameKo || row.companyName || "-";
 }
 
+function tierBadge(row) {
+  const label = row.companyTierLabel || "-";
+  const tier = row.companyTier || "unknown";
+  if (label === "-") return "";
+  return `<span class="tier-badge tier-${tier}" title="기업 규모">${escapeHtml(label)}</span>`;
+}
+
 function normalizeActions(row) {
   if (row.actions) return row.actions;
   const flag = (v) => (v === "yes" ? "추천" : "보류");
@@ -59,13 +66,14 @@ function enrichRow(row) {
 
 function renderActionBadges(actions, compact = false) {
   const items = [actions.proposal, actions.meeting, actions.inquiry];
-  return items
+  const badges = items
     .map((a) => {
       const cls = a.status === "추천" ? "action-recommend" : "action-hold";
       const text = compact ? `${a.label} ${a.status}` : `${a.label} ${a.status}`;
       return `<span class="action-badge ${cls}">${escapeHtml(text)}</span>`;
     })
     .join("");
+  return `<div class="action-badges">${badges}</div>`;
 }
 
 function companyNameById(id) {
@@ -187,7 +195,10 @@ function renderLeadsTable() {
               (row, idx) => `
             <tr class="${row.excluded ? "row-excluded" : ""}${hasFailedPosts(row) ? " row-failure" : ""}">
               <td class="cell-company">
-                <strong>${escapeHtml(displayName(row))}</strong>
+                <div class="company-line">
+                  <strong>${escapeHtml(displayName(row))}</strong>
+                  ${tierBadge(row)}
+                </div>
                 <span>${escapeHtml(row.companyName !== displayName(row) ? row.companyName : row.domain || "-")}</span>
               </td>
               <td>${row.posts.length}건</td>
@@ -221,8 +232,8 @@ function openDetail(row) {
   byId("detailBody").innerHTML = `
     <section class="detail-section">
       <h3>회사</h3>
-      <p><strong>${escapeHtml(displayName(row))}</strong> ${row.companyName !== displayName(row) ? `(${escapeHtml(row.companyName)})` : ""}</p>
-      <p class="muted">${escapeHtml(row.domain || "도메인 없음")} · ${row.leadGrade}등급 · ${row.priorityScore}점</p>
+      <p><strong>${escapeHtml(displayName(row))}</strong> ${row.companyName !== displayName(row) ? `(${escapeHtml(row.companyName)})` : ""} ${tierBadge(row)}</p>
+      <p class="muted">${escapeHtml(row.domain || "도메인 없음")} · ${row.leadGrade}등급 · ${row.priorityScore}점${row.companyTierLabel && row.companyTierLabel !== "-" ? ` · ${row.companyTierLabel}기업` : ""}</p>
       ${row.email ? `<p>${escapeHtml(row.email)} <span class="badge confidence-${row.emailConfidence}">${row.emailConfidence}</span></p>` : ""}
     </section>
     <section class="detail-section">
@@ -266,9 +277,22 @@ function closeDetail() {
 }
 
 function bindModal() {
-  byId("detailModal").querySelectorAll("[data-close]").forEach((el) => {
-    el.addEventListener("click", closeDetail);
+  const modal = byId("detailModal");
+  if (!modal) return;
+
+  modal.querySelectorAll("[data-close]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeDetail();
+    });
   });
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal || e.target.classList.contains("modal-backdrop")) {
+      closeDetail();
+    }
+  });
+
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeDetail();
   });
@@ -288,6 +312,7 @@ function renderGroups() {
       <div class="group-header" data-group="${idx}">
         <div>
           <strong>${escapeHtml(displayName(row))}</strong>
+          ${tierBadge(row)}
           <span class="badge grade-${row.leadGrade}">${row.leadGrade}</span>
           <span class="badge">${row.actionSummary}</span>
         </div>
