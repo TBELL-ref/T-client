@@ -98,12 +98,6 @@ function companySubline(row) {
 
 function renderProfileSection(row) {
   const p = row.profile ?? {};
-  if (!row.profileComplete && !p.bizItem && !p.homepage) {
-    return `<section class="detail-section muted-box">
-      <h3>회사 프로필</h3>
-      <p class="muted">사업자·업종 정보 미수집 — <code>npm run enrich:companies</code> 또는 수집 파이프라인 enrichment 실행.</p>
-    </section>`;
-  }
   const rows = [
     ["법인명", p.companyNameLegal],
     ["사업자번호", p.bizNo],
@@ -117,19 +111,169 @@ function renderProfileSection(row) {
     ["산업분류", p.industrySummary]
   ].filter(([, v]) => `${v ?? ""}`.trim());
 
-  return `<section class="detail-section">
-    <h3>회사 프로필 ${p.enrichmentSource ? `<span class="muted">(${escapeHtml(p.enrichmentSource)})</span>` : ""}</h3>
-    <table class="profile-table">
-      <tbody>
-        ${rows
-          .map(
-            ([label, value]) =>
-              `<tr><th>${escapeHtml(label)}</th><td>${typeof value === "string" && value.includes("<a ") ? value : escapeHtml(`${value}`)}</td></tr>`
-          )
-          .join("")}
-      </tbody>
-    </table>
-  </section>`;
+  if (!rows.length) {
+    return `<p class="muted">사업자·업종 정보 없음</p>`;
+  }
+  return `<table class="profile-table"><tbody>${rows
+    .map(
+      ([label, value]) =>
+        `<tr><th>${escapeHtml(label)}</th><td>${typeof value === "string" && value.includes("<a ") ? value : escapeHtml(`${value}`)}</td></tr>`
+    )
+    .join("")}</tbody></table>`;
+}
+
+function sectionHead(title, editKey) {
+  const admin = window.TClientAdmin?.isUnlocked();
+  const btn = admin
+    ? `<button type="button" class="btn-section-edit" data-toggle-edit="${editKey}">수정</button>`
+    : "";
+  return `<div class="section-head"><h3>${title}</h3>${btn}</div>`;
+}
+
+function actionSelect(id, value) {
+  return `<select id="${id}"><option value="추천" ${value === "추천" ? "selected" : ""}>추천</option><option value="진행" ${value === "진행" ? "selected" : ""}>진행</option><option value="보류" ${value === "보류" ? "selected" : ""}>보류</option></select>`;
+}
+
+function renderScoreSection(row) {
+  const breakdown = row.scoreBreakdown ?? [];
+  if (!breakdown.length && !row.scoreReason) {
+    return `<p class="muted">점수 정보 없음</p>`;
+  }
+  const lines = breakdown.length
+    ? breakdown
+        .map(
+          (b) =>
+            `<li><span class="score-label">${escapeHtml(b.label)}</span> <span class="score-pts">${escapeHtml(b.pts || "")}</span></li>`
+        )
+        .join("")
+    : `<li class="muted">${escapeHtml(row.scoreReason)}</li>`;
+  return `<ul class="score-breakdown">${lines}</ul><p class="score-total">합계 <strong>${escapeHtml(row.priorityScore)}</strong>점 · ${escapeHtml(row.leadGrade)}등급</p>`;
+}
+
+function saveAndRefreshDetail(companyId) {
+  reloadRowsWithAdmin();
+  refreshViews();
+  const row = state.rows.find((r) => r.companyId === companyId);
+  if (row) openDetail(row);
+}
+
+function bindDetailEdits(row) {
+  const cid = row.companyId;
+  const entry = () => window.TClientAdmin.getEntry(cid);
+
+  document.querySelectorAll("[data-toggle-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.toggleEdit;
+      byId(`edit-${key}`)?.classList.toggle("hidden");
+    });
+  });
+
+  byId("save-contact")?.addEventListener("click", () => {
+    window.TClientAdmin.setEntry(cid, {
+      contact: {
+        name: byId("edit-contact-name").value.trim(),
+        email: byId("edit-contact-email").value.trim(),
+        phone: byId("edit-contact-phone").value.trim()
+      }
+    });
+    saveAndRefreshDetail(cid);
+  });
+
+  byId("save-profile")?.addEventListener("click", () => {
+    window.TClientAdmin.setEntry(cid, {
+      profile: {
+        companyNameLegal: byId("edit-prof-legal").value.trim(),
+        bizNo: byId("edit-prof-bizno").value.trim(),
+        bizType: byId("edit-prof-type").value.trim(),
+        bizItem: byId("edit-prof-item").value.trim(),
+        companyScale: byId("edit-prof-scale").value.trim(),
+        bizStatus: byId("edit-prof-status").value.trim(),
+        foundedDate: byId("edit-prof-founded").value.trim(),
+        employeeCount: byId("edit-prof-emp").value.trim(),
+        homepage: byId("edit-prof-home").value.trim(),
+        industrySummary: byId("edit-prof-industry").value.trim()
+      },
+      domain: byId("edit-prof-domain").value.trim()
+    });
+    saveAndRefreshDetail(cid);
+  });
+
+  byId("save-actions")?.addEventListener("click", () => {
+    window.TClientAdmin.setEntry(cid, {
+      actions: {
+        proposal: byId("edit-act-proposal").value,
+        meeting: byId("edit-act-meeting").value,
+        inquiry: byId("edit-act-inquiry").value
+      }
+    });
+    saveAndRefreshDetail(cid);
+  });
+
+  byId("save-classification")?.addEventListener("click", () => {
+    window.TClientAdmin.setEntry(cid, {
+      companyTier: byId("edit-tier").value,
+      leadGrade: byId("edit-grade").value,
+      companyNameKo: byId("edit-name-ko").value.trim(),
+      hidden: byId("edit-hidden").checked,
+      favorite: byId("edit-fav").checked,
+      excludeReason: byId("edit-exclude").value.trim(),
+      notes: byId("edit-notes").value.trim()
+    });
+    saveAndRefreshDetail(cid);
+  });
+
+  byId("save-score")?.addEventListener("click", () => {
+    const parts = {};
+    document.querySelectorAll(".score-part-input").forEach((inp) => {
+      const v = inp.value.trim();
+      if (v !== "") parts[inp.dataset.scorePart] = v;
+    });
+    const total = byId("edit-score-total").value.trim();
+    if (total !== "") parts._total = total;
+    window.TClientAdmin.setEntry(cid, { scoreParts: parts });
+    saveAndRefreshDetail(cid);
+    setAdminStatus("점수 반영됨 (로컬). GitHub 저장은 상단 관리.");
+  });
+
+  byId("save-post")?.addEventListener("click", () => {
+    const title = byId("edit-post-title").value.trim();
+    const url = byId("edit-post-url").value.trim();
+    if (!url) return;
+    const prev = entry().extraPosts ?? [];
+    window.TClientAdmin.setEntry(cid, {
+      extraPosts: [...prev, { title: title || "QA 공고", url, source: "manual", sourceLabel: "수동" }]
+    });
+    saveAndRefreshDetail(cid);
+  });
+}
+
+function reloadRowsWithAdmin() {
+  state.rows = state.rawRows.map((row) => {
+    const enriched = enrichRow(row);
+    return window.TClientAdmin ? window.TClientAdmin.applyToRow(enriched) : enriched;
+  });
+}
+
+function toggleFavorite(companyId) {
+  if (!window.TClientAdmin?.isUnlocked()) return;
+  const entry = window.TClientAdmin.getEntry(companyId);
+  window.TClientAdmin.setEntry(companyId, { favorite: !entry.favorite });
+  reloadRowsWithAdmin();
+  refreshViews();
+}
+
+function renderScoreEdit(row) {
+  const breakdown = row.scoreBreakdown ?? [];
+  if (!breakdown.length) return "";
+  return breakdown
+    .map((b) => {
+      const defaultPts = `${b.pts ?? ""}`.replace(":", "") || "0";
+      const val = b.override !== undefined && b.override !== "" ? b.override : "";
+      return `<label>${escapeHtml(b.label)}
+        <input type="number" class="score-part-input" data-score-part="${escapeAttr(b.part)}" value="${escapeAttr(val)}" placeholder="${escapeAttr(defaultPts)}" />
+      </label>`;
+    })
+    .join("");
 }
 
 function rowTierClass(row) {
@@ -156,7 +300,7 @@ function enrichRow(row) {
   const actionSummary =
     row.actionSummary ||
     [actions.proposal, actions.meeting, actions.inquiry]
-      .filter((a) => a.status === "추천")
+      .filter((a) => a.status === "추천" || a.status === "진행")
       .map((a) => a.label)
       .join(" · ") ||
     "보류";
@@ -167,12 +311,24 @@ function renderActionBadges(actions, compact = false) {
   const items = [actions.proposal, actions.meeting, actions.inquiry];
   const badges = items
     .map((a) => {
-      const cls = a.status === "추천" ? "action-recommend" : "action-hold";
+      const cls =
+        a.status === "추천"
+          ? "action-recommend"
+          : a.status === "진행"
+            ? "action-progress"
+            : "action-hold";
       const text = compact ? `${a.label} ${a.status}` : `${a.label} ${a.status}`;
       return `<span class="action-badge ${cls}">${escapeHtml(text)}</span>`;
     })
     .join("");
   return `<div class="action-badges">${badges}</div>`;
+}
+
+function contactDisplay(row) {
+  const c = row.contact ?? {};
+  if (c.name) return escapeHtml(c.name);
+  if (row.contactSecured === "yes") return "확보";
+  return "미확보";
 }
 
 function companyNameById(id) {
@@ -208,9 +364,9 @@ function passesFilters(row) {
   const haystack = `${displayName(row)} ${row.companyName} ${row.domain} ${row.profile?.bizItem ?? ""} ${row.profile?.bizType ?? ""} ${row.profile?.companyScale ?? ""}`.toLowerCase();
   if (q && !haystack.includes(q)) return false;
   if (grade && row.leadGrade !== grade) return false;
-  if (action === "proposal" && actions.proposal.status !== "추천") return false;
-  if (action === "meeting" && actions.meeting.status !== "추천") return false;
-  if (action === "inquiry" && actions.inquiry.status !== "추천") return false;
+  if (action === "proposal" && !["추천", "진행"].includes(actions.proposal.status)) return false;
+  if (action === "meeting" && !["추천", "진행"].includes(actions.meeting.status)) return false;
+  if (action === "inquiry" && !["추천", "진행"].includes(actions.inquiry.status)) return false;
   if (contact && row.contactSecured !== contact) return false;
   if (exclude === "active" && row.excluded) return false;
   if (exclude === "excluded" && !row.excluded) return false;
@@ -230,6 +386,7 @@ function sortRows(rows) {
   const list = [...rows];
 
   list.sort((a, b) => {
+    if (a.userFavorite !== b.userFavorite) return a.userFavorite ? -1 : 1;
     if (a.excluded !== b.excluded) return a.excluded ? 1 : -1;
     if (mode === "name") return displayName(a).localeCompare(displayName(b), "ko");
     if (mode === "recent") return new Date(b.lastCollectedAt || 0) - new Date(a.lastCollectedAt || 0);
@@ -316,7 +473,7 @@ function renderLeadsTable() {
               <td><strong>${row.priorityScore}</strong></td>
               <td><span class="badge grade-${row.leadGrade}">${row.leadGrade}</span></td>
               <td class="cell-actions">${renderActionBadges(row.actions, true)}</td>
-              <td><span class="badge">${row.contactSecured === "yes" ? "확보" : "미확보"}</span></td>
+              <td><span class="badge">${contactDisplay(row)}</span></td>
               <td>${formatDate(row.lastCollectedAt)}</td>
               <td><button type="button" class="btn-detail" data-detail="${idx}">상세</button></td>
             </tr>`
@@ -335,107 +492,157 @@ function renderLeadsTable() {
   });
 }
 
-function renderAdminEditSection(row) {
-  if (!window.TClientAdmin?.isUnlocked()) return "";
-  const e = window.TClientAdmin.getEntry(row.companyId);
-  return `
-    <section class="detail-section admin-edit-box">
-      <h3>관리자 수정</h3>
-      <div class="admin-form">
-        <label><input type="checkbox" id="admHidden" ${e.hidden ? "checked" : ""} /> 목록에서 숨김</label>
-        <label><input type="checkbox" id="admFav" ${row.userFavorite ? "checked" : ""} /> 즐겨찾기</label>
-        <label>표시 회사명 <input type="text" id="admNameKo" value="${escapeAttr(e.companyNameKo || row.companyNameKo || "")}" /></label>
-        <label>등급 <select id="admGrade"><option value="">(유지)</option><option value="A" ${e.leadGrade === "A" ? "selected" : ""}>A</option><option value="B" ${e.leadGrade === "B" ? "selected" : ""}>B</option><option value="C" ${e.leadGrade === "C" ? "selected" : ""}>C</option></select></label>
-        <label>이메일 <input type="email" id="admEmail" value="${escapeAttr(e.email ?? row.email ?? "")}" /></label>
-        <label>메모 <textarea id="admNotes" rows="2">${escapeHtml(e.notes ?? row.manualNotes ?? "")}</textarea></label>
-        <label>제외 사유 <input type="text" id="admExclude" value="${escapeAttr(e.excludeReason ?? row.excludeReason ?? "")}" placeholder="입력 시 제외 처리" /></label>
-        <button type="button" class="btn-primary" id="admSaveRow">저장</button>
-      </div>
-    </section>`;
-}
-
-function toggleFavorite(companyId) {
-  if (!window.TClientAdmin?.isUnlocked()) return;
-  const entry = window.TClientAdmin.getEntry(companyId);
-  window.TClientAdmin.setEntry(companyId, { favorite: !entry.favorite });
-  reloadRowsWithAdmin();
-  refreshViews();
-}
-
-function reloadRowsWithAdmin() {
-  state.rows = state.rawRows.map((row) => {
-    const enriched = enrichRow(row);
-    return window.TClientAdmin ? window.TClientAdmin.applyToRow(enriched) : enriched;
-  });
-}
-
-function bindAdminEditRow(row) {
-  byId("admSaveRow")?.addEventListener("click", () => {
-    window.TClientAdmin.setEntry(row.companyId, {
-      hidden: byId("admHidden").checked,
-      favorite: byId("admFav").checked,
-      companyNameKo: byId("admNameKo").value.trim(),
-      leadGrade: byId("admGrade").value,
-      email: byId("admEmail").value.trim(),
-      notes: byId("admNotes").value.trim(),
-      excludeReason: byId("admExclude").value.trim()
-    });
-    reloadRowsWithAdmin();
-    refreshViews();
-    openDetail(state.rows.find((r) => r.companyId === row.companyId) ?? row);
-    setAdminStatus("저장됨 (로컬). GitHub 저장은 상단 관리자 패널.");
-  });
-}
-
 function openDetail(row) {
   const modal = byId("detailModal");
+  const e = window.TClientAdmin?.getEntry(row.companyId) ?? {};
+  const p = { ...(row.profile ?? {}), ...(e.profile ?? {}) };
+  const c = row.contact ?? {};
+  const admin = window.TClientAdmin?.isUnlocked();
+  const reasons = row.actionReasons ?? [];
+
   byId("detailTitle").textContent = displayName(row);
-  const reasons = row.actionReasons ?? [
-    row.actions.proposal.status === "추천" ? "제안 발송을 추천합니다." : null,
-    row.actions.meeting.status === "추천" ? "초기 미팅을 추천합니다." : null,
-    row.actions.inquiry.status === "추천" ? "이메일 문의를 추천합니다." : null
-  ].filter(Boolean);
 
   byId("detailBody").innerHTML = `
     <section class="detail-section">
-      <h3>회사</h3>
-      <p><strong>${escapeHtml(displayName(row))}</strong> ${row.companyName !== displayName(row) ? `(${escapeHtml(row.companyName)})` : ""} ${tierBadge(row)}</p>
-      <p class="muted">${escapeHtml(companySubline(row))} · ${row.leadGrade}등급 · ${row.priorityScore}점${row.companyTierLabel && row.companyTierLabel !== "-" ? ` · ${row.companyTierLabel}기업` : ""}</p>
-      ${row.email ? `<p>${escapeHtml(row.email)} <span class="badge confidence-${row.emailConfidence}">${row.emailConfidence}</span></p>` : `<p class="muted">담당자 이메일 미확인</p>`}
+      ${sectionHead("분류 · 등급", "classify")}
+      <p><strong>${escapeHtml(displayName(row))}</strong> ${tierBadge(row)} <span class="badge grade-${row.leadGrade}">${row.leadGrade}</span></p>
+      <p class="muted">${escapeHtml(companySubline(row))} · ${row.priorityScore}점</p>
+      ${
+        admin
+          ? `<div id="edit-classify" class="section-edit hidden">
+        <div class="admin-form compact">
+          <label>표시 회사명 <input type="text" id="edit-name-ko" value="${escapeAttr(e.companyNameKo || row.companyNameKo || "")}" /></label>
+          <label>규모(中·小·大)
+            <select id="edit-tier">
+              <option value="">(자동)</option>
+              <option value="startup" ${(e.companyTier || row.companyTier) === "startup" ? "selected" : ""}>소·스타트업</option>
+              <option value="mid" ${(e.companyTier || row.companyTier) === "mid" ? "selected" : ""}>중견</option>
+              <option value="enterprise" ${(e.companyTier || row.companyTier) === "enterprise" ? "selected" : ""}>대기업</option>
+              <option value="unknown" ${(e.companyTier || row.companyTier) === "unknown" ? "selected" : ""}>미확인</option>
+            </select>
+          </label>
+          <label>등급 <select id="edit-grade"><option value="">(유지)</option><option value="A" ${(e.leadGrade || row.leadGrade) === "A" ? "selected" : ""}>A</option><option value="B" ${(e.leadGrade || row.leadGrade) === "B" ? "selected" : ""}>B</option><option value="C" ${(e.leadGrade || row.leadGrade) === "C" ? "selected" : ""}>C</option></select></label>
+          <label><input type="checkbox" id="edit-fav" ${row.userFavorite ? "checked" : ""} /> 즐겨찾기</label>
+          <label><input type="checkbox" id="edit-hidden" ${e.hidden ? "checked" : ""} /> 목록 숨김</label>
+          <label>제외 사유 <input type="text" id="edit-exclude" value="${escapeAttr(e.excludeReason ?? row.excludeReason ?? "")}" /></label>
+          <label>메모 <textarea id="edit-notes" rows="2">${escapeHtml(e.notes ?? row.manualNotes ?? "")}</textarea></label>
+          <button type="button" class="btn-primary btn-sm" id="save-classification">적용</button>
+        </div>
+      </div>`
+          : ""
+      }
     </section>
-    ${renderProfileSection(row)}
+
     <section class="detail-section">
-      <h3>다음 액션</h3>
+      ${sectionHead("담당자", "contact")}
+      <p>${c.name ? `<strong>${escapeHtml(c.name)}</strong> · ` : ""}${row.email ? escapeHtml(row.email) : "<span class=\"muted\">이메일 없음</span>"}${c.phone ? ` · ${escapeHtml(c.phone)}` : ""}</p>
+      ${
+        admin
+          ? `<div id="edit-contact" class="section-edit hidden">
+        <div class="admin-form compact">
+          <label>이름 <input type="text" id="edit-contact-name" value="${escapeAttr(c.name ?? "")}" /></label>
+          <label>이메일 <input type="email" id="edit-contact-email" value="${escapeAttr(c.email ?? row.email ?? "")}" /></label>
+          <label>전화 <input type="tel" id="edit-contact-phone" value="${escapeAttr(c.phone ?? "")}" /></label>
+          <button type="button" class="btn-primary btn-sm" id="save-contact">적용</button>
+        </div>
+      </div>`
+          : ""
+      }
+    </section>
+
+    <section class="detail-section">
+      ${sectionHead("회사 프로필", "profile")}
+      ${renderProfileSection(row)}
+      ${
+        admin
+          ? `<div id="edit-profile" class="section-edit hidden">
+        <div class="admin-form compact">
+          <label>도메인 <input type="text" id="edit-prof-domain" value="${escapeAttr(e.domain || row.domain || "")}" placeholder="example.com" /></label>
+          <label>법인명 <input type="text" id="edit-prof-legal" value="${escapeAttr(p.companyNameLegal ?? "")}" /></label>
+          <label>사업자번호 <input type="text" id="edit-prof-bizno" value="${escapeAttr(p.bizNo ?? "")}" /></label>
+          <label>업태 <input type="text" id="edit-prof-type" value="${escapeAttr(p.bizType ?? "")}" /></label>
+          <label>종목 <input type="text" id="edit-prof-item" value="${escapeAttr(p.bizItem ?? "")}" /></label>
+          <label>기업규모 <input type="text" id="edit-prof-scale" value="${escapeAttr(p.companyScale ?? "")}" placeholder="중소기업" /></label>
+          <label>사업자상태 <input type="text" id="edit-prof-status" value="${escapeAttr(p.bizStatus ?? "")}" /></label>
+          <label>등록일 <input type="text" id="edit-prof-founded" value="${escapeAttr(p.foundedDate ?? "")}" /></label>
+          <label>종업원 <input type="text" id="edit-prof-emp" value="${escapeAttr(p.employeeCount ?? "")}" /></label>
+          <label>홈페이지 <input type="url" id="edit-prof-home" value="${escapeAttr(p.homepage ?? "")}" /></label>
+          <label>산업분류 <input type="text" id="edit-prof-industry" value="${escapeAttr(p.industrySummary ?? "")}" /></label>
+          <button type="button" class="btn-primary btn-sm" id="save-profile">적용</button>
+        </div>
+      </div>`
+          : ""
+      }
+    </section>
+
+    <section class="detail-section">
+      ${sectionHead("다음 액션", "actions")}
       <div class="action-row">${renderActionBadges(row.actions)}</div>
       <ul class="reason-list">${reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>
+      ${
+        admin
+          ? `<div id="edit-actions" class="section-edit hidden">
+        <div class="admin-form compact action-edit-grid">
+          <label>제안 ${actionSelect("edit-act-proposal", row.actions.proposal.status)}</label>
+          <label>미팅 ${actionSelect("edit-act-meeting", row.actions.meeting.status)}</label>
+          <label>문의 ${actionSelect("edit-act-inquiry", row.actions.inquiry.status)}</label>
+          <button type="button" class="btn-primary btn-sm" id="save-actions">적용</button>
+        </div>
+      </div>`
+          : ""
+      }
     </section>
+
     <section class="detail-section">
-      <h3>QA 채용 공고 (${row.posts.length}건)</h3>
+      ${sectionHead(`QA 채용 공고 (${row.posts.length}건)`, "posts")}
       <table>
         <thead><tr><th>공고</th><th>출처</th><th>링크</th></tr></thead>
         <tbody>
           ${row.posts
             .map(
-              (p) => `
+              (post) => `
             <tr>
-              <td>${escapeHtml(p.title)}${p.failureReason ? `<div class="reason-text">${escapeHtml(p.failureReason)}</div>` : ""}</td>
-              <td>${escapeHtml(p.sourceLabel || p.source)}</td>
-              <td><a class="link" href="${escapeAttr(p.url)}" target="_blank" rel="noreferrer">${iconSvg("external")} 열기</a></td>
+              <td>${escapeHtml(post.title)}</td>
+              <td>${escapeHtml(post.sourceLabel || post.source)}</td>
+              <td><a class="link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${iconSvg("external")} 열기</a></td>
             </tr>`
             )
             .join("")}
         </tbody>
       </table>
+      ${
+        admin
+          ? `<div id="edit-posts" class="section-edit hidden">
+        <div class="admin-form compact">
+          <label>공고 제목 <input type="text" id="edit-post-title" placeholder="QA 엔지니어" /></label>
+          <label>URL <input type="url" id="edit-post-url" placeholder="https://..." /></label>
+          <button type="button" class="btn-primary btn-sm" id="save-post">공고 추가</button>
+        </div>
+      </div>`
+          : ""
+      }
     </section>
-    ${
-      row.scoreReason
-        ? `<section class="detail-section muted-box"><h3>점수 근거</h3><p class="score-reason">${escapeHtml(row.scoreReason)}</p></section>`
-        : ""
-    }
+
+    <section class="detail-section muted-box">
+      ${sectionHead("점수 근거", "score")}
+      ${renderScoreSection(row)}
+      ${
+        admin
+          ? `<div id="edit-score" class="section-edit hidden">
+        <div class="admin-form compact">
+          ${renderScoreEdit(row)}
+          <label>총점 직접 입력 <input type="number" id="edit-score-total" value="${escapeAttr(row.priorityScore)}" min="0" max="200" /></label>
+          <p class="muted">항목·총점 비우면 자동 계산. 규모 변경은 「분류·등급 → 적용」으로 즉시 반영.</p>
+          <button type="button" class="btn-primary btn-sm" id="save-score">적용</button>
+        </div>
+      </div>`
+          : ""
+      }
+    </section>
     ${row.excludeReason ? `<p class="warn">제외: ${escapeHtml(row.excludeReason)}</p>` : ""}
-    ${renderAdminEditSection(row)}
   `;
-  bindAdminEditRow(row);
+
+  if (admin) bindDetailEdits(row);
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden", "false");
 }
