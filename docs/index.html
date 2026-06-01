@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="./styles.css" />
     <script defer src="./icons.js"></script>
+    <script defer src="./ui-select.js"></script>
     <script defer src="./admin.js"></script>
     <script defer src="./app.js"></script>
   </head>
@@ -110,17 +111,13 @@
       </section>
 
       <nav class="tabs" aria-label="보기 전환">
-        <button type="button" data-tab="leads" class="tab active">리드 표</button>
-        <button type="button" data-tab="groups" class="tab">회사별 공고</button>
-        <button type="button" data-tab="dedupe" class="tab">중복 후보</button>
-        <button type="button" data-tab="manual" class="tab">수동 검토</button>
+        <button type="button" data-tab="leads" class="tab active">리드</button>
+        <button type="button" data-tab="posts" class="tab">전체 공고</button>
       </nav>
 
       <main class="main-panels">
         <div id="leads" class="panel"></div>
-        <div id="groups" class="panel hidden"></div>
-        <div id="dedupe" class="panel hidden"></div>
-        <div id="manual" class="panel hidden"></div>
+        <div id="posts" class="panel hidden"></div>
       </main>
     </div>
 

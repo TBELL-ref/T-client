@@ -6,6 +6,7 @@ const state = {
   failureSummary: {},
   gradeSummary: {},
   activePreset: "",
+  activeTab: "leads",
   tableSort: { column: "priorityScore", direction: "desc" }
 };
 
@@ -100,48 +101,86 @@ function companySubline(row) {
   return namePart || "도메인 미확인 · 업종 미수집";
 }
 
-function renderProfileSection(row) {
-  const p = row.profile ?? {};
-  const rows = [
-    ["법인명", p.companyNameLegal],
-    ["사업자번호", p.bizNo],
-    ["업태", p.bizType],
-    ["종목", p.bizItem],
-    ["기업규모", p.companyScale],
-    ["사업자상태", p.bizStatus],
-    ["등록일", p.foundedDate],
-    ["종업원", p.employeeCount ? `${p.employeeCount}명` : ""],
-    ["홈페이지", p.homepage ? `<a class="link" href="${escapeAttr(p.homepage)}" target="_blank" rel="noreferrer">${escapeHtml(p.homepage)}</a>` : ""],
-    ["산업분류", p.industrySummary]
-  ].filter(([, v]) => `${v ?? ""}`.trim());
+function detailTitle(text) {
+  return `<h3 class="detail-title">${escapeHtml(text)}</h3>`;
+}
 
-  if (!rows.length) {
-    return `<p class="muted">사업자·업종 정보 없음</p>`;
+function inlineInput(id, value, type = "text", placeholder = "") {
+  return `<input type="${type}" id="${id}" class="inline-field" value="${escapeAttr(value ?? "")}" placeholder="${escapeAttr(placeholder)}" />`;
+}
+
+function inlineSelect(id, value, options) {
+  const opts = options
+    .map(([v, l]) => `<option value="${escapeAttr(v)}"${value === v ? " selected" : ""}>${escapeHtml(l)}</option>`)
+    .join("");
+  return `<select id="${id}" class="inline-field inline-select">${opts}</select>`;
+}
+
+function renderProfileSection(row, admin = false, p = {}, domain = "") {
+  const fields = [
+    ["도메인", "edit-prof-domain", domain],
+    ["법인명", "edit-prof-legal", p.companyNameLegal],
+    ["사업자번호", "edit-prof-bizno", p.bizNo],
+    ["업태", "edit-prof-type", p.bizType],
+    ["종목", "edit-prof-item", p.bizItem],
+    ["기업규모", "edit-prof-scale", p.companyScale],
+    ["사업자상태", "edit-prof-status", p.bizStatus],
+    ["등록일", "edit-prof-founded", p.foundedDate],
+    ["종업원", "edit-prof-emp", p.employeeCount],
+    ["홈페이지", "edit-prof-home", p.homepage],
+    ["산업분류", "edit-prof-industry", p.industrySummary]
+  ].filter(([, , v]) => admin || `${v ?? ""}`.trim());
+
+  if (!fields.length) return `<p class="muted">사업자·업종 정보 없음</p>`;
+
+  if (admin) {
+    return `<table class="profile-table profile-inline"><tbody>${fields
+      .map(
+        ([label, id, val]) =>
+          `<tr><th>${escapeHtml(label)}</th><td>${inlineInput(id, val, id.includes("home") ? "url" : "text")}</td></tr>`
+      )
+      .join("")}</tbody></table>`;
   }
-  return `<table class="profile-table"><tbody>${rows
-    .map(
-      ([label, value]) =>
-        `<tr><th>${escapeHtml(label)}</th><td>${typeof value === "string" && value.includes("<a ") ? value : escapeHtml(`${value}`)}</td></tr>`
-    )
+
+  return `<table class="profile-table"><tbody>${fields
+    .map(([label, , val]) => {
+      const v = `${val ?? ""}`.trim();
+      const cell =
+        label === "홈페이지" && v
+          ? `<a class="link" href="${escapeAttr(v)}" target="_blank" rel="noreferrer">${escapeHtml(v)}</a>`
+          : escapeHtml(label === "종업원" && v ? `${v}명` : v);
+      return `<tr><th>${escapeHtml(label)}</th><td>${cell}</td></tr>`;
+    })
     .join("")}</tbody></table>`;
 }
 
-function sectionHead(title, editKey) {
-  const admin = window.TClientAdmin?.isUnlocked();
-  const btn = admin
-    ? `<button type="button" class="btn-section-edit" data-toggle-edit="${editKey}">수정</button>`
-    : "";
-  return `<div class="section-head"><h3>${title}</h3>${btn}</div>`;
-}
-
 function actionSelect(id, value) {
-  return `<select id="${id}"><option value="추천" ${value === "추천" ? "selected" : ""}>추천</option><option value="진행" ${value === "진행" ? "selected" : ""}>진행</option><option value="보류" ${value === "보류" ? "selected" : ""}>보류</option></select>`;
+  return inlineSelect(id, value, [
+    ["추천", "추천"],
+    ["진행", "진행"],
+    ["보류", "보류"]
+  ]);
 }
 
-function renderScoreSection(row) {
+function renderScoreSection(row, admin = false) {
   const breakdown = row.scoreBreakdown ?? [];
   if (!breakdown.length && !row.scoreReason) {
     return `<p class="muted">점수 정보 없음</p>`;
+  }
+  if (admin && breakdown.length) {
+    const rows = breakdown
+      .map((b) => {
+        const defaultPts = `${b.pts ?? ""}`.replace(":", "") || "0";
+        const val = b.override !== undefined && b.override !== "" ? b.override : "";
+        return `<tr>
+          <th>${escapeHtml(b.label)} <span class="score-pts">${escapeHtml(b.pts || "")}</span></th>
+          <td><input type="number" class="inline-field score-part-input" data-score-part="${escapeAttr(b.part)}" value="${escapeAttr(val)}" placeholder="${escapeAttr(defaultPts)}" /></td>
+        </tr>`;
+      })
+      .join("");
+    return `<table class="profile-table profile-inline"><tbody>${rows}
+      <tr><th>총점</th><td>${inlineInput("edit-score-total", row.priorityScore, "number")}</td></tr>
+    </tbody></table>`;
   }
   const lines = breakdown.length
     ? breakdown
@@ -165,89 +204,65 @@ function bindDetailEdits(row) {
   const cid = row.companyId;
   const entry = () => window.TClientAdmin.getEntry(cid);
 
-  document.querySelectorAll("[data-toggle-edit]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const key = btn.dataset.toggleEdit;
-      byId(`edit-${key}`)?.classList.toggle("hidden");
-    });
-  });
-
-  byId("save-contact")?.addEventListener("click", () => {
-    window.TClientAdmin.setEntry(cid, {
-      contact: {
-        name: byId("edit-contact-name").value.trim(),
-        email: byId("edit-contact-email").value.trim(),
-        phone: byId("edit-contact-phone").value.trim()
-      }
-    });
-    saveAndRefreshDetail(cid);
-  });
-
-  byId("save-profile")?.addEventListener("click", () => {
-    window.TClientAdmin.setEntry(cid, {
-      profile: {
-        companyNameLegal: byId("edit-prof-legal").value.trim(),
-        bizNo: byId("edit-prof-bizno").value.trim(),
-        bizType: byId("edit-prof-type").value.trim(),
-        bizItem: byId("edit-prof-item").value.trim(),
-        companyScale: byId("edit-prof-scale").value.trim(),
-        bizStatus: byId("edit-prof-status").value.trim(),
-        foundedDate: byId("edit-prof-founded").value.trim(),
-        employeeCount: byId("edit-prof-emp").value.trim(),
-        homepage: byId("edit-prof-home").value.trim(),
-        industrySummary: byId("edit-prof-industry").value.trim()
-      },
-      domain: byId("edit-prof-domain").value.trim()
-    });
-    saveAndRefreshDetail(cid);
-  });
-
-  byId("save-actions")?.addEventListener("click", () => {
-    window.TClientAdmin.setEntry(cid, {
-      actions: {
-        proposal: byId("edit-act-proposal").value,
-        meeting: byId("edit-act-meeting").value,
-        inquiry: byId("edit-act-inquiry").value
-      }
-    });
-    saveAndRefreshDetail(cid);
-  });
-
-  byId("save-classification")?.addEventListener("click", () => {
-    window.TClientAdmin.setEntry(cid, {
-      companyTier: byId("edit-tier").value,
-      leadGrade: byId("edit-grade").value,
-      companyNameKo: byId("edit-name-ko").value.trim(),
-      hidden: byId("edit-hidden").checked,
-      favorite: byId("edit-fav").checked,
-      excludeReason: byId("edit-exclude").value.trim(),
-      notes: byId("edit-notes").value.trim()
-    });
-    saveAndRefreshDetail(cid);
-  });
-
-  byId("save-score")?.addEventListener("click", () => {
+  byId("detail-save-all")?.addEventListener("click", () => {
     const parts = {};
     document.querySelectorAll(".score-part-input").forEach((inp) => {
       const v = inp.value.trim();
       if (v !== "") parts[inp.dataset.scorePart] = v;
     });
-    const total = byId("edit-score-total").value.trim();
+    const total = byId("edit-score-total")?.value.trim() ?? "";
     if (total !== "") parts._total = total;
-    window.TClientAdmin.setEntry(cid, { scoreParts: parts });
-    saveAndRefreshDetail(cid);
-    setAdminStatus("점수 반영됨 (로컬). GitHub 저장은 상단 관리.");
-  });
 
-  byId("save-post")?.addEventListener("click", () => {
-    const title = byId("edit-post-title").value.trim();
-    const url = byId("edit-post-url").value.trim();
-    if (!url) return;
-    const prev = entry().extraPosts ?? [];
-    window.TClientAdmin.setEntry(cid, {
-      extraPosts: [...prev, { title: title || "QA 공고", url, source: "manual", sourceLabel: "수동" }]
-    });
+    const patch = {
+      companyNameKo: byId("edit-name-ko")?.value.trim(),
+      companyTier: byId("edit-tier")?.value,
+      leadGrade: byId("edit-grade")?.value,
+      hidden: byId("edit-hidden")?.checked,
+      favorite: byId("edit-fav")?.checked,
+      excludeReason: byId("edit-exclude")?.value.trim(),
+      notes: byId("edit-notes")?.value.trim(),
+      contact: {
+        name: byId("edit-contact-name")?.value.trim(),
+        email: byId("edit-contact-email")?.value.trim(),
+        phone: byId("edit-contact-phone")?.value.trim()
+      },
+      profile: {
+        companyNameLegal: byId("edit-prof-legal")?.value.trim(),
+        bizNo: byId("edit-prof-bizno")?.value.trim(),
+        bizType: byId("edit-prof-type")?.value.trim(),
+        bizItem: byId("edit-prof-item")?.value.trim(),
+        companyScale: byId("edit-prof-scale")?.value.trim(),
+        bizStatus: byId("edit-prof-status")?.value.trim(),
+        foundedDate: byId("edit-prof-founded")?.value.trim(),
+        employeeCount: byId("edit-prof-emp")?.value.trim(),
+        homepage: byId("edit-prof-home")?.value.trim(),
+        industrySummary: byId("edit-prof-industry")?.value.trim()
+      },
+      domain: byId("edit-prof-domain")?.value.trim(),
+      actions: {
+        proposal: byId("edit-act-proposal")?.value,
+        meeting: byId("edit-act-meeting")?.value,
+        inquiry: byId("edit-act-inquiry")?.value
+      },
+      scoreParts: parts
+    };
+
+    const postUrl = byId("edit-post-url")?.value.trim();
+    if (postUrl) {
+      patch.extraPosts = [
+        ...(entry().extraPosts ?? []),
+        {
+          title: byId("edit-post-title")?.value.trim() || "QA 공고",
+          url: postUrl,
+          source: "manual",
+          sourceLabel: "수동"
+        }
+      ];
+    }
+
+    window.TClientAdmin.setEntry(cid, patch);
     saveAndRefreshDetail(cid);
+    setAdminStatus("저장됨 (로컬). GitHub 반영은 상단 관리 → 저장 반영");
   });
 }
 
@@ -264,20 +279,6 @@ function toggleFavorite(companyId) {
   window.TClientAdmin.setEntry(companyId, { favorite: !entry.favorite });
   reloadRowsWithAdmin();
   refreshViews();
-}
-
-function renderScoreEdit(row) {
-  const breakdown = row.scoreBreakdown ?? [];
-  if (!breakdown.length) return "";
-  return breakdown
-    .map((b) => {
-      const defaultPts = `${b.pts ?? ""}`.replace(":", "") || "0";
-      const val = b.override !== undefined && b.override !== "" ? b.override : "";
-      return `<label>${escapeHtml(b.label)}
-        <input type="number" class="score-part-input" data-score-part="${escapeAttr(b.part)}" value="${escapeAttr(val)}" placeholder="${escapeAttr(defaultPts)}" />
-      </label>`;
-    })
-    .join("");
 }
 
 function rowTierClass(row) {
@@ -463,28 +464,26 @@ function renderDashboard() {
   const profile = s.profileComplete ?? 0;
 
   const stats = [
-    { icon: "building", label: "수집 회사", value: totalCompanies, sub: "숨김 제외" },
-    { icon: "briefcase", label: "QA 공고", value: totalPosts, sub: "전체 공고 수" },
-    { icon: "target", label: "제안 추천", value: proposal, sub: "액션 기준" },
-    { icon: "users", label: "프로필 확보", value: profile, sub: "사업자·업종" },
-    { icon: "mail", label: "문의 추천", value: s.inquiryRecommend ?? 0, sub: "담당자·등급" },
-    { icon: "layers", label: "제외", value: s.excluded ?? state.rows.filter((r) => r.excluded).length, sub: "비활성" }
+    { emoji: "🏢", value: totalCompanies, label: "수집 회사" },
+    { emoji: "💼", value: totalPosts, label: "QA 공고" },
+    { emoji: "🎯", value: proposal, label: "제안 추천" },
+    { emoji: "📋", value: profile, label: "프로필 확보" },
+    { emoji: "✉️", value: s.inquiryRecommend ?? 0, label: "문의 추천" },
+    { emoji: "🚫", value: s.excluded ?? state.rows.filter((r) => r.excluded).length, label: "제외" }
   ];
 
   byId("dashboard").innerHTML = `
     <article class="dash-card dash-chart">
-      <h2 class="dash-card-title">${iconSvg("chart", 18)} 등급 분포</h2>
+      <h2 class="dash-card-title">${iconSvg("chart", 16)} 등급 분포</h2>
       ${renderGradeDonut(gradeCounts)}
     </article>
-    <div class="dash-stats">
+    <div class="stat-strip">
       ${stats
         .map(
           (item) => `
-        <div class="stat-card">
-          <span class="stat-icon">${iconSvg(item.icon, 18)}</span>
-          <span class="stat-label">${escapeHtml(item.label)}</span>
-          <span class="stat-value">${item.value}</span>
-          <span class="stat-sub">${escapeHtml(item.sub)}</span>
+        <div class="stat-item">
+          <span class="stat-emoji" aria-hidden="true">${item.emoji}</span>
+          <span class="stat-text"><strong>${item.value}</strong> ${escapeHtml(item.label)}</span>
         </div>`
         )
         .join("")}
@@ -509,9 +508,20 @@ function renderPresets() {
   });
 }
 
+function updateResultCount() {
+  const filtered = state.rows.filter(passesFilters);
+  if (state.activeTab === "posts") {
+    let n = 0;
+    for (const r of filtered) n += r.posts?.length || 0;
+    byId("resultCount").textContent = `${n}건 공고 / 회사 ${filtered.length}건`;
+  } else {
+    byId("resultCount").textContent = `${filtered.length}건 / 전체 ${state.rows.length}건`;
+  }
+}
+
 function renderLeadsTable() {
   const filtered = sortRows(state.rows.filter(passesFilters));
-  byId("resultCount").textContent = `${filtered.length}건 / 전체 ${state.rows.length}건`;
+  updateResultCount();
 
   if (!filtered.length) {
     byId("leads").innerHTML = '<div class="empty-state">조건에 맞는 리드가 없습니다.</div>';
@@ -578,103 +588,73 @@ function openDetail(row) {
   const c = row.contact ?? {};
   const admin = window.TClientAdmin?.isUnlocked();
   const reasons = row.actionReasons ?? [];
+  const tierVal = e.companyTier || row.companyTier || "";
 
   byId("detailTitle").textContent = displayName(row);
 
+  const classifyBlock = admin
+    ? `<div class="inline-grid">
+        <div class="inline-row"><span class="inline-label">회사명</span>${inlineInput("edit-name-ko", e.companyNameKo || row.companyNameKo)}</div>
+        <div class="inline-row"><span class="inline-label">규모</span>${inlineSelect("edit-tier", tierVal, [
+          ["", "(자동)"],
+          ["startup", "소·스타트업"],
+          ["mid", "중견"],
+          ["enterprise", "대기업"],
+          ["unknown", "미확인"]
+        ])}</div>
+        <div class="inline-row"><span class="inline-label">등급</span>${inlineSelect("edit-grade", e.leadGrade || row.leadGrade, [
+          ["", "(유지)"],
+          ["A", "A"],
+          ["B", "B"],
+          ["C", "C"]
+        ])}</div>
+        <div class="inline-row inline-checks">
+          <label><input type="checkbox" id="edit-fav" ${row.userFavorite ? "checked" : ""} /> 즐겨찾기</label>
+          <label><input type="checkbox" id="edit-hidden" ${e.hidden ? "checked" : ""} /> 숨김</label>
+        </div>
+        <div class="inline-row"><span class="inline-label">제외</span>${inlineInput("edit-exclude", e.excludeReason ?? row.excludeReason ?? "")}</div>
+        <div class="inline-row"><span class="inline-label">메모</span>${inlineInput("edit-notes", e.notes ?? row.manualNotes ?? "")}</div>
+      </div>`
+    : `<p class="detail-summary"><strong>${escapeHtml(displayName(row))}</strong> ${tierBadge(row)} <span class="badge grade-${row.leadGrade}">${row.leadGrade}</span></p>
+       <p class="muted">${escapeHtml(companySubline(row))} · ${row.priorityScore}점</p>`;
+
+  const contactBlock = admin
+    ? `<div class="inline-grid cols-3">
+        <div class="inline-row"><span class="inline-label">이름</span>${inlineInput("edit-contact-name", c.name ?? "")}</div>
+        <div class="inline-row"><span class="inline-label">이메일</span>${inlineInput("edit-contact-email", c.email ?? row.email ?? "", "email")}</div>
+        <div class="inline-row"><span class="inline-label">전화</span>${inlineInput("edit-contact-phone", c.phone ?? "", "tel")}</div>
+      </div>`
+    : `<p>${c.name ? `<strong>${escapeHtml(c.name)}</strong> · ` : ""}${row.email ? escapeHtml(row.email) : '<span class="muted">이메일 없음</span>'}${c.phone ? ` · ${escapeHtml(c.phone)}` : ""}</p>`;
+
+  const actionsBlock = admin
+    ? `<div class="inline-grid cols-3 action-inline">
+        <div class="inline-row"><span class="inline-label">제안</span>${actionSelect("edit-act-proposal", row.actions.proposal.status)}</div>
+        <div class="inline-row"><span class="inline-label">미팅</span>${actionSelect("edit-act-meeting", row.actions.meeting.status)}</div>
+        <div class="inline-row"><span class="inline-label">문의</span>${actionSelect("edit-act-inquiry", row.actions.inquiry.status)}</div>
+      </div>`
+    : `<div class="action-row">${renderActionBadges(row.actions)}</div>`;
+
   byId("detailBody").innerHTML = `
     <section class="detail-section">
-      ${sectionHead("분류 · 등급", "classify")}
-      <p><strong>${escapeHtml(displayName(row))}</strong> ${tierBadge(row)} <span class="badge grade-${row.leadGrade}">${row.leadGrade}</span></p>
-      <p class="muted">${escapeHtml(companySubline(row))} · ${row.priorityScore}점</p>
-      ${
-        admin
-          ? `<div id="edit-classify" class="section-edit hidden">
-        <div class="admin-form compact">
-          <label>표시 회사명 <input type="text" id="edit-name-ko" value="${escapeAttr(e.companyNameKo || row.companyNameKo || "")}" /></label>
-          <label>규모(中·小·大)
-            <select id="edit-tier">
-              <option value="">(자동)</option>
-              <option value="startup" ${(e.companyTier || row.companyTier) === "startup" ? "selected" : ""}>소·스타트업</option>
-              <option value="mid" ${(e.companyTier || row.companyTier) === "mid" ? "selected" : ""}>중견</option>
-              <option value="enterprise" ${(e.companyTier || row.companyTier) === "enterprise" ? "selected" : ""}>대기업</option>
-              <option value="unknown" ${(e.companyTier || row.companyTier) === "unknown" ? "selected" : ""}>미확인</option>
-            </select>
-          </label>
-          <label>등급 <select id="edit-grade"><option value="">(유지)</option><option value="A" ${(e.leadGrade || row.leadGrade) === "A" ? "selected" : ""}>A</option><option value="B" ${(e.leadGrade || row.leadGrade) === "B" ? "selected" : ""}>B</option><option value="C" ${(e.leadGrade || row.leadGrade) === "C" ? "selected" : ""}>C</option></select></label>
-          <label><input type="checkbox" id="edit-fav" ${row.userFavorite ? "checked" : ""} /> 즐겨찾기</label>
-          <label><input type="checkbox" id="edit-hidden" ${e.hidden ? "checked" : ""} /> 목록 숨김</label>
-          <label>제외 사유 <input type="text" id="edit-exclude" value="${escapeAttr(e.excludeReason ?? row.excludeReason ?? "")}" /></label>
-          <label>메모 <textarea id="edit-notes" rows="2">${escapeHtml(e.notes ?? row.manualNotes ?? "")}</textarea></label>
-          <button type="button" class="btn-primary btn-sm" id="save-classification">적용</button>
-        </div>
-      </div>`
-          : ""
-      }
+      ${detailTitle("분류 · 등급")}
+      ${classifyBlock}
     </section>
-
     <section class="detail-section">
-      ${sectionHead("담당자", "contact")}
-      <p>${c.name ? `<strong>${escapeHtml(c.name)}</strong> · ` : ""}${row.email ? escapeHtml(row.email) : "<span class=\"muted\">이메일 없음</span>"}${c.phone ? ` · ${escapeHtml(c.phone)}` : ""}</p>
-      ${
-        admin
-          ? `<div id="edit-contact" class="section-edit hidden">
-        <div class="admin-form compact">
-          <label>이름 <input type="text" id="edit-contact-name" value="${escapeAttr(c.name ?? "")}" /></label>
-          <label>이메일 <input type="email" id="edit-contact-email" value="${escapeAttr(c.email ?? row.email ?? "")}" /></label>
-          <label>전화 <input type="tel" id="edit-contact-phone" value="${escapeAttr(c.phone ?? "")}" /></label>
-          <button type="button" class="btn-primary btn-sm" id="save-contact">적용</button>
-        </div>
-      </div>`
-          : ""
-      }
+      ${detailTitle("담당자")}
+      ${contactBlock}
     </section>
-
     <section class="detail-section">
-      ${sectionHead("회사 프로필", "profile")}
-      ${renderProfileSection(row)}
-      ${
-        admin
-          ? `<div id="edit-profile" class="section-edit hidden">
-        <div class="admin-form compact">
-          <label>도메인 <input type="text" id="edit-prof-domain" value="${escapeAttr(e.domain || row.domain || "")}" placeholder="example.com" /></label>
-          <label>법인명 <input type="text" id="edit-prof-legal" value="${escapeAttr(p.companyNameLegal ?? "")}" /></label>
-          <label>사업자번호 <input type="text" id="edit-prof-bizno" value="${escapeAttr(p.bizNo ?? "")}" /></label>
-          <label>업태 <input type="text" id="edit-prof-type" value="${escapeAttr(p.bizType ?? "")}" /></label>
-          <label>종목 <input type="text" id="edit-prof-item" value="${escapeAttr(p.bizItem ?? "")}" /></label>
-          <label>기업규모 <input type="text" id="edit-prof-scale" value="${escapeAttr(p.companyScale ?? "")}" placeholder="중소기업" /></label>
-          <label>사업자상태 <input type="text" id="edit-prof-status" value="${escapeAttr(p.bizStatus ?? "")}" /></label>
-          <label>등록일 <input type="text" id="edit-prof-founded" value="${escapeAttr(p.foundedDate ?? "")}" /></label>
-          <label>종업원 <input type="text" id="edit-prof-emp" value="${escapeAttr(p.employeeCount ?? "")}" /></label>
-          <label>홈페이지 <input type="url" id="edit-prof-home" value="${escapeAttr(p.homepage ?? "")}" /></label>
-          <label>산업분류 <input type="text" id="edit-prof-industry" value="${escapeAttr(p.industrySummary ?? "")}" /></label>
-          <button type="button" class="btn-primary btn-sm" id="save-profile">적용</button>
-        </div>
-      </div>`
-          : ""
-      }
+      ${detailTitle("회사 프로필")}
+      ${renderProfileSection(row, admin, p, e.domain || row.domain || "")}
     </section>
-
     <section class="detail-section">
-      ${sectionHead("다음 액션", "actions")}
-      <div class="action-row">${renderActionBadges(row.actions)}</div>
-      <ul class="reason-list">${reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>
-      ${
-        admin
-          ? `<div id="edit-actions" class="section-edit hidden">
-        <div class="admin-form compact action-edit-grid">
-          <label>제안 ${actionSelect("edit-act-proposal", row.actions.proposal.status)}</label>
-          <label>미팅 ${actionSelect("edit-act-meeting", row.actions.meeting.status)}</label>
-          <label>문의 ${actionSelect("edit-act-inquiry", row.actions.inquiry.status)}</label>
-          <button type="button" class="btn-primary btn-sm" id="save-actions">적용</button>
-        </div>
-      </div>`
-          : ""
-      }
+      ${detailTitle("다음 액션")}
+      ${actionsBlock}
+      ${reasons.length ? `<ul class="reason-list">${reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>` : ""}
     </section>
-
     <section class="detail-section">
-      ${sectionHead(`QA 채용 공고 (${row.posts.length}건)`, "posts")}
-      <table>
+      ${detailTitle(`QA 채용 공고 (${row.posts.length}건)`)}
+      <table class="detail-table">
         <thead><tr><th>공고</th><th>출처</th><th>링크</th></tr></thead>
         <tbody>
           ${row.posts
@@ -691,37 +671,25 @@ function openDetail(row) {
       </table>
       ${
         admin
-          ? `<div id="edit-posts" class="section-edit hidden">
-        <div class="admin-form compact">
-          <label>공고 제목 <input type="text" id="edit-post-title" placeholder="QA 엔지니어" /></label>
-          <label>URL <input type="url" id="edit-post-url" placeholder="https://..." /></label>
-          <button type="button" class="btn-primary btn-sm" id="save-post">공고 추가</button>
-        </div>
-      </div>`
+          ? `<div class="inline-grid cols-2 post-add-row">
+          <div class="inline-row"><span class="inline-label">추가 제목</span>${inlineInput("edit-post-title", "", "text", "QA 엔지니어")}</div>
+          <div class="inline-row"><span class="inline-label">URL</span>${inlineInput("edit-post-url", "", "url", "https://...")}</div>
+        </div>`
           : ""
       }
     </section>
-
     <section class="detail-section muted-box">
-      ${sectionHead("점수 근거", "score")}
-      ${renderScoreSection(row)}
-      ${
-        admin
-          ? `<div id="edit-score" class="section-edit hidden">
-        <div class="admin-form compact">
-          ${renderScoreEdit(row)}
-          <label>총점 직접 입력 <input type="number" id="edit-score-total" value="${escapeAttr(row.priorityScore)}" min="0" max="200" /></label>
-          <p class="muted">항목·총점 비우면 자동 계산. 규모 변경은 「분류·등급 → 적용」으로 즉시 반영.</p>
-          <button type="button" class="btn-primary btn-sm" id="save-score">적용</button>
-        </div>
-      </div>`
-          : ""
-      }
+      ${detailTitle("점수 근거")}
+      ${renderScoreSection(row, admin)}
     </section>
-    ${row.excludeReason ? `<p class="warn">제외: ${escapeHtml(row.excludeReason)}</p>` : ""}
+    ${row.excludeReason && !admin ? `<p class="warn">제외: ${escapeHtml(row.excludeReason)}</p>` : ""}
+    ${admin ? `<footer class="detail-footer"><button type="button" class="btn-primary" id="detail-save-all">변경 저장</button></footer>` : ""}
   `;
 
-  if (admin) bindDetailEdits(row);
+  if (admin) {
+    bindDetailEdits(row);
+    window.TUiSelect?.init(modal);
+  }
   hydrateIcons(modal);
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden", "false");
@@ -755,106 +723,66 @@ function bindModal() {
   });
 }
 
-function renderGroups() {
-  const sorted = sortRows(state.rows.filter((r) => !r.excluded && passesFilters(r)));
-  if (!sorted.length) {
-    byId("groups").innerHTML = '<div class="empty-state">표시할 회사가 없습니다.</div>';
-    return;
+function collectAllPosts() {
+  const rows = sortRows(state.rows.filter(passesFilters));
+  const out = [];
+  for (const row of rows) {
+    for (const post of row.posts ?? []) {
+      out.push({ post, row });
+    }
   }
-
-  byId("groups").innerHTML = sorted
-    .map(
-      (row, idx) => `
-    <div class="group-block">
-      <div class="group-header" data-group="${idx}">
-        <div>
-          <strong>${escapeHtml(displayName(row))}</strong>
-          ${tierBadge(row)}
-          <span class="badge grade-${row.leadGrade}">${row.leadGrade}</span>
-          <span class="badge">${row.actionSummary}</span>
-        </div>
-        <span>${iconSvg("chevron")} ${row.posts.length}건</span>
-      </div>
-      <div class="group-body hidden" id="group-${idx}">
-        <table>
-          <thead><tr><th>공고</th><th>출처</th><th>링크</th></tr></thead>
-          <tbody>
-            ${row.posts
-              .map(
-                (p) => `
-              <tr class="${p.failureReason ? "row-failure" : ""}">
-                <td>${escapeHtml(p.title)}</td>
-                <td>${escapeHtml(p.sourceLabel || p.source)}</td>
-                <td><a class="link" href="${escapeAttr(p.url)}" target="_blank" rel="noreferrer">${iconSvg("external", 14)}</a></td>
-              </tr>`
-              )
-              .join("")}
-          </tbody>
-        </table>
-      </div>
-    </div>`
-    )
-    .join("");
-
-  byId("groups").querySelectorAll(".group-header").forEach((header) => {
-    header.addEventListener("click", () => byId(`group-${header.dataset.group}`).classList.toggle("hidden"));
-  });
+  return out;
 }
 
-function renderDedupe() {
-  const rows = state.dedupeCandidates;
-  if (!rows.length) {
-    byId("dedupe").innerHTML = '<div class="empty-state">중복 후보가 없습니다.</div>';
-    return;
-  }
+function renderAllPosts() {
+  const items = collectAllPosts();
+  if (state.activeTab === "leads") return;
 
-  byId("dedupe").innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>회사 A</th><th>회사 B</th><th>근거</th><th>상태</th></tr></thead>
-        <tbody>
-          ${rows
-            .map(
-              (c) => `
-            <tr>
-              <td><strong>${escapeHtml(c.company_name_left || companyNameById(c.company_id_left))}</strong></td>
-              <td><strong>${escapeHtml(c.company_name_right || companyNameById(c.company_id_right))}</strong></td>
-              <td class="score-reason">${escapeHtml(c.match_basis)}</td>
-              <td><span class="badge">${escapeHtml(c.review_status)}</span></td>
-            </tr>`
-            )
-            .join("")}
-        </tbody>
-      </table>
-    </div>`;
-}
-
-function renderManualQueue() {
-  const items = state.manualReviewQueue;
   if (!items.length) {
-    byId("manual").innerHTML = '<div class="empty-state">수동 검토 대기 없음</div>';
+    byId("posts").innerHTML = '<div class="empty-state">조건에 맞는 공고가 없습니다.</div>';
     return;
   }
 
-  byId("manual").innerHTML = `
+  byId("posts").innerHTML = `
     <div class="table-wrap">
       <table>
-        <thead><tr><th>URL</th><th>분류</th><th>사유</th><th>재시도</th></tr></thead>
+        <thead>
+          <tr>
+            <th>회사</th>
+            <th>등급</th>
+            <th>공고</th>
+            <th>출처</th>
+            <th>수집일</th>
+            <th></th>
+          </tr>
+        </thead>
         <tbody>
           ${items
             .map(
-              (item) => `
-            <tr class="row-failure">
-              <td><a class="link" href="${escapeAttr(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.url)}</a></td>
-              <td>${escapeHtml(item.failureCategory || "-")}</td>
-              <td class="reason-text">${escapeHtml(item.failureReason || "-")}</td>
-              <td>${item.retryCount ?? 0}회</td>
+              ({ post, row }) => `
+            <tr class="${post.failureReason ? "row-failure" : ""}${rowTierClass(row)}">
+              <td class="cell-company">
+                <button type="button" class="link-btn" data-company="${escapeAttr(row.companyId)}">${escapeHtml(displayName(row))}</button>
+                ${tierBadge(row)}
+              </td>
+              <td><span class="badge grade-${row.leadGrade}">${row.leadGrade}</span></td>
+              <td>${escapeHtml(post.title)}</td>
+              <td>${escapeHtml(post.sourceLabel || post.source)}</td>
+              <td>${formatDate(row.lastCollectedAt)}</td>
+              <td><a class="link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${iconSvg("external", 14)}</a></td>
             </tr>`
             )
             .join("")}
         </tbody>
       </table>
     </div>`;
+
+  byId("posts").querySelectorAll("[data-company]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const row = state.rows.find((r) => r.companyId === btn.dataset.company);
+      if (row) openDetail(row);
+    });
+  });
 }
 
 function escapeHtml(value) {
@@ -879,8 +807,10 @@ function bindTabs() {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".tabs .tab").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      ["leads", "groups", "dedupe", "manual"].forEach((id) => byId(id).classList.add("hidden"));
+      state.activeTab = btn.dataset.tab;
+      ["leads", "posts"].forEach((id) => byId(id).classList.add("hidden"));
       byId(btn.dataset.tab).classList.remove("hidden");
+      refreshViews();
     });
   });
 }
@@ -888,7 +818,7 @@ function bindTabs() {
 function refreshViews() {
   renderKpi();
   renderLeadsTable();
-  renderGroups();
+  renderAllPosts();
 }
 
 function setAdminStatus(msg) {
@@ -1014,9 +944,8 @@ async function boot() {
     bindAdmin();
     renderPresets();
     bindTabs();
+    window.TUiSelect?.init();
     refreshViews();
-    renderDedupe();
-    renderManualQueue();
   } catch (err) {
     byId("meta").textContent = "로드 실패";
     byId("leads").innerHTML = `<div class="empty-state">${escapeHtml(err.message)}</div>`;
