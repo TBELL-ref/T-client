@@ -1,181 +1,31 @@
 {
-  "generatedAt": "2026-06-01T05:57:44.369Z",
-  "totalCompanies": 3,
-  "totalPosts": 7,
+  "generatedAt": "2026-06-01T06:44:35.476Z",
+  "totalCompanies": 80,
+  "totalPosts": 132,
   "totalManualReview": 0,
   "failureSummary": {},
   "gradeSummary": {
-    "A": 3,
+    "A": 394,
     "B": 0,
     "C": 0,
     "excluded": 0,
-    "proposalRecommend": 3,
-    "meetingRecommend": 1,
-    "inquiryRecommend": 3,
-    "contactSecured": 3
+    "proposalRecommend": 394,
+    "meetingRecommend": 394,
+    "inquiryRecommend": 394,
+    "contactSecured": 394
   },
   "rows": [
     {
-      "companyId": "cmp_1d5e8ca632",
-      "companyName": "coupang",
-      "companyNameKo": "쿠팡",
-      "companyTier": "enterprise",
-      "companyTierLabel": "대",
-      "domain": "coupang.com",
-      "lastCollectedAt": "2026-06-01T05:57:44.361Z",
+      "companyId": "cmp_810dc37b3b",
+      "companyName": "컴투스",
+      "companyNameKo": "컴투스",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.390Z",
       "leadGrade": "A",
-      "priorityScore": "98",
-      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10|tier_enterprise:-22",
-      "salesStage": "qualified",
-      "contactSecured": "yes",
-      "reportRequired": "yes",
-      "meetingRequired": "no",
-      "actions": {
-        "proposal": {
-          "label": "제안",
-          "status": "추천"
-        },
-        "meeting": {
-          "label": "미팅",
-          "status": "보류"
-        },
-        "inquiry": {
-          "label": "문의",
-          "status": "추천"
-        }
-      },
-      "actionSummary": "제안 · 문의",
-      "actionReasons": [
-        "대기업(대) — 우선순위 감점·미팅 보류 정책 적용.",
-        "QA 공고와 등급 기준 충족 → 제안 추천.",
-        "대기업은 미팅보다 문의·제안부터 권장.",
-        "이메일 확보 → 가벼운 문의부터 추천."
-      ],
-      "email": "hello@coupang.com",
-      "emailConfidence": "high",
-      "excludeReason": "",
-      "manualOverrideLocked": false,
-      "manualNotes": "",
-      "excluded": false,
-      "posts": [
-        {
-          "id": "job_43fa791cb9",
-          "title": "[쿠팡이츠서비스] 배달 품질 전략 및 데이터 담당자",
-          "url": "https://www.coupang.jobs/en/jobs?gh_jid=7881595",
-          "source": "greenhouse",
-          "sourceLabel": "Greenhouse",
-          "status": "new",
-          "failureReason": "",
-          "failureCategory": ""
-        },
-        {
-          "id": "job_68f0b72943",
-          "title": "[쿠팡] 카탈로그 작업자 성과 및 품질 관리 매니저 (2년 이상)",
-          "url": "https://www.coupang.jobs/en/jobs?gh_jid=7962229",
-          "source": "greenhouse",
-          "sourceLabel": "Greenhouse",
-          "status": "new",
-          "failureReason": "",
-          "failureCategory": ""
-        },
-        {
-          "id": "job_5e7f19f7f8",
-          "title": "Assistant Manager, Quality Assurance (IP Operations - Shift) / IP Operations 輪班副理",
-          "url": "https://www.coupang.jobs/en/jobs?gh_jid=7546937",
-          "source": "greenhouse",
-          "sourceLabel": "Greenhouse",
-          "status": "new",
-          "failureReason": "",
-          "failureCategory": ""
-        },
-        {
-          "id": "job_1b0c3804ea",
-          "title": "[CPLB] 식품 품질관리 지원 담당자 (계약직)",
-          "url": "https://www.coupang.jobs/en/jobs?gh_jid=7948550",
-          "source": "greenhouse",
-          "sourceLabel": "Greenhouse",
-          "status": "new",
-          "failureReason": "",
-          "failureCategory": ""
-        }
-      ]
-    },
-    {
-      "companyId": "cmp_26d250e585",
-      "companyName": "toss",
-      "companyNameKo": "토스",
-      "companyTier": "enterprise",
-      "companyTierLabel": "대",
-      "domain": "toss.im",
-      "lastCollectedAt": "2026-06-01T05:57:44.362Z",
-      "leadGrade": "A",
-      "priorityScore": "98",
-      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10|tier_enterprise:-22",
-      "salesStage": "qualified",
-      "contactSecured": "yes",
-      "reportRequired": "yes",
-      "meetingRequired": "no",
-      "actions": {
-        "proposal": {
-          "label": "제안",
-          "status": "추천"
-        },
-        "meeting": {
-          "label": "미팅",
-          "status": "보류"
-        },
-        "inquiry": {
-          "label": "문의",
-          "status": "추천"
-        }
-      },
-      "actionSummary": "제안 · 문의",
-      "actionReasons": [
-        "대기업(대) — 우선순위 감점·미팅 보류 정책 적용.",
-        "QA 공고와 등급 기준 충족 → 제안 추천.",
-        "대기업은 미팅보다 문의·제안부터 권장.",
-        "이메일 확보 → 가벼운 문의부터 추천."
-      ],
-      "email": "hello@toss.im",
-      "emailConfidence": "high",
-      "excludeReason": "",
-      "manualOverrideLocked": false,
-      "manualNotes": "",
-      "excluded": false,
-      "posts": [
-        {
-          "id": "job_63d776f9ed",
-          "title": "QA Manager",
-          "url": "https://www.wanted.co.kr/wd/182930",
-          "source": "wanted",
-          "sourceLabel": "Wanted",
-          "status": "new",
-          "failureReason": "",
-          "failureCategory": ""
-        },
-        {
-          "id": "job_e307657381",
-          "title": "QA Specialist",
-          "url": "https://www.wanted.co.kr/wd/338286",
-          "source": "wanted",
-          "sourceLabel": "Wanted",
-          "status": "new",
-          "failureReason": "",
-          "failureCategory": ""
-        }
-      ]
-    },
-    {
-      "companyId": "cmp_9cf4b08b98",
-      "companyName": "karrot",
-      "companyNameKo": "당근마켓",
-      "companyTier": "mid",
-      "companyTierLabel": "중",
-      "domain": "daangn.com",
-      "lastCollectedAt": "2026-06-01T05:57:44.351Z",
-      "leadGrade": "A",
-      "priorityScore": "87",
-      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|verifiable_service:+15|recent:+10|tier_mid:-8",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
       "salesStage": "qualified",
       "contactSecured": "yes",
       "reportRequired": "yes",
@@ -200,7 +50,7 @@
         "담당자·도메인 확보 → 미팅 추천.",
         "이메일 확보 → 가벼운 문의부터 추천."
       ],
-      "email": "hello@daangn.com",
+      "email": "hello@jobkorea.co.kr",
       "emailConfidence": "high",
       "excludeReason": "",
       "manualOverrideLocked": false,
@@ -208,11 +58,4797 @@
       "excluded": false,
       "posts": [
         {
-          "id": "job_c0fe422470",
-          "title": "Software Engineer, Machine Learning | 검색 (품질)",
-          "url": "https://about.daangn.com?gh_jid=6610455003",
-          "source": "greenhouse",
-          "sourceLabel": "Greenhouse",
+          "id": "job_aee293d54e",
+          "title": "[컴투스] 2026 모바일 QA 담당자 (계약직)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/48983410",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_2112d3e41b",
+          "title": "[컴투스] 신작 데이터 QA (단기 계약직)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49177108",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_472960a0b7",
+          "title": "[컴투스][일본야구 프로젝트] QA 담당자 (계약직)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/48972121",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_fe908b7e3a",
+          "title": "[컴투스][컴투스프로야구 시리즈] QA 담당자 (계약직)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49235644",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_e0a8d6b1dc",
+      "companyName": "티맵모빌리티",
+      "companyNameKo": "티맵모빌리티",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.391Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_d2eaa95ad7",
+          "title": "QA Automation Engineer",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49074108",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_d80e2528b9",
+          "title": "[티맵모빌리티] QA Automation Engineer",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49244607",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_aeebfe7987",
+      "companyName": "유베이스",
+      "companyNameKo": "유베이스",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_ffa9223070",
+          "title": "[동양생명/관리자채용] 고객센터 관리자 (SV, QA강사)   AU5M",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49142932",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_7a0f0fb577",
+          "title": "[동양생명/관리자채용/평일근무] 고객센터 관리자 (SV, QA강사)  AU5M",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49186759",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_3e7f2139a7",
+          "title": "[관리자채용/평일근무] 고객센터 관리자 (SV, QA강사)    AU5M",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49008835",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_392bf6a810",
+          "title": "[동양생명/관리자채용/평일근무] 고객센터 관리자 (SV, QA강사) AU5M",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49021743",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_57b4f73f8b",
+      "companyName": "티피씨인터넷",
+      "companyNameKo": "티피씨인터넷",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_fe9b53c128",
+          "title": "QA 매니저",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49174511",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_28baa5463c",
+          "title": "[티피씨인터넷/LIKEY] QA 매니저 채용",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49168976",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_5210436728",
+      "companyName": "에스에프씨",
+      "companyNameKo": "에스에프씨",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_a6b9f5362d",
+          "title": "각 부문 신입/경력 상시 인재 POOL 모집 - OLED품질보증(QA)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49231218",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81fa531031",
+          "title": "각 부문 신입/경력 상시 인재 POOL 모집 - BIO품질보증(QA)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49231369",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_01602e9aa3",
+      "companyName": "hk블루텍",
+      "companyNameKo": "hk블루텍",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.399Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_fcb6f5a8b7",
+          "title": "품질관리(QC) 및 품질보증(QA) 경력 채용",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49117578",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_aa647f49aa",
+          "title": "품질관리(QC) 및 품질보증(QA) 신입 채용",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49269255",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_fad10284a6",
+      "companyName": "unknown",
+      "companyNameKo": "unknown",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.400Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "(주)코렌스 부문별 채용(신입/경력) - 영업/구매/QA",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "(주)한국비엠아이 제주본사 QA팀 채용(신입/경력)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "(주)인바디 WEB Global Service QA 경력 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "(주)엔피에스 품질관리(QC,QA,QM) 정규직 모집 공고",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_89e3b524fe",
+      "companyName": "화장품",
+      "companyNameKo": "화장품",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.401Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "화장품 품질보증(QA) 및 품질관리(QC) 정규직 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "화장품 품질관리&QA ·QC 신입 및 동종업계  경력직 채용 공고",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_a1123fe3a6",
+      "companyName": "qa",
+      "companyNameKo": "qa",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.403Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "[뷰웍스] QA(품질보증) 직무 경력 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "[GC녹십자엠에스] QA(신입/경력)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "QA(품질보증)의 우수한 인재를 채용합니다.",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "QA 품질보증 1명  (QC 아님)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_f118790c9f",
+      "companyName": "qa담당자채용",
+      "companyNameKo": "qa담당자채용",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.403Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "[IMBdx] QA담당자 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "[오가노이드사이언스] QA담당자 채용(광명)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "QA 담당자 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_d6bd874914",
+      "companyName": "품질보증",
+      "companyNameKo": "품질보증",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.404Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "[의료기기 제조] 품질보증(QA) 경력직 채용(경력 6년 이상)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "[제테마/원주] 품질보증(QA) 담당자 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "[코스닥/의료기기 제조사] 품질보증(QA) 경력직 모집공고",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "품질보증 QA 경력 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_58848bba27",
+      "companyName": "의료기기",
+      "companyNameKo": "의료기기",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.404Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "의료기기 QA 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "의료기기 QA, QC 담당자 정규직 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "의료기기 품질 (QA/QC) 담당자 채용(전기/전자)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "더브라이트 [경력] 의료기기(임플란트) 품질보증(QA) 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_79979641a1",
+      "companyName": "품질관리",
+      "companyNameKo": "품질관리",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.404Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "품질관리 QC/QA (신입 / 경력) 직원 모집",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "[충주 외국계] 품질관리(QA Engineer)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "품질관리(QA) 경력사원 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "품질관리(QA·QC)/ISO/공정관리/생산관리 담당자 경력직 모집",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_f56cb9aaf0",
+      "companyName": "qa엔지니어채용",
+      "companyNameKo": "qa엔지니어채용",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.405Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "[외국계/정규직] QA 엔지니어 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "[피아스페이스] QA 엔지니어 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "QA 엔지니어 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_600c0e6d19",
+      "companyName": "우진pcb",
+      "companyNameKo": "우진pcb",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.405Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "주식회사 우진 PCB 품질팀(품질보증 QA) 신입사원 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "주식회사 우진 PCB 품질팀(품질보증 QA) 중간관리자 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_d3d856603e",
+      "companyName": "의료기기ra",
+      "companyNameKo": "의료기기ra",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.407Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "의료기기 RA(인허가) 및 QA 경력직 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "의료기기 RA / QA / QC  경력직 인재채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_686d7c21e6",
+      "companyName": "유씨엘",
+      "companyNameKo": "유씨엘",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.407Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "유씨엘(주) 화장품 품질관리(QA/QC) 신입 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "유씨엘(주) 화장품 품질관리(QA/QC) 경력직 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_01a82a26a3",
+      "companyName": "qa엔지니어",
+      "companyNameKo": "qa엔지니어",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.407Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "QA 엔지니어(QA Engineer)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "[씨미/마플] QA 엔지니어",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "QA 엔지니어 (경력 5 ~ 7년)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "QA 엔지니어 (신입 ~ 1년)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_ae2f96c8f7",
+      "companyName": "sw테스트엔지니어",
+      "companyNameKo": "sw테스트엔지니어",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.408Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "[신입/경력 5년 이하] S/W 테스트엔지니어(QA) 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "[수원] SW 테스트 엔지니어 (QA) 신입 및 경력 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "[가산] SW 테스트 엔지니어 (QA) 신입 채용 (운전가능자)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "[오산] SW 테스트 엔지니어 (QA) 신입 및 경력 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_55a8821f64",
+      "companyName": "품질팀",
+      "companyNameKo": "품질팀",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.409Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "[메종21G] 품질팀(QA/QC) 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "품질팀 품질관리(QA/QC) 사원 모집",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "품질팀 QA 경력직(대리급) 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_6a77e228d2",
+      "companyName": "비앤씨",
+      "companyNameKo": "비앤씨",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.409Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "㈜비앤씨(B&C)코리아 GMP New plant  품질보증팀(QA) 모집",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "㈜비앤씨(B&C)코리아 GMP New plant  품질보증팀(QA) 팀장모집",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_e95b11d715",
+      "companyName": "품질관리팀",
+      "companyNameKo": "품질관리팀",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.409Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "[건강기능식품 제조업] 품질관리팀(QC·QA) 인재 충원 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "품질관리팀 (QM/QA) 경력사원 모집",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_58a0240bfb",
+      "companyName": "qaspecialist",
+      "companyNameKo": "qaspecialist",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.409Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "[J&J MedTech] QA Specialist (Contractor)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "[한국애보트진단] QA Specialist(제품 및 변경관리)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_b89331b62f",
+      "companyName": "품질보증팀",
+      "companyNameKo": "품질보증팀",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.416Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "품질보증팀(QA팀) 정규직 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "품질보증팀 품질(Quality Engineer) 모집",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "품질보증팀 QA팀장 모집",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_bc296a468a",
+      "companyName": "건강기능식품",
+      "companyNameKo": "건강기능식품",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.417Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "건강기능식품 QA 계약직 모집",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "건강기능식품 품질보증(QA)/품질관리(QC) 경력자 모집",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "건강기능식품 품질관리 인증 QA QC QMS 차장 부장급",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_71cbcdf07c",
+      "companyName": "qaengineer채용",
+      "companyNameKo": "qaengineer채용",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.418Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "[서울] QA Engineer 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "[Amcor - 외국계 포장재] QA Engineer 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_62c78a2278",
+      "companyName": "automotivesw",
+      "companyNameKo": "automotivesw",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.421Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "Automotive SW QA Engineer/Field Manager 정규직 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "Automotive SW QA 엔지니어 정규직 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_01883a4392",
+      "companyName": "유명반도체",
+      "companyNameKo": "유명반도체",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.435Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "유명 반도체 테스트(Test) 엔지니어 대리,과장급",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "유명 반도체 테스트(Test) 엔지니어 과장,차장급",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_740e64d822",
+      "companyName": "testengineer",
+      "companyNameKo": "testengineer",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "saramin.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.437Z",
+      "leadGrade": "A",
+      "priorityScore": "120",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@saramin.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_81c63c39f7",
+          "title": "Test Engineer (ATE)",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "job_81c63c39f7",
+          "title": "[글로벌 자율주행 프로젝트] Test Engineer(Driver) 채용",
+          "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view",
+          "source": "saramin",
+          "sourceLabel": "saramin",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_c9a3f954c2",
+      "companyName": "웹젠",
+      "companyNameKo": "웹젠",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.387Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_42a88bfb39",
+          "title": "[웹젠] 게임QA(경력)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49099941",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_828b50a417",
+      "companyName": "크림",
+      "companyNameKo": "크림",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.390Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_4ac9e54947",
+          "title": "QA 담당자 모집",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/48926528",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_ac1cfce325",
+      "companyName": "휴넷",
+      "companyNameKo": "휴넷",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.390Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_3c60ade1c6",
+          "title": "[휴넷] QA 엔지니어 [정규직/경력]",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49207046",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_e7e53da0ab",
+      "companyName": "옥서스",
+      "companyNameKo": "옥서스",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.390Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_9daae7f74a",
+          "title": "QA/QC 경력직(과장급이상) 채용 공고",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49154201",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_d2229a858c",
+      "companyName": "cj대한통운",
+      "companyNameKo": "cj대한통운",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.391Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_5ff403ae18",
+          "title": "[더 운반] 디지털플랫폼 &#x27;QA엔지니어&#x27; 경력사원 모집",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49146771",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_a3e93d6d3e",
+      "companyName": "폴포지션게임즈",
+      "companyNameKo": "폴포지션게임즈",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.391Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_356b650d9f",
+          "title": "(부산) 폴포지션게임즈 QA 경력직 모집",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49150751",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_ed12cfa864",
+      "companyName": "다날",
+      "companyNameKo": "다날",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.391Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_2d734522d0",
+          "title": "서비스 품질 검증 및 테스트 전략 QA 담당자",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49256673",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_93f3ee03b0",
+      "companyName": "넥슨네트웍스",
+      "companyNameKo": "넥슨네트웍스",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.391Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_0a5c83d0aa",
+          "title": "[2026년 부산지사 게임QA 장애인 특별채용]",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49124373",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_c4fabb02e8",
+      "companyName": "드림에이지",
+      "companyNameKo": "드림에이지",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.391Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_f25db8af59",
+          "title": "[DRIMAGE] 게임QA",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49231930",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_b60f354916",
+      "companyName": "인바디",
+      "companyNameKo": "인바디",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_b8d26af1e8",
+          "title": "(주)인바디 WEB Global Service QA 경력 채용",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49248276",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_fdf8962db9",
+      "companyName": "코디",
+      "companyNameKo": "코디",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_9e40f7b4f6",
+          "title": "색조화장품 김천공장 품질보증(QA) 담당 채용",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49231010",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_cc59b70a79",
+      "companyName": "에이스메디칼",
+      "companyNameKo": "에이스메디칼",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_b378331266",
+          "title": "에이스메디칼(주) 품질경영팀 QA",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49109792",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_59a2781978",
+      "companyName": "메디쎄이",
+      "companyNameKo": "메디쎄이",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_43e6c91a41",
+          "title": "동화약품 계열사 메디쎄이 의료기기 품질보증(QA) 경력직 채용",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49151706",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_175221a384",
+      "companyName": "제노레이",
+      "companyNameKo": "제노레이",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_351a2e79a9",
+          "title": "[의료장비] SW연구소 QA팀 정규직 모집 (경력)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49034916",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_eacc8e47e7",
+      "companyName": "동운아나텍",
+      "companyNameKo": "동운아나텍",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_d87a148c2c",
+          "title": "[헬스케어본부] 의료기기 QA 담당자 모집",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49144358",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_ca394a7664",
+      "companyName": "이노스페이스",
+      "companyNameKo": "이노스페이스",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_f51b5f4287",
+          "title": "상시 인재 Pool 등록 - (생산/품질) QC/QA",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49246285",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_5211da08e3",
+      "companyName": "엑스솔콥코리아",
+      "companyNameKo": "엑스솔콥코리아",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_b6ff8bd27a",
+          "title": "QA Specialist",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49247599",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_8cdbb34d06",
+      "companyName": "메디픽셀",
+      "companyNameKo": "메디픽셀",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_291beae83d",
+          "title": "소프트웨어 QA(QC) 엔지니어",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49168222",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_7dd7cb3052",
+      "companyName": "로그프레소",
+      "companyNameKo": "로그프레소",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_78019e1a0f",
+          "title": "[Welcome Bonus 지급] QA 엔지니어 영입",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/48961684",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_8666df465c",
+      "companyName": "제일메디칼코퍼레이션",
+      "companyNameKo": "제일메디칼코퍼레이션",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_d08d6ed7c5",
+          "title": "[제일메디칼] 의료기기 품질보증(QA) (신입/경력)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49088687",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_ebe4763ca7",
+      "companyName": "레몬헬스케어",
+      "companyNameKo": "레몬헬스케어",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_aac3510b18",
+          "title": "[레몬헬스케어] 건강의 신 QA담당자 모십니다.",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49155869",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_e7190a222a",
+      "companyName": "더블미디어",
+      "companyNameKo": "더블미디어",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_a36b2a0bb7",
+          "title": "QA 엔지니어 (부산)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49197377",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_af72458ce5",
+      "companyName": "뷰웍스",
+      "companyNameKo": "뷰웍스",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_b58a83853c",
+          "title": "[뷰웍스] QA(품질보증) 직무 경력 채용",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49212713",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_4596509f90",
+      "companyName": "트랜스코스모스코리아",
+      "companyNameKo": "트랜스코스모스코리아",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_fc1ebaaf48",
+          "title": "[관악] 삼성케어플러스 운영팀장/QA 채용 Za3T",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49167298",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_2a5016eca8",
+      "companyName": "nc",
+      "companyNameKo": "nc",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_ec31afdd7b",
+          "title": "[NC][단기계약직][CCG] 해외 유명 IP 기반의 신규 프로젝트 QA 모집",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49208506",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_2d97f2df59",
+      "companyName": "피델릭스",
+      "companyNameKo": "피델릭스",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.392Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_cee2d9080e",
+          "title": "품질관리팀 (QM/QA) 경력사원 모집",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49057623",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_2ab419221c",
+      "companyName": "인라이플",
+      "companyNameKo": "인라이플",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_f53ca7196f",
+          "title": "[주4.5일근무] 아이센드 QA 엔지니어 채용",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49230256",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_d52507bef2",
+      "companyName": "세일코리아넷",
+      "companyNameKo": "세일코리아넷",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_80351003af",
+          "title": "[정규직] 인바운드 고객센터 QA / 교육강사 채용",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49012999",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_8092a9dc43",
+      "companyName": "지엔터프라이즈",
+      "companyNameKo": "지엔터프라이즈",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_3a2ad9028f",
+          "title": "QA 엔지니어(QA Engineer)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49261900",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_c1f81f0d4e",
+      "companyName": "호산씨텍",
+      "companyNameKo": "호산씨텍",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_55831880c3",
+          "title": "품질관리(QA)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49120286",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_56cf0dc993",
+      "companyName": "삼보컴퓨터",
+      "companyNameKo": "삼보컴퓨터",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_9e8398f08e",
+          "title": "[삼보컴퓨터] QA팀 고객/시장 품질 담당자 (FAE/CQE)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49234143",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_559cc1c5dd",
+      "companyName": "한국애보트",
+      "companyNameKo": "한국애보트",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_4109951e17",
+          "title": "[애보트메디칼코리아] Sr QA Specialist",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49201517",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_baada62bf6",
+      "companyName": "굿터치",
+      "companyNameKo": "굿터치",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_4728371026",
+          "title": "[라인게임즈 자회사] 게임 QA 계약직 채용",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49270358",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_b6b5118258",
+      "companyName": "누리켐",
+      "companyNameKo": "누리켐",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_0ed6324d30",
+          "title": "품질관리 담당자 QC/QA",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49134873",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_995c431e8a",
+      "companyName": "큐드",
+      "companyNameKo": "큐드",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_951513a2d9",
+          "title": "[평촌] SW테스트엔지니어(QA) 모집",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49074976",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_864d6e9bcc",
+      "companyName": "엠케이피",
+      "companyNameKo": "엠케이피",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_2af7e21887",
+          "title": "품질팀 QA 대졸 신입사원 채용(4년대졸 이상)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49276224",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_002cf20263",
+      "companyName": "티벨",
+      "companyNameKo": "티벨",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_1b17e0d21b",
+          "title": "[경력] 안드로이드 및 IOS 컨텐츠 QA 엔지니어 모집",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/48994866",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_46c1a3266c",
+      "companyName": "에스브이엠테크",
+      "companyNameKo": "에스브이엠테크",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.393Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_856307660c",
+          "title": "품질(QC,QA) 직원모집",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/48898361",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_4dece88905",
+      "companyName": "구다이글로벌",
+      "companyNameKo": "구다이글로벌",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.394Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_037c2eac6e",
+          "title": "[구다이글로벌] 화장품 QA 담당 (경력직)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49159451",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_b5ac7f6b06",
+      "companyName": "존슨앤드존슨",
+      "companyNameKo": "존슨앤드존슨",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.394Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_e2fc190004",
+          "title": "[J&J MedTech] QA Specialist (Contractor)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49255758",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_4b991b57c9",
+      "companyName": "큐게임즈",
+      "companyNameKo": "큐게임즈",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.394Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_c30397049d",
+          "title": "[㈜큐게임즈] 게임 QA(경력 1년 이상) 계약직 (6-12개월) 모집",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49223463",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_dbd19f4776",
+      "companyName": "씨엠아이텍",
+      "companyNameKo": "씨엠아이텍",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.394Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_9ec8315525",
+          "title": "QA(품질검증) 담당자",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49229275",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_25c2caef7b",
+      "companyName": "cjenm",
+      "companyNameKo": "cjenm",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.394Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_9d7468f3f0",
+          "title": "[Mnet Plus] QA Engineer-경력채용",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49015806",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_beb4675a59",
+      "companyName": "enchemhungarykft",
+      "companyNameKo": "enchemhungarykft",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.394Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_761c3a0f9a",
+          "title": "폴란드, Enchem Poland, 품질보증 담당자 / QA 엔지니어 / QA 매니저",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/48993009",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_94b1705997",
+      "companyName": "와탭랩스",
+      "companyNameKo": "와탭랩스",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.394Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_c0e41561cd",
+          "title": "QA 엔지니어",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49162758",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_45fae3881b",
+      "companyName": "엔슨",
+      "companyNameKo": "엔슨",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.395Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_90d950dcc3",
+          "title": "[(주)클래시스]자회사 (주)엔슨 품질(QA/QC)경력직 모집",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49161241",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_8253c5ed09",
+      "companyName": "금륜eng",
+      "companyNameKo": "금륜eng",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.395Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_479b9b03d9",
+          "title": "품질관리(QA) 경력직원 모집",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49173371",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_7a242b899f",
+      "companyName": "모디엠",
+      "companyNameKo": "모디엠",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.395Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_38b6f0ce8e",
+          "title": "[QA]내비게이션 S/W Test - 근무지(남양주/다산)",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49048947",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_1d15470c96",
+      "companyName": "에스엠지",
+      "companyNameKo": "에스엠지",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.395Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_d63ee22434",
+          "title": "[에스엠지 품질보증팀 가족모집] QA,QC 기계부품 업무",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49268110",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_0e22a9ac0f",
+      "companyName": "제트플레이",
+      "companyNameKo": "제트플레이",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.395Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_0ad7b7bbae",
+          "title": "QA 담당자",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49259014",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ]
+    },
+    {
+      "companyId": "cmp_18be044f26",
+      "companyName": "엠와이제이myj",
+      "companyNameKo": "엠와이제이myj",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "domain": "jobkorea.co.kr",
+      "lastCollectedAt": "2026-06-01T06:44:35.395Z",
+      "leadGrade": "A",
+      "priorityScore": "110",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15|recent:+10",
+      "salesStage": "qualified",
+      "contactSecured": "yes",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionSummary": "제안 · 미팅 · 문의",
+      "actionReasons": [
+        "QA 공고와 등급 기준 충족 → 제안 추천.",
+        "담당자·도메인 확보 → 미팅 추천.",
+        "이메일 확보 → 가벼운 문의부터 추천."
+      ],
+      "email": "hello@jobkorea.co.kr",
+      "emailConfidence": "high",
+      "excludeReason": "",
+      "manualOverrideLocked": false,
+      "manualNotes": "",
+      "excluded": false,
+      "posts": [
+        {
+          "id": "job_9d86e265bc",
+          "title": "[양재] 보험 QA - 중급",
+          "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/49254475",
+          "source": "jobkorea",
+          "sourceLabel": "JobKorea",
           "status": "new",
           "failureReason": "",
           "failureCategory": ""
