@@ -113,10 +113,11 @@ body {
   font-weight: 600;
 }
 
-/* Dashboard */
+/* Dashboard — chart ~60% · stats ~40% */
 .dashboard {
+  --donut-size: clamp(96px, 12vw, 128px);
   display: grid;
-  grid-template-columns: minmax(240px, 280px) 1fr;
+  grid-template-columns: 3fr 2fr;
   gap: 12px;
   margin-bottom: 16px;
   align-items: stretch;
@@ -126,18 +127,25 @@ body {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  padding: 20px 22px;
+  padding: 16px 18px;
   box-shadow: var(--shadow-sm);
 }
 
+.dash-card.dash-chart {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .dash-card-title {
-  margin: 0 0 16px;
-  font-size: 15px;
+  margin: 0 0 12px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text);
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .dash-card-title .icon {
@@ -145,23 +153,26 @@ body {
 }
 
 .donut-panel {
-  display: flex;
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--donut-size) 1fr;
   align-items: center;
-  gap: 24px;
+  gap: clamp(12px, 2vw, 20px);
+  min-height: calc(var(--donut-size) + 8px);
 }
 
 .donut-ring {
-  width: 120px;
-  height: 120px;
+  width: var(--donut-size);
+  height: var(--donut-size);
   border-radius: 50%;
-  flex-shrink: 0;
+  justify-self: center;
   position: relative;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
 .donut-hole {
   position: absolute;
-  inset: 22%;
+  inset: 24%;
   background: var(--surface);
   border-radius: 50%;
   display: flex;
@@ -172,14 +183,14 @@ body {
 }
 
 .donut-total {
-  font-size: 26px;
+  font-size: clamp(18px, 2.2vw, 24px);
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.02em;
 }
 
 .donut-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted);
   margin-top: 2px;
   font-weight: 600;
@@ -189,18 +200,18 @@ body {
   list-style: none;
   margin: 0;
   padding: 0;
-  flex: 1;
   min-width: 0;
+  align-self: center;
 }
 
 .donut-legend li {
   display: grid;
-  grid-template-columns: 12px 28px 1fr auto;
+  grid-template-columns: 10px 24px 1fr auto;
   align-items: center;
-  gap: 10px;
-  padding: 10px 0;
+  gap: 8px;
+  padding: 7px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .donut-legend li:last-child {
@@ -243,6 +254,8 @@ body {
   border-radius: var(--radius-lg);
   padding: 10px 12px;
   box-shadow: var(--shadow-sm);
+  align-content: center;
+  min-height: 100%;
 }
 
 .stat-item {
@@ -1339,6 +1352,11 @@ button {
 @media (max-width: 1024px) {
   .dashboard {
     grid-template-columns: 1fr;
+    --donut-size: 112px;
+  }
+
+  .donut-panel {
+    grid-template-columns: var(--donut-size) 1fr;
   }
 
   .inline-grid.cols-3 {
@@ -1366,8 +1384,14 @@ button {
   }
 
   .donut-panel {
-    flex-direction: column;
-    align-items: flex-start;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: left;
+  }
+
+  .donut-legend {
+    width: 100%;
+    max-width: 220px;
   }
 
   .stat-strip {
