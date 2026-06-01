@@ -75,49 +75,77 @@ body {
   border: 1px solid #fdba74;
 }
 
-.admin-panel {
-  margin-bottom: 16px;
+.admin-anchor {
+  position: relative;
+}
+
+.admin-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  width: 240px;
+  padding: 12px;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(17, 24, 39, 0.12);
+  font-size: 12px;
 }
 
-.admin-panel-inner {
-  padding: 16px 20px;
-}
-
-.admin-panel h2 {
-  margin: 0 0 12px;
-  font-size: 16px;
-}
-
-.admin-panel label {
-  display: block;
+.admin-popover-title {
+  margin: 0 0 6px;
   font-size: 13px;
-  margin-bottom: 8px;
+  font-weight: 600;
 }
 
-.admin-panel input[type="password"],
-.admin-panel input[type="text"],
-.admin-panel input[type="email"],
-.admin-panel select,
-.admin-panel textarea {
-  display: block;
+.admin-popover-hint {
+  margin: 0 0 8px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.admin-popover-input {
   width: 100%;
-  max-width: 360px;
-  margin-top: 4px;
-  padding: 8px 10px;
+  padding: 7px 9px;
+  margin-bottom: 8px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   font: inherit;
+  font-size: 12px;
 }
 
-.admin-actions {
+.admin-popover-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+}
+
+.admin-popover-status {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.35;
+  min-height: 1.2em;
+}
+
+.btn-sm {
+  font-size: 11px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.btn-sm.btn-primary,
+.btn-primary.btn-sm {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.admin-popover-section.hidden {
+  display: none;
 }
 
 .btn-primary {
@@ -137,11 +165,6 @@ body {
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-}
-
-.admin-status {
-  margin: 10px 0 0;
-  font-size: 12px;
 }
 
 .admin-edit-box {

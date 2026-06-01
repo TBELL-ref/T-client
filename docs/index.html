@@ -19,33 +19,30 @@
           <div id="meta" class="meta"></div>
           <div class="admin-bar">
             <span id="adminBadge" class="admin-badge hidden" title="관리자 모드">관리자</span>
-            <button type="button" id="adminUnlockBtn" class="btn-admin">관리</button>
+            <div class="admin-anchor">
+              <button type="button" id="adminUnlockBtn" class="btn-admin" aria-expanded="false" aria-controls="adminPopover">관리</button>
+              <div id="adminPopover" class="admin-popover hidden" aria-hidden="true">
+                <div id="adminLoginForm" class="admin-popover-section">
+                  <p class="admin-popover-title">관리자 인증</p>
+                  <p class="admin-popover-hint">비밀번호 입력 = 저장·토큰 사용에 동의</p>
+                  <input type="password" id="adminPassword" class="admin-popover-input" placeholder="관리자 키" autocomplete="off" />
+                  <button type="button" id="adminLoginBtn" class="btn-primary btn-sm">입장</button>
+                </div>
+                <div id="adminTools" class="admin-popover-section hidden">
+                  <p class="admin-popover-hint">즐겨찾기·상세 수정 · 로컬 자동 저장</p>
+                  <div class="admin-popover-actions">
+                    <button type="button" id="adminSaveGithub" class="btn-primary btn-sm">저장 반영</button>
+                    <button type="button" id="adminExport" class="btn-sm">내보내기</button>
+                    <label class="btn-sm btn-file">가져오기<input type="file" id="adminImport" accept="application/json" hidden /></label>
+                    <button type="button" id="adminLogout" class="btn-sm">잠금</button>
+                  </div>
+                </div>
+                <p id="adminStatus" class="admin-popover-status"></p>
+              </div>
+            </div>
           </div>
         </div>
       </header>
-
-      <div id="adminPanel" class="admin-panel hidden" aria-hidden="true">
-        <div class="admin-panel-inner">
-          <h2>관리자</h2>
-          <div id="adminLoginForm">
-            <label>비밀번호 <input type="password" id="adminPassword" autocomplete="off" /></label>
-            <button type="button" id="adminLoginBtn" class="btn-primary">입장</button>
-          </div>
-          <div id="adminTools" class="hidden">
-            <p class="muted">즐겨찾기·메모·숨김·등급 수정. 로컬 자동 저장 + GitHub 반영.</p>
-            <label class="admin-token">GitHub PAT (저장소 반영, 1회)
-              <input type="password" id="adminGhPat" placeholder="repo 권한 토큰" autocomplete="off" />
-            </label>
-            <div class="admin-actions">
-              <button type="button" id="adminSaveGithub" class="btn-primary">GitHub 저장</button>
-              <button type="button" id="adminExport">내보내기</button>
-              <label class="btn-file">가져오기<input type="file" id="adminImport" accept="application/json" hidden /></label>
-              <button type="button" id="adminLogout">잠금</button>
-            </div>
-            <p id="adminStatus" class="admin-status muted"></p>
-          </div>
-        </div>
-      </div>
 
       <section id="kpi" class="kpi-grid"></section>
 

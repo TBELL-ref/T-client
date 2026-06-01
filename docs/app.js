@@ -614,49 +614,65 @@ function setAdminUi(unlocked) {
   byId("adminTools")?.classList.toggle("hidden", !unlocked);
   byId("adminLoginForm")?.classList.toggle("hidden", unlocked);
   document.querySelectorAll(".admin-only").forEach((el) => el.classList.toggle("hidden", !unlocked));
-  if (unlocked && byId("adminGhPat")) {
-    byId("adminGhPat").value = window.TClientAdmin.getPat() ? "••••••••" : "";
-  }
+}
+
+function closeAdminPopover() {
+  const pop = byId("adminPopover");
+  const btn = byId("adminUnlockBtn");
+  pop?.classList.add("hidden");
+  pop?.setAttribute("aria-hidden", "true");
+  btn?.setAttribute("aria-expanded", "false");
+}
+
+function toggleAdminPopover() {
+  const pop = byId("adminPopover");
+  const btn = byId("adminUnlockBtn");
+  const open = pop?.classList.toggle("hidden") === false;
+  pop?.setAttribute("aria-hidden", open ? "false" : "true");
+  btn?.setAttribute("aria-expanded", open ? "true" : "false");
+  if (open && window.TClientAdmin.isUnlocked()) setAdminUi(true);
+  if (open) byId("adminPassword")?.focus();
 }
 
 function bindAdmin() {
-  const panel = byId("adminPanel");
-  byId("adminUnlockBtn")?.addEventListener("click", () => {
-    panel.classList.toggle("hidden");
-    panel.setAttribute("aria-hidden", panel.classList.contains("hidden") ? "true" : "false");
-    if (window.TClientAdmin.isUnlocked()) setAdminUi(true);
+  byId("adminUnlockBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleAdminPopover();
   });
 
-  byId("adminLoginBtn")?.addEventListener("click", () => {
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".admin-anchor")) closeAdminPopover();
+  });
+
+  byId("adminLoginBtn")?.addEventListener("click", async () => {
     const pw = byId("adminPassword").value;
-    if (window.TClientAdmin.unlock(pw)) {
+    if (await window.TClientAdmin.unlock(pw)) {
       setAdminUi(true);
       setAdminStatus("관리자 모드");
       byId("adminPassword").value = "";
       refreshViews();
     } else {
-      setAdminStatus("비밀번호가 올바르지 않습니다.");
+      setAdminStatus("키가 올바르지 않습니다.");
     }
+  });
+
+  byId("adminPassword")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") byId("adminLoginBtn")?.click();
   });
 
   byId("adminLogout")?.addEventListener("click", () => {
     window.TClientAdmin.lock();
     setAdminUi(false);
     setAdminStatus("");
-    panel.classList.add("hidden");
+    closeAdminPopover();
     refreshViews();
   });
 
-  byId("adminGhPat")?.addEventListener("change", (e) => {
-    const v = e.target.value.trim();
-    if (v && !v.startsWith("•")) window.TClientAdmin.setPat(v);
-  });
-
   byId("adminSaveGithub")?.addEventListener("click", async () => {
-    setAdminStatus("GitHub 저장 중…");
+    setAdminStatus("저장 요청 중…");
     try {
       await window.TClientAdmin.saveToGitHub();
-      setAdminStatus("GitHub에 저장했습니다. 크롤 후에도 overrides.json이 유지됩니다.");
+      setAdminStatus("반영됨 (1~2분 후 새로고침)");
     } catch (err) {
       setAdminStatus(err.message || String(err));
     }

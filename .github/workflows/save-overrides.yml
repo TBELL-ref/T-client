@@ -15,19 +15,21 @@ jobs:
       - uses: actions/checkout@v4
       - name: Write overrides.json
         env:
-          PAYLOAD: ${{ toJson(github.event.client_payload.overrides) }}
+          OVERRIDES: ${{ toJson(github.event.client_payload.overrides) }}
         run: |
           node -e "
           const fs = require('fs');
-          const payload = process.env.PAYLOAD;
-          const doc = typeof payload === 'string' ? JSON.parse(payload) : payload;
+          const doc = JSON.parse(process.env.OVERRIDES);
+          const text = JSON.stringify(doc, null, 2);
           fs.mkdirSync('docs/data', { recursive: true });
-          fs.writeFileSync('docs/data/overrides.json', JSON.stringify(doc, null, 2));
+          fs.mkdirSync('data', { recursive: true });
+          fs.writeFileSync('docs/data/overrides.json', text);
+          fs.writeFileSync('data/overrides.json', text);
           "
       - name: Commit and push
         run: |
           git config user.name "T-client Admin"
           git config user.email "admin@tclient.local"
-          git add docs/data/overrides.json
+          git add docs/data/overrides.json data/overrides.json
           git diff --staged --quiet || git commit -m "chore: update overrides from admin console"
           git push

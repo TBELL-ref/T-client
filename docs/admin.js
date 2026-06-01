@@ -1,21 +1,30 @@
 /**
- * Pages admin: favorites, overrides, GitHub sync.
- * Password gate only (internal use). Optional GitHub PAT for repo save.
+ * Pages admin — password unlock + GitHub Actions save (no PAT input).
+ * Password = consent; server uses repo secrets (same key as ADMIN_SAVE_KEY).
  */
 (function () {
-  const ADMIN_PASSWORD = "tbell0518!";
-  const OVERRIDES_PATH = "docs/data/overrides.json";
+  const ADMIN_KEY_SHA256 =
+    "418283f43533ea91bd455529a29125997fcbccca22943ebb3c30b3f3afb18523";
   const REPO = "TBELL-ref/T-client";
-  const BRANCH = "main";
+  const OVERRIDES_PATH = "docs/data/overrides.json";
   const LS_KEY = "tclient-overrides-v1";
   const SS_ADMIN = "tclient-admin-unlocked";
-  const SS_GH = "tclient-github-pat";
+  const SS_KEY = "tclient-admin-key";
 
-  const state = {
-    unlocked: sessionStorage.getItem(SS_ADMIN) === "1",
-    doc: null,
-    dirty: false
-  };
+  /** XOR-obfuscated dispatch PAT (meowdule PUBLIC_REPO_TOKEN). Run: npm run embed:admin-auth */
+  const DISPATCH_AUTH_XOR = [];
+
+  const state = { unlocked: false, doc: null, dirty: false };
+
+  function xorDecode(codes) {
+    if (!codes?.length) return "";
+    return codes.map((c) => String.fromCharCode(c ^ 0x5a)).join("");
+  }
+
+  async function sha256(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
 
   function emptyDoc() {
     return { version: 1, updatedAt: null, favorites: [], companies: {} };
@@ -61,6 +70,7 @@
   }
 
   async function initDoc() {
+    state.unlocked = sessionStorage.getItem(SS_ADMIN) === "1";
     const remote = await fetchRemoteOverrides();
     const local = loadLocal();
     state.doc = mergeDocs(local, remote);
@@ -69,8 +79,7 @@
   }
 
   function getEntry(companyId) {
-    if (!state.doc) return {};
-    return state.doc.companies[companyId] ?? {};
+    return state.doc?.companies[companyId] ?? {};
   }
 
   function setEntry(companyId, patch) {
@@ -105,69 +114,59 @@
     return next;
   }
 
-  function getPat() {
-    return sessionStorage.getItem(SS_GH) || "";
-  }
-
-  function setPat(token) {
-    if (token) sessionStorage.setItem(SS_GH, token.trim());
-    else sessionStorage.removeItem(SS_GH);
-  }
-
   async function saveToGitHub() {
-    const pat = getPat();
-    if (!pat) throw new Error("GitHub 토큰이 없습니다. 관리자 패널에서 PAT를 입력하세요.");
+    const adminKey = sessionStorage.getItem(SS_KEY);
+    if (!adminKey) throw new Error("관리자 로그인이 필요합니다.");
 
-    const api = `https://api.github.com/repos/${REPO}/contents/${OVERRIDES_PATH}`;
-    const body = JSON.stringify(state.doc, null, 2);
-    const content = btoa(unescape(encodeURIComponent(body)));
-
-    let sha;
-    const getRes = await fetch(`${api}?ref=${BRANCH}`, {
-      headers: { Authorization: `Bearer ${pat}`, Accept: "application/vnd.github+json" }
-    });
-    if (getRes.ok) {
-      const meta = await getRes.json();
-      sha = meta.sha;
+    const auth = xorDecode(DISPATCH_AUTH_XOR);
+    if (!auth) {
+      throw new Error(
+        "저장용 토큰이 아직 설정되지 않았습니다. private-t-client에서 npm run embed:admin-auth 실행 후 public push가 필요합니다."
+      );
     }
 
-    const putRes = await fetch(api, {
-      method: "PUT",
+    const res = await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
+      method: "POST",
       headers: {
-        Authorization: `Bearer ${pat}`,
+        Authorization: `Bearer ${auth}`,
         Accept: "application/vnd.github+json",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28"
       },
       body: JSON.stringify({
-        message: "chore: update user overrides from QA Lead Console",
-        content,
-        sha,
-        branch: BRANCH
+        event_type: "save-overrides",
+        client_payload: {
+          adminKey,
+          overrides: state.doc
+        }
       })
     });
 
-    if (!putRes.ok) {
-      const err = await putRes.text();
-      throw new Error(`GitHub 저장 실패 (${putRes.status}): ${err.slice(0, 200)}`);
+    if (res.status === 204) {
+      state.dirty = false;
+      return true;
     }
-    state.dirty = false;
-    return true;
+    const err = await res.text();
+    throw new Error(`GitHub 저장 실패 (${res.status}). ADMIN_SAVE_KEY·토큰 설정을 확인하세요.`);
   }
 
-  function unlock(password) {
-    if (password !== ADMIN_PASSWORD) return false;
+  async function unlock(password) {
+    const hash = await sha256(`${password ?? ""}`);
+    if (hash !== ADMIN_KEY_SHA256) return false;
     sessionStorage.setItem(SS_ADMIN, "1");
+    sessionStorage.setItem(SS_KEY, password);
     state.unlocked = true;
     return true;
   }
 
   function lock() {
     sessionStorage.removeItem(SS_ADMIN);
+    sessionStorage.removeItem(SS_KEY);
     state.unlocked = false;
   }
 
   function isUnlocked() {
-    return state.unlocked;
+    return state.unlocked || sessionStorage.getItem(SS_ADMIN) === "1";
   }
 
   function exportJson() {
@@ -183,8 +182,7 @@
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const parsed = JSON.parse(reader.result);
-          state.doc = mergeDocs(parsed, state.doc);
+          state.doc = mergeDocs(JSON.parse(reader.result), state.doc);
           saveLocal(state.doc);
           resolve(state.doc);
         } catch (e) {
@@ -205,8 +203,6 @@
     unlock,
     lock,
     saveToGitHub,
-    getPat,
-    setPat,
     exportJson,
     importJson,
     isDirty: () => state.dirty,

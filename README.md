@@ -2,20 +2,17 @@
 
 QA lead dashboard: https://tbell-ref.github.io/T-client/
 
+## Admin (internal)
+
+- Click **관리** (top right) → small popup → enter admin key
+- Password = unlock + consent to save via GitHub Actions (no PAT field)
+- See [docs/ADMIN_SETUP.md](docs/ADMIN_SETUP.md) for `ADMIN_SAVE_KEY` and one-time token embed
+
 ## Data
-- `docs/data/snapshot.json` — crawl output (read-only base)
-- `docs/data/overrides.json` — favorites & admin edits (survives re-crawl)
 
-## Admin mode (internal)
-1. Click **관리** (top right)
-2. Password: `tbell0518!`
-3. Star favorites, edit notes/grade/hide in **상세** modal
-4. **GitHub 저장**: enter a [fine-grained PAT](https://github.com/settings/tokens) with `Contents: Read and write` on this repo (stored in browser session only)
-
-Edits save to `localStorage` immediately. **GitHub 저장** updates `overrides.json` so the private collector merges them on the next crawl.
-
-## Archive branches
-Each private `publish:snapshot` run creates `archive/YYYY-MM-DDTHH-mm-ss` with `sheets-export.json` (Google Sheets dump).
+- `docs/data/snapshot.json` — crawl output
+- `docs/data/overrides.json` — favorites & edits (survives re-crawl)
 
 ## Deploy
+
 - GitHub Pages source: `/docs`
