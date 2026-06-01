@@ -207,14 +207,43 @@ function renderScoreSection(row, admin = false) {
   return `<ul class="score-breakdown">${lines}</ul><p class="score-total">합계 <strong>${escapeHtml(row.priorityScore)}</strong>점 · ${escapeHtml(row.leadGrade)}등급</p>`;
 }
 
-function saveAndRefreshDetail(companyId) {
+function showToast(message, type = "ok") {
+  const root = byId("toastRoot");
+  if (!root) return;
+  const el = document.createElement("div");
+  el.className = `toast toast-${type}`;
+  el.textContent = message;
+  root.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("toast-show"));
+  setTimeout(() => {
+    el.classList.remove("toast-show");
+    setTimeout(() => el.remove(), 320);
+  }, 2600);
+}
+
+function setDetailLoading(show, text = "처리 중…") {
+  const layer = byId("detailLoading");
+  const label = byId("detailLoadingText");
+  if (!layer) return;
+  if (label) label.textContent = text;
+  layer.classList.toggle("hidden", !show);
+  layer.setAttribute("aria-hidden", show ? "false" : "true");
+  byId("detailModal")?.classList.toggle("modal-busy", show);
+}
+
+function finishDetailSave(companyId, { toastMessage = "정상 저장되었습니다.", exitEdit = true } = {}) {
   reloadRowsWithAdmin();
   refreshViews();
   const row = state.rows.find((r) => r.companyId === companyId);
-  if (row) {
-    state.detailRow = row;
-    openDetail(row, state.detailEdit);
-  }
+  if (!row) return;
+  state.detailRow = row;
+  if (exitEdit) state.detailEdit = false;
+  paintDetailModal();
+  if (toastMessage) showToast(toastMessage);
+}
+
+function saveAndRefreshDetail(companyId) {
+  finishDetailSave(companyId, { exitEdit: state.detailEdit, toastMessage: "" });
 }
 
 function setEnrichBiznoStatus(msg, isError = false) {
@@ -261,8 +290,9 @@ async function runEnrichBizNo(row) {
     return;
   }
 
-  btn.disabled = true;
-  setEnrichBiznoStatus("bizno.net 조회 중…");
+  if (btn) btn.disabled = true;
+  setDetailLoading(true, "회사 정보를 수집하고 있습니다…");
+  setEnrichBiznoStatus("");
 
   try {
     const result = await window.TEnrichBizno.fetchProfileByBizNo(bizNo);
@@ -272,22 +302,27 @@ async function runEnrichBizNo(row) {
         profile: result.profile,
         domain: result.profile.domain || undefined
       });
-      setEnrichBiznoStatus("수집 완료. 아래 「변경 저장」을 눌러 반영하세요.");
+      setEnrichBiznoStatus("수집 완료. 내용 확인 후 「변경 저장」을 눌러주세요.");
+      showToast("회사 정보 수집이 완료되었습니다.");
       return;
     }
 
     if (result.reason === "fetch_blocked" && window.TClientAdmin.dispatchEnrichCompany) {
-      setEnrichBiznoStatus("브라우저 조회 불가 — 서버에서 수집 요청 중…");
+      setDetailLoading(true, "서버에서 회사 정보를 수집 중입니다…");
       await window.TClientAdmin.dispatchEnrichCompany(row.companyId, bizNo);
       setEnrichBiznoStatus("서버 수집 요청됨. 1~2분 후 새로고침하거나 저장 반영을 실행하세요.");
+      showToast("서버 수집을 요청했습니다. 잠시 후 새로고침해 주세요.");
       return;
     }
 
     setEnrichBiznoStatus(result.message || "수집에 실패했습니다.", true);
+    showToast(result.message || "수집에 실패했습니다.", "error");
   } catch (err) {
     setEnrichBiznoStatus(err.message || "수집 오류", true);
+    showToast(err.message || "수집 오류", "error");
   } finally {
-    btn.disabled = false;
+    setDetailLoading(false);
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -353,7 +388,7 @@ function bindDetailEdits(row) {
     }
 
     window.TClientAdmin.setEntry(cid, patch);
-    saveAndRefreshDetail(cid);
+    finishDetailSave(cid, { exitEdit: true, toastMessage: "정상 저장되었습니다." });
     setAdminStatus("저장됨 (로컬). GitHub 반영은 상단 관리 → 저장 반영");
   });
 }
@@ -784,6 +819,8 @@ function paintDetailModal() {
   const modal = byId("detailModal");
   const row = state.detailRow;
   if (!row) return;
+
+  setDetailLoading(false);
 
   const admin = window.TClientAdmin?.isUnlocked();
   const edit = state.detailEdit && admin;

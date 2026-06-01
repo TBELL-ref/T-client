@@ -137,7 +137,14 @@
           </div>
         </header>
         <div id="detailBody" class="modal-body"></div>
+        <div id="detailLoading" class="detail-loading hidden" aria-hidden="true">
+          <div class="detail-loading-inner">
+            <div class="detail-spinner" aria-hidden="true"></div>
+            <p id="detailLoadingText">처리 중…</p>
+          </div>
+        </div>
       </div>
     </div>
+    <div id="toastRoot" class="toast-root" aria-live="polite"></div>
   </body>
 </html>
