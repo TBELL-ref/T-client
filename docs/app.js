@@ -206,6 +206,7 @@ function passesFilters(row) {
   if (tierFilter === "startup" && !["startup", "unknown"].includes(row.companyTier)) return false;
   if (tierFilter === "enterprise" && row.companyTier !== "enterprise") return false;
   if (tierFilter === "mid" && row.companyTier !== "mid") return false;
+  if (!row.posts?.length) return false;
   return true;
 }
 
