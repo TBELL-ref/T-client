@@ -126,9 +126,14 @@
       <div class="modal-panel" role="dialog" aria-labelledby="detailTitle">
         <header class="modal-header">
           <h2 id="detailTitle"></h2>
-          <button type="button" class="modal-close" data-close="1" aria-label="닫기">
-            <span data-icon="x"></span>
-          </button>
+          <div class="modal-actions">
+            <button type="button" id="detailEditBtn" class="btn-icon-edit hidden" aria-label="수정" title="수정">
+              <span data-icon="pencil"></span>
+            </button>
+            <button type="button" class="modal-close" data-close="1" aria-label="닫기">
+              <span data-icon="x"></span>
+            </button>
+          </div>
         </header>
         <div id="detailBody" class="modal-body"></div>
       </div>

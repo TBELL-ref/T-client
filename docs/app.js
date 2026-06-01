@@ -7,6 +7,8 @@ const state = {
   gradeSummary: {},
   activePreset: "",
   activeTab: "leads",
+  detailRow: null,
+  detailEdit: false,
   tableSort: { column: "priorityScore", direction: "desc" }
 };
 
@@ -197,7 +199,10 @@ function saveAndRefreshDetail(companyId) {
   reloadRowsWithAdmin();
   refreshViews();
   const row = state.rows.find((r) => r.companyId === companyId);
-  if (row) openDetail(row);
+  if (row) {
+    state.detailRow = row;
+    openDetail(row, state.detailEdit);
+  }
 }
 
 function bindDetailEdits(row) {
@@ -464,12 +469,12 @@ function renderDashboard() {
   const profile = s.profileComplete ?? 0;
 
   const stats = [
-    { emoji: "🏢", value: totalCompanies, label: "수집 회사" },
-    { emoji: "💼", value: totalPosts, label: "QA 공고" },
-    { emoji: "🎯", value: proposal, label: "제안 추천" },
-    { emoji: "📋", value: profile, label: "프로필 확보" },
-    { emoji: "✉️", value: s.inquiryRecommend ?? 0, label: "문의 추천" },
-    { emoji: "🚫", value: s.excluded ?? state.rows.filter((r) => r.excluded).length, label: "제외" }
+    { icon: "building", value: totalCompanies, label: "수집 회사" },
+    { icon: "briefcase", value: totalPosts, label: "QA 공고" },
+    { icon: "target", value: proposal, label: "제안 추천" },
+    { icon: "fileText", value: profile, label: "프로필 확보" },
+    { icon: "mail", value: s.inquiryRecommend ?? 0, label: "문의 추천" },
+    { icon: "ban", value: s.excluded ?? state.rows.filter((r) => r.excluded).length, label: "제외" }
   ];
 
   byId("dashboard").innerHTML = `
@@ -482,7 +487,7 @@ function renderDashboard() {
         .map(
           (item) => `
         <div class="stat-item">
-          <span class="stat-emoji" aria-hidden="true">${item.emoji}</span>
+          <span class="stat-icon-wrap" aria-hidden="true">${iconSvg(item.icon, 18)}</span>
           <span class="stat-text"><strong>${item.value}</strong> ${escapeHtml(item.label)}</span>
         </div>`
         )
@@ -581,18 +586,20 @@ function renderLeadsTable() {
   });
 }
 
-function openDetail(row) {
-  const modal = byId("detailModal");
+function tierLabelKo(tier) {
+  const map = { startup: "소·스타트업", mid: "중견", enterprise: "대기업", unknown: "미확인" };
+  return map[tier] ?? tier ?? "-";
+}
+
+function renderDetailBody(row, edit) {
   const e = window.TClientAdmin?.getEntry(row.companyId) ?? {};
   const p = { ...(row.profile ?? {}), ...(e.profile ?? {}) };
   const c = row.contact ?? {};
-  const admin = window.TClientAdmin?.isUnlocked();
   const reasons = row.actionReasons ?? [];
   const tierVal = e.companyTier || row.companyTier || "";
+  const email = c.email || row.email || "";
 
-  byId("detailTitle").textContent = displayName(row);
-
-  const classifyBlock = admin
+  const classifyBlock = edit
     ? `<div class="inline-grid">
         <div class="inline-row"><span class="inline-label">회사명</span>${inlineInput("edit-name-ko", e.companyNameKo || row.companyNameKo)}</div>
         <div class="inline-row"><span class="inline-label">규모</span>${inlineSelect("edit-tier", tierVal, [
@@ -616,17 +623,17 @@ function openDetail(row) {
         <div class="inline-row"><span class="inline-label">메모</span>${inlineInput("edit-notes", e.notes ?? row.manualNotes ?? "")}</div>
       </div>`
     : `<p class="detail-summary"><strong>${escapeHtml(displayName(row))}</strong> ${tierBadge(row)} <span class="badge grade-${row.leadGrade}">${row.leadGrade}</span></p>
-       <p class="muted">${escapeHtml(companySubline(row))} · ${row.priorityScore}점</p>`;
+       <p class="muted">${escapeHtml(companySubline(row))} · ${row.priorityScore}점 · ${escapeHtml(tierLabelKo(row.companyTier))}</p>`;
 
-  const contactBlock = admin
+  const contactBlock = edit
     ? `<div class="inline-grid cols-3">
         <div class="inline-row"><span class="inline-label">이름</span>${inlineInput("edit-contact-name", c.name ?? "")}</div>
-        <div class="inline-row"><span class="inline-label">이메일</span>${inlineInput("edit-contact-email", c.email ?? row.email ?? "", "email")}</div>
+        <div class="inline-row"><span class="inline-label">이메일</span>${inlineInput("edit-contact-email", email, "email")}</div>
         <div class="inline-row"><span class="inline-label">전화</span>${inlineInput("edit-contact-phone", c.phone ?? "", "tel")}</div>
       </div>`
-    : `<p>${c.name ? `<strong>${escapeHtml(c.name)}</strong> · ` : ""}${row.email ? escapeHtml(row.email) : '<span class="muted">이메일 없음</span>'}${c.phone ? ` · ${escapeHtml(c.phone)}` : ""}</p>`;
+    : `<p>${c.name ? `<strong>${escapeHtml(c.name)}</strong> · ` : ""}${email ? escapeHtml(email) : '<span class="muted">이메일 없음</span>'}${c.phone ? ` · ${escapeHtml(c.phone)}` : ""}</p>`;
 
-  const actionsBlock = admin
+  const actionsBlock = edit
     ? `<div class="inline-grid cols-3 action-inline">
         <div class="inline-row"><span class="inline-label">제안</span>${actionSelect("edit-act-proposal", row.actions.proposal.status)}</div>
         <div class="inline-row"><span class="inline-label">미팅</span>${actionSelect("edit-act-meeting", row.actions.meeting.status)}</div>
@@ -634,7 +641,7 @@ function openDetail(row) {
       </div>`
     : `<div class="action-row">${renderActionBadges(row.actions)}</div>`;
 
-  byId("detailBody").innerHTML = `
+  return `
     <section class="detail-section">
       ${detailTitle("분류 · 등급")}
       ${classifyBlock}
@@ -645,7 +652,7 @@ function openDetail(row) {
     </section>
     <section class="detail-section">
       ${detailTitle("회사 프로필")}
-      ${renderProfileSection(row, admin, p, e.domain || row.domain || "")}
+      ${renderProfileSection(row, edit, p, e.domain || row.domain || "")}
     </section>
     <section class="detail-section">
       ${detailTitle("다음 액션")}
@@ -670,7 +677,7 @@ function openDetail(row) {
         </tbody>
       </table>
       ${
-        admin
+        edit
           ? `<div class="inline-grid cols-2 post-add-row">
           <div class="inline-row"><span class="inline-label">추가 제목</span>${inlineInput("edit-post-title", "", "text", "QA 엔지니어")}</div>
           <div class="inline-row"><span class="inline-label">URL</span>${inlineInput("edit-post-url", "", "url", "https://...")}</div>
@@ -680,23 +687,52 @@ function openDetail(row) {
     </section>
     <section class="detail-section muted-box">
       ${detailTitle("점수 근거")}
-      ${renderScoreSection(row, admin)}
+      ${renderScoreSection(row, edit)}
     </section>
-    ${row.excludeReason && !admin ? `<p class="warn">제외: ${escapeHtml(row.excludeReason)}</p>` : ""}
-    ${admin ? `<footer class="detail-footer"><button type="button" class="btn-primary" id="detail-save-all">변경 저장</button></footer>` : ""}
-  `;
+    ${row.excludeReason ? `<p class="warn">제외: ${escapeHtml(row.excludeReason)}</p>` : ""}
+    ${edit ? `<footer class="detail-footer"><button type="button" class="btn-ghost btn-sm" id="detail-cancel-edit">취소</button><button type="button" class="btn-primary" id="detail-save-all">변경 저장</button></footer>` : ""}`;
+}
 
-  if (admin) {
+function paintDetailModal() {
+  const modal = byId("detailModal");
+  const row = state.detailRow;
+  if (!row) return;
+
+  const admin = window.TClientAdmin?.isUnlocked();
+  const edit = state.detailEdit && admin;
+
+  byId("detailTitle").textContent = displayName(row);
+  const editBtn = byId("detailEditBtn");
+  editBtn?.classList.toggle("hidden", !admin);
+  editBtn?.classList.toggle("active", edit);
+  editBtn?.setAttribute("aria-pressed", edit ? "true" : "false");
+
+  byId("detailBody").innerHTML = renderDetailBody(row, edit);
+
+  if (edit) {
     bindDetailEdits(row);
     window.TUiSelect?.init(modal);
+    byId("detail-cancel-edit")?.addEventListener("click", () => {
+      state.detailEdit = false;
+      paintDetailModal();
+    });
   }
   hydrateIcons(modal);
+}
+
+function openDetail(row, edit = false) {
+  const modal = byId("detailModal");
+  state.detailRow = row;
+  state.detailEdit = edit && window.TClientAdmin?.isUnlocked();
+  paintDetailModal();
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden", "false");
 }
 
 function closeDetail() {
   const modal = byId("detailModal");
+  state.detailRow = null;
+  state.detailEdit = false;
   modal.classList.add("hidden");
   modal.setAttribute("aria-hidden", "true");
 }
@@ -704,6 +740,12 @@ function closeDetail() {
 function bindModal() {
   const modal = byId("detailModal");
   if (!modal) return;
+
+  byId("detailEditBtn")?.addEventListener("click", () => {
+    if (!state.detailRow || !window.TClientAdmin?.isUnlocked()) return;
+    state.detailEdit = !state.detailEdit;
+    paintDetailModal();
+  });
 
   modal.querySelectorAll("[data-close]").forEach((el) => {
     el.addEventListener("click", (e) => {
@@ -868,6 +910,7 @@ function bindAdmin() {
       setAdminStatus("관리자 모드");
       byId("adminPassword").value = "";
       refreshViews();
+      if (state.detailRow) paintDetailModal();
     } else {
       setAdminStatus("키가 올바르지 않습니다.");
     }
@@ -883,6 +926,7 @@ function bindAdmin() {
     setAdminStatus("");
     closeAdminPopover();
     refreshViews();
+    if (state.detailRow) paintDetailModal();
   });
 
   byId("adminSaveGithub")?.addEventListener("click", async () => {
