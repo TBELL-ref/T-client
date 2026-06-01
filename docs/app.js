@@ -10,11 +10,10 @@ const state = {
 
 const PRESETS = [
   { id: "grade-a", label: "A등급", apply: () => setFilters({ grade: "A", exclude: "active" }, { keepPreset: true }) },
-  { id: "report", label: "리포트 필요", apply: () => setFilters({ report: "yes", exclude: "active" }, { keepPreset: true }) },
-  { id: "meeting", label: "미팅 필요", apply: () => setFilters({ meeting: "yes", exclude: "active" }, { keepPreset: true }) },
+  { id: "proposal", label: "제안 추천", apply: () => setFilters({ action: "proposal", exclude: "active" }, { keepPreset: true }) },
+  { id: "meeting", label: "미팅 추천", apply: () => setFilters({ action: "meeting", exclude: "active" }, { keepPreset: true }) },
   { id: "contact", label: "담당자 확보", apply: () => setFilters({ contact: "yes", exclude: "active" }, { keepPreset: true }) },
-  { id: "failures", label: "수집 실패 포함", apply: () => setFilters({ grade: "", stage: "", contact: "", report: "", meeting: "", exclude: "active" }, { keepPreset: true }) },
-  { id: "all", label: "전체", apply: () => setFilters({ grade: "", stage: "", contact: "", report: "", meeting: "", exclude: "" }, { keepPreset: true }) }
+  { id: "all", label: "전체", apply: () => setFilters({ grade: "", action: "", contact: "", exclude: "" }, { keepPreset: true }) }
 ];
 
 const byId = (id) => document.getElementById(id);
@@ -29,9 +28,49 @@ function iconSvg(name) {
   return icons[name] ?? "";
 }
 
+function displayName(row) {
+  return row.companyNameKo || row.companyName || "-";
+}
+
+function normalizeActions(row) {
+  if (row.actions) return row.actions;
+  const flag = (v) => (v === "yes" ? "추천" : "보류");
+  return {
+    proposal: { label: "제안", status: flag(row.reportRequired) },
+    meeting: { label: "미팅", status: flag(row.meetingRequired) },
+    inquiry: {
+      label: "문의",
+      status: row.contactSecured === "yes" && ["A", "B"].includes(row.leadGrade) ? "추천" : "보류"
+    }
+  };
+}
+
+function enrichRow(row) {
+  const actions = normalizeActions(row);
+  const actionSummary =
+    row.actionSummary ||
+    [actions.proposal, actions.meeting, actions.inquiry]
+      .filter((a) => a.status === "추천")
+      .map((a) => a.label)
+      .join(" · ") ||
+    "보류";
+  return { ...row, actions, actionSummary };
+}
+
+function renderActionBadges(actions, compact = false) {
+  const items = [actions.proposal, actions.meeting, actions.inquiry];
+  return items
+    .map((a) => {
+      const cls = a.status === "추천" ? "action-recommend" : "action-hold";
+      const text = compact ? `${a.label} ${a.status}` : `${a.label} ${a.status}`;
+      return `<span class="action-badge ${cls}">${escapeHtml(text)}</span>`;
+    })
+    .join("");
+}
+
 function companyNameById(id) {
   const row = state.rows.find((r) => r.companyId === id);
-  return row ? row.companyName : id;
+  return row ? displayName(row) : id;
 }
 
 function priorityValue(row) {
@@ -54,22 +93,20 @@ function setFilters(values, { keepPreset = false } = {}) {
 function passesFilters(row) {
   const q = byId("search").value.toLowerCase().trim();
   const grade = byId("grade").value;
-  const stage = byId("stage").value;
+  const action = byId("action").value;
   const contact = byId("contact").value;
-  const report = byId("report").value;
-  const meeting = byId("meeting").value;
   const exclude = byId("exclude").value;
+  const actions = row.actions;
 
-  const haystack = `${row.companyName} ${row.domain} ${row.email}`.toLowerCase();
+  const haystack = `${displayName(row)} ${row.companyName} ${row.domain}`.toLowerCase();
   if (q && !haystack.includes(q)) return false;
   if (grade && row.leadGrade !== grade) return false;
-  if (stage && row.salesStage !== stage) return false;
+  if (action === "proposal" && actions.proposal.status !== "추천") return false;
+  if (action === "meeting" && actions.meeting.status !== "추천") return false;
+  if (action === "inquiry" && actions.inquiry.status !== "추천") return false;
   if (contact && row.contactSecured !== contact) return false;
-  if (report && row.reportRequired !== report) return false;
-  if (meeting && row.meetingRequired !== meeting) return false;
   if (exclude === "active" && row.excluded) return false;
   if (exclude === "excluded" && !row.excluded) return false;
-  if (state.activePreset === "failures" && !hasFailedPosts(row)) return false;
   return true;
 }
 
@@ -77,49 +114,29 @@ function sortRows(rows) {
   const mode = byId("sort").value;
   const list = [...rows];
 
-  if (mode === "priority" || mode === "grade" || mode === "recent" || mode === "name") {
-    list.sort((a, b) => {
-      if (a.excluded !== b.excluded) return a.excluded ? 1 : -1;
-      if (mode === "name") return a.companyName.localeCompare(b.companyName, "ko");
-      if (mode === "recent") return new Date(b.lastCollectedAt || 0) - new Date(a.lastCollectedAt || 0);
-      if (mode === "grade") {
-        const gradeOrder = { A: 3, B: 2, C: 1 };
-        const diff = (gradeOrder[b.leadGrade] ?? 0) - (gradeOrder[a.leadGrade] ?? 0);
-        if (diff !== 0) return diff;
-      }
-      return priorityValue(b) - priorityValue(a);
-    });
-    return list;
-  }
-
-  const { column, direction } = state.tableSort;
-  const factor = direction === "asc" ? 1 : -1;
   list.sort((a, b) => {
-    const av = a[column] ?? "";
-    const bv = b[column] ?? "";
-    if (column === "priorityScore") return (priorityValue(a) - priorityValue(b)) * factor;
-    if (column === "lastCollectedAt") {
-      return (new Date(av || 0) - new Date(bv || 0)) * factor;
+    if (a.excluded !== b.excluded) return a.excluded ? 1 : -1;
+    if (mode === "name") return displayName(a).localeCompare(displayName(b), "ko");
+    if (mode === "recent") return new Date(b.lastCollectedAt || 0) - new Date(a.lastCollectedAt || 0);
+    if (mode === "grade") {
+      const gradeOrder = { A: 3, B: 2, C: 1 };
+      const diff = (gradeOrder[b.leadGrade] ?? 0) - (gradeOrder[a.leadGrade] ?? 0);
+      if (diff !== 0) return diff;
     }
-    if (typeof av === "number" && typeof bv === "number") return (av - bv) * factor;
-    return `${av}`.localeCompare(`${bv}`, "ko") * factor;
+    return priorityValue(b) - priorityValue(a);
   });
   return list;
-}
-
-function yesNo(value) {
-  return value === "yes" ? "예" : "아니오";
 }
 
 function renderKpi() {
   const s = state.gradeSummary;
   const items = [
-    { label: "A 등급", value: s.A ?? 0 },
-    { label: "B 등급", value: s.B ?? 0 },
-    { label: "C 등급", value: s.C ?? 0 },
-    { label: "담당자 확보", value: s.contactSecured ?? 0 },
-    { label: "리포트 필요", value: s.reportRequired ?? 0 },
-    { label: "수동 검토", value: state.manualReviewQueue.length }
+    { label: "A", value: s.A ?? 0 },
+    { label: "B", value: s.B ?? 0 },
+    { label: "C", value: s.C ?? 0 },
+    { label: "제안 추천", value: s.proposalRecommend ?? s.reportRequired ?? 0 },
+    { label: "미팅 추천", value: s.meetingRecommend ?? s.meetingRequired ?? 0 },
+    { label: "문의 추천", value: s.inquiryRecommend ?? 0 }
   ];
   byId("kpi").innerHTML = items
     .map((item) => `<div class="kpi-card"><div class="kpi-label">${item.label}</div><div class="kpi-value">${item.value}</div></div>`)
@@ -134,22 +151,15 @@ function renderPresets() {
   byId("presets").querySelectorAll(".preset-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       state.activePreset = btn.dataset.preset;
-      const preset = PRESETS.find((p) => p.id === state.activePreset);
-      preset?.apply();
+      PRESETS.find((p) => p.id === state.activePreset)?.apply();
       renderPresets();
     });
   });
 }
 
-function sortHeader(column, label) {
-  const active = state.tableSort.column === column;
-  const indicator = active ? (state.tableSort.direction === "asc" ? "▲" : "▼") : "";
-  return `<th class="sortable" data-col="${column}">${label}<span class="sort-indicator">${indicator}</span></th>`;
-}
-
 function renderLeadsTable() {
   const filtered = sortRows(state.rows.filter(passesFilters));
-  byId("resultCount").textContent = `${filtered.length}건 표시 / 전체 ${state.rows.length}건`;
+  byId("resultCount").textContent = `${filtered.length}건 / 전체 ${state.rows.length}건`;
 
   if (!filtered.length) {
     byId("leads").innerHTML = '<div class="empty-state">조건에 맞는 리드가 없습니다.</div>';
@@ -161,44 +171,32 @@ function renderLeadsTable() {
       <table>
         <thead>
           <tr>
-            ${sortHeader("companyName", "회사")}
-            ${sortHeader("priorityScore", "우선순위")}
-            ${sortHeader("leadGrade", "등급")}
-            ${sortHeader("salesStage", "단계")}
+            <th>회사</th>
+            <th>공고</th>
+            <th>우선순위</th>
+            <th>등급</th>
+            <th>다음 액션</th>
             <th>담당자</th>
-            <th>이메일</th>
-            <th>리포트</th>
-            <th>미팅</th>
-            ${sortHeader("lastCollectedAt", "마지막 수집")}
-            <th>비고</th>
+            <th>수집일</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           ${filtered
             .map(
-              (row) => `
+              (row, idx) => `
             <tr class="${row.excluded ? "row-excluded" : ""}${hasFailedPosts(row) ? " row-failure" : ""}">
               <td class="cell-company">
-                <strong>${escapeHtml(row.companyName)}</strong>
-                <span>${escapeHtml(row.domain || "-")}</span>
+                <strong>${escapeHtml(displayName(row))}</strong>
+                <span>${escapeHtml(row.companyName !== displayName(row) ? row.companyName : row.domain || "-")}</span>
               </td>
+              <td>${row.posts.length}건</td>
               <td><strong>${row.priorityScore}</strong></td>
               <td><span class="badge grade-${row.leadGrade}">${row.leadGrade}</span></td>
-              <td><span class="badge stage-${row.salesStage}">${row.salesStage}</span></td>
+              <td class="cell-actions">${renderActionBadges(row.actions, true)}</td>
               <td><span class="badge">${row.contactSecured === "yes" ? "확보" : "미확보"}</span></td>
-              <td>
-                ${escapeHtml(row.email || "-")}
-                <div><span class="badge confidence-${row.emailConfidence}">${row.emailConfidence}</span></div>
-              </td>
-              <td>${yesNo(row.reportRequired)}</td>
-              <td>${yesNo(row.meetingRequired)}</td>
               <td>${formatDate(row.lastCollectedAt)}</td>
-              <td>
-                ${row.manualOverrideLocked ? '<span class="badge locked">수동</span> ' : ""}
-                ${row.excludeReason ? `<div class="reason-text">${escapeHtml(row.excludeReason)}</div>` : ""}
-                ${hasFailedPosts(row) ? `<div class="reason-text">실패 공고 ${row.posts.filter((p) => p.failureReason).length}건</div>` : ""}
-                ${row.scoreReason ? `<div class="score-reason">${escapeHtml(row.scoreReason)}</div>` : ""}
-              </td>
+              <td><button type="button" class="btn-detail" data-detail="${idx}">상세</button></td>
             </tr>`
             )
             .join("")}
@@ -206,17 +204,73 @@ function renderLeadsTable() {
       </table>
     </div>`;
 
-  byId("leads").querySelectorAll("th.sortable").forEach((th) => {
-    th.addEventListener("click", () => {
-      const col = th.dataset.col;
-      if (state.tableSort.column === col) {
-        state.tableSort.direction = state.tableSort.direction === "asc" ? "desc" : "asc";
-      } else {
-        state.tableSort = { column: col, direction: "desc" };
-      }
-      byId("sort").value = "priority";
-      renderLeadsTable();
-    });
+  filtered.forEach((row, idx) => {
+    byId("leads").querySelector(`[data-detail="${idx}"]`)?.addEventListener("click", () => openDetail(row));
+  });
+}
+
+function openDetail(row) {
+  const modal = byId("detailModal");
+  byId("detailTitle").textContent = displayName(row);
+  const reasons = row.actionReasons ?? [
+    row.actions.proposal.status === "추천" ? "제안 발송을 추천합니다." : null,
+    row.actions.meeting.status === "추천" ? "초기 미팅을 추천합니다." : null,
+    row.actions.inquiry.status === "추천" ? "이메일 문의를 추천합니다." : null
+  ].filter(Boolean);
+
+  byId("detailBody").innerHTML = `
+    <section class="detail-section">
+      <h3>회사</h3>
+      <p><strong>${escapeHtml(displayName(row))}</strong> ${row.companyName !== displayName(row) ? `(${escapeHtml(row.companyName)})` : ""}</p>
+      <p class="muted">${escapeHtml(row.domain || "도메인 없음")} · ${row.leadGrade}등급 · ${row.priorityScore}점</p>
+      ${row.email ? `<p>${escapeHtml(row.email)} <span class="badge confidence-${row.emailConfidence}">${row.emailConfidence}</span></p>` : ""}
+    </section>
+    <section class="detail-section">
+      <h3>다음 액션</h3>
+      <div class="action-row">${renderActionBadges(row.actions)}</div>
+      <ul class="reason-list">${reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>
+    </section>
+    <section class="detail-section">
+      <h3>QA 채용 공고 (${row.posts.length}건)</h3>
+      <table>
+        <thead><tr><th>공고</th><th>출처</th><th>링크</th></tr></thead>
+        <tbody>
+          ${row.posts
+            .map(
+              (p) => `
+            <tr>
+              <td>${escapeHtml(p.title)}${p.failureReason ? `<div class="reason-text">${escapeHtml(p.failureReason)}</div>` : ""}</td>
+              <td>${escapeHtml(p.sourceLabel || p.source)}</td>
+              <td><a class="link" href="${escapeAttr(p.url)}" target="_blank" rel="noreferrer">${iconSvg("external")} 열기</a></td>
+            </tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </section>
+    ${
+      row.scoreReason
+        ? `<section class="detail-section muted-box"><h3>점수 근거</h3><p class="score-reason">${escapeHtml(row.scoreReason)}</p></section>`
+        : ""
+    }
+    ${row.excludeReason ? `<p class="warn">제외: ${escapeHtml(row.excludeReason)}</p>` : ""}
+  `;
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closeDetail() {
+  const modal = byId("detailModal");
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden", "true");
+}
+
+function bindModal() {
+  byId("detailModal").querySelectorAll("[data-close]").forEach((el) => {
+    el.addEventListener("click", closeDetail);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeDetail();
   });
 }
 
@@ -233,32 +287,22 @@ function renderGroups() {
     <div class="group-block">
       <div class="group-header" data-group="${idx}">
         <div>
-          <strong>${escapeHtml(row.companyName)}</strong>
+          <strong>${escapeHtml(displayName(row))}</strong>
           <span class="badge grade-${row.leadGrade}">${row.leadGrade}</span>
-          <span class="badge">${row.priorityScore}점</span>
+          <span class="badge">${row.actionSummary}</span>
         </div>
-        <span>${iconSvg("chevron")} 공고 ${row.posts.length}건</span>
+        <span>${iconSvg("chevron")} ${row.posts.length}건</span>
       </div>
       <div class="group-body hidden" id="group-${idx}">
         <table>
-          <thead>
-            <tr>
-              <th>공고명</th>
-              <th>소스</th>
-              <th>상태</th>
-              <th>실패 사유</th>
-              <th>링크</th>
-            </tr>
-          </thead>
+          <thead><tr><th>공고</th><th>출처</th><th>링크</th></tr></thead>
           <tbody>
             ${row.posts
               .map(
                 (p) => `
               <tr class="${p.failureReason ? "row-failure" : ""}">
                 <td>${escapeHtml(p.title)}</td>
-                <td>${escapeHtml(p.source)}</td>
-                <td>${escapeHtml(p.status || "-")}</td>
-                <td>${p.failureReason ? `<span class="reason-text">${escapeHtml(p.failureCategory || "failed")}: ${escapeHtml(p.failureReason)}</span>` : "-"}</td>
+                <td>${escapeHtml(p.sourceLabel || p.source)}</td>
                 <td><a class="link" href="${escapeAttr(p.url)}" target="_blank" rel="noreferrer">${iconSvg("external")}</a></td>
               </tr>`
               )
@@ -271,10 +315,7 @@ function renderGroups() {
     .join("");
 
   byId("groups").querySelectorAll(".group-header").forEach((header) => {
-    header.addEventListener("click", () => {
-      const body = byId(`group-${header.dataset.group}`);
-      body.classList.toggle("hidden");
-    });
+    header.addEventListener("click", () => byId(`group-${header.dataset.group}`).classList.toggle("hidden"));
   });
 }
 
@@ -288,29 +329,16 @@ function renderDedupe() {
   byId("dedupe").innerHTML = `
     <div class="table-wrap">
       <table>
-        <thead>
-          <tr>
-            <th>회사 A</th>
-            <th>회사 B</th>
-            <th>매칭 근거</th>
-            <th>검토 상태</th>
-          </tr>
-        </thead>
+        <thead><tr><th>회사 A</th><th>회사 B</th><th>근거</th><th>상태</th></tr></thead>
         <tbody>
           ${rows
             .map(
               (c) => `
             <tr>
-              <td class="cell-company">
-                <strong>${escapeHtml(c.company_name_left || companyNameById(c.company_id_left))}</strong>
-                <span>${escapeHtml(c.company_id_left)}</span>
-              </td>
-              <td class="cell-company">
-                <strong>${escapeHtml(c.company_name_right || companyNameById(c.company_id_right))}</strong>
-                <span>${escapeHtml(c.company_id_right)}</span>
-              </td>
+              <td><strong>${escapeHtml(c.company_name_left || companyNameById(c.company_id_left))}</strong></td>
+              <td><strong>${escapeHtml(c.company_name_right || companyNameById(c.company_id_right))}</strong></td>
               <td class="score-reason">${escapeHtml(c.match_basis)}</td>
-              <td><span class="badge status-${c.review_status}">${escapeHtml(c.review_status)}</span></td>
+              <td><span class="badge">${escapeHtml(c.review_status)}</span></td>
             </tr>`
             )
             .join("")}
@@ -321,61 +349,34 @@ function renderDedupe() {
 
 function renderManualQueue() {
   const items = state.manualReviewQueue;
-  const summaryEntries = Object.entries(state.failureSummary);
-
-  let html = "";
-  if (summaryEntries.length) {
-    html += `<div style="padding:12px 16px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;">${summaryEntries
-      .map(([k, v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`)
-      .join("")}</div>`;
-  }
-
   if (!items.length) {
-    byId("manual").innerHTML = html + '<div class="empty-state">수동 검토 대기 항목이 없습니다.</div>';
+    byId("manual").innerHTML = '<div class="empty-state">수동 검토 대기 없음</div>';
     return;
   }
 
-  html += `
+  byId("manual").innerHTML = `
     <div class="table-wrap">
       <table>
-        <thead>
-          <tr>
-            <th>URL</th>
-            <th>상태</th>
-            <th>실패 분류</th>
-            <th>실패 사유</th>
-            <th>재시도</th>
-            <th>마지막 처리</th>
-            <th>메모</th>
-          </tr>
-        </thead>
+        <thead><tr><th>URL</th><th>분류</th><th>사유</th><th>재시도</th></tr></thead>
         <tbody>
           ${items
             .map(
               (item) => `
             <tr class="row-failure">
               <td><a class="link" href="${escapeAttr(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.url)}</a></td>
-              <td><span class="badge status-${item.status}">${escapeHtml(item.status)}</span></td>
               <td>${escapeHtml(item.failureCategory || "-")}</td>
-              <td class="reason-text">${escapeHtml(item.failureReason || "unknown")}</td>
+              <td class="reason-text">${escapeHtml(item.failureReason || "-")}</td>
               <td>${item.retryCount ?? 0}회</td>
-              <td>${formatDate(item.lastProcessedAt)}</td>
-              <td>${escapeHtml(item.notes || "-")}</td>
             </tr>`
             )
             .join("")}
         </tbody>
       </table>
     </div>`;
-  byId("manual").innerHTML = html;
 }
 
 function escapeHtml(value) {
-  return `${value ?? ""}`
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  return `${value ?? ""}`.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function escapeAttr(value) {
@@ -385,13 +386,7 @@ function escapeAttr(value) {
 function formatDate(value) {
   if (!value) return "-";
   try {
-    return new Date(value).toLocaleString("ko-KR", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
+    return new Date(value).toLocaleDateString("ko-KR");
   } catch {
     return value;
   }
@@ -417,19 +412,17 @@ function refreshViews() {
 async function boot() {
   try {
     const res = await fetch("./data/snapshot.json");
-    if (!res.ok) throw new Error(`snapshot HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const snapshot = await res.json();
-    state.rows = snapshot.rows ?? [];
+    state.rows = (snapshot.rows ?? []).map(enrichRow);
     state.dedupeCandidates = snapshot.dedupeCandidates ?? [];
     state.manualReviewQueue = snapshot.manualReviewQueue ?? [];
     state.failureSummary = snapshot.failureSummary ?? {};
     state.gradeSummary = snapshot.gradeSummary ?? {};
 
-    byId("meta").innerHTML = `
-    <div>스냅샷: ${formatDate(snapshot.generatedAt)}</div>
-    <div>회사 ${snapshot.totalCompanies || 0} · 공고 ${snapshot.totalPosts || 0}</div>`;
+    byId("meta").innerHTML = `<div>${formatDate(snapshot.generatedAt)}</div><div>회사 ${snapshot.totalCompanies || 0} · 공고 ${snapshot.totalPosts || 0}</div>`;
 
-    ["search", "grade", "stage", "contact", "report", "meeting", "exclude", "sort"].forEach((id) => {
+    ["search", "grade", "action", "contact", "exclude", "sort"].forEach((id) => {
       byId(id).addEventListener("input", () => {
         state.activePreset = "";
         renderPresets();
@@ -437,14 +430,15 @@ async function boot() {
       });
     });
 
+    bindModal();
     renderPresets();
     bindTabs();
     refreshViews();
     renderDedupe();
     renderManualQueue();
   } catch (err) {
-    byId("meta").textContent = "데이터 로드 실패";
-    byId("leads").innerHTML = `<div class="empty-state">스냅샷을 불러오지 못했습니다. (${escapeHtml(err.message)})</div>`;
+    byId("meta").textContent = "로드 실패";
+    byId("leads").innerHTML = `<div class="empty-state">${escapeHtml(err.message)}</div>`;
   }
 }
 

@@ -21,38 +21,28 @@
 
       <section class="filter-panel">
         <div class="filter-row">
-          <input id="search" type="search" placeholder="회사명, 도메인, 이메일 검색" />
+          <input id="search" type="search" placeholder="한글 회사명, 도메인 검색" />
           <select id="grade">
             <option value="">등급 전체</option>
             <option value="A">A</option>
             <option value="B">B</option>
             <option value="C">C</option>
           </select>
-          <select id="stage">
-            <option value="">단계 전체</option>
-            <option value="qualified">qualified</option>
-            <option value="new">new</option>
-            <option value="excluded">excluded</option>
+          <select id="action">
+            <option value="">액션 전체</option>
+            <option value="proposal">제안 추천</option>
+            <option value="meeting">미팅 추천</option>
+            <option value="inquiry">문의 추천</option>
           </select>
           <select id="contact">
             <option value="">담당자 전체</option>
-            <option value="yes">담당자 확보</option>
+            <option value="yes">확보</option>
             <option value="no">미확보</option>
-          </select>
-          <select id="report">
-            <option value="">리포트 전체</option>
-            <option value="yes">필요</option>
-            <option value="no">불필요</option>
-          </select>
-          <select id="meeting">
-            <option value="">미팅 전체</option>
-            <option value="yes">필요</option>
-            <option value="no">불필요</option>
           </select>
           <select id="exclude">
             <option value="">제외 전체</option>
-            <option value="active">활성 리드</option>
-            <option value="excluded">제외됨</option>
+            <option value="active">활성</option>
+            <option value="excluded">제외</option>
           </select>
         </div>
         <div class="filter-row secondary">
@@ -80,6 +70,17 @@
         <div id="dedupe" class="panel hidden"></div>
         <div id="manual" class="panel hidden"></div>
       </main>
+    </div>
+
+    <div id="detailModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close="1"></div>
+      <div class="modal-panel" role="dialog" aria-labelledby="detailTitle">
+        <header class="modal-header">
+          <h2 id="detailTitle"></h2>
+          <button type="button" class="modal-close" data-close="1" aria-label="닫기">×</button>
+        </header>
+        <div id="detailBody" class="modal-body"></div>
+      </div>
     </div>
   </body>
 </html>

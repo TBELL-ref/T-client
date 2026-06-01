@@ -1,190 +1,458 @@
 {
-  "generatedAt": "2026-06-01T04:30:00.000Z",
+  "generatedAt": "2026-06-01T05:00:10.549Z",
   "totalCompanies": 8,
-  "totalPosts": 14,
+  "totalPosts": 12,
   "totalManualReview": 1,
-  "failureSummary": { "blocked": 1, "timeout": 1 },
+  "failureSummary": {
+    "blocked": 1
+  },
   "gradeSummary": {
     "A": 3,
     "B": 3,
     "C": 2,
     "excluded": 0,
-    "reportRequired": 4,
-    "meetingRequired": 6,
-    "contactSecured": 6
+    "proposalRecommend": 3,
+    "meetingRecommend": 5,
+    "inquiryRecommend": 5,
+    "contactSecured": 5
   },
   "rows": [
     {
       "companyId": "cmp_toss",
       "companyName": "toss",
+      "companyNameKo": "토스",
       "domain": "toss.im",
       "lastCollectedAt": "2026-06-01T00:00:00.000Z",
       "leadGrade": "A",
       "priorityScore": "95",
-      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15|recent:+10",
-      "salesStage": "qualified",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15",
       "contactSecured": "yes",
-      "reportRequired": "yes",
-      "meetingRequired": "yes",
       "email": "recruit@toss.im",
       "emailConfidence": "high",
-      "excludeReason": "",
-      "manualOverrideLocked": false,
       "excluded": false,
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionReasons": [
+        "QA 공고 3건 확인.",
+        "담당자 이메일 확보.",
+        "제안·미팅·문의 모두 가능."
+      ],
       "posts": [
-        { "id": "job_toss_1", "title": "QA Automation Engineer", "url": "https://toss.im/career/jobs/qa-automation", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" },
-        { "id": "job_toss_2", "title": "Senior QA Engineer (Platform)", "url": "https://toss.im/career/jobs/senior-qa-platform", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" },
-        { "id": "job_toss_3", "title": "QA Lead - Payments", "url": "https://toss.im/career/jobs/qa-lead-payments", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" }
-      ]
+        {
+          "id": "j1",
+          "title": "QA Automation Engineer",
+          "url": "https://toss.im/career/jobs/qa-automation",
+          "source": "generic",
+          "sourceLabel": "데모",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "j2",
+          "title": "Senior QA Engineer (Platform)",
+          "url": "https://toss.im/career/jobs/senior-qa",
+          "source": "generic",
+          "sourceLabel": "데모",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "j3",
+          "title": "QA Lead - Payments",
+          "url": "https://toss.im/career/jobs/qa-lead",
+          "source": "generic",
+          "sourceLabel": "데모",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ],
+      "actionSummary": "제안 · 미팅 · 문의",
+      "salesStage": "qualified",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "manualOverrideLocked": false,
+      "excludeReason": ""
     },
     {
       "companyId": "cmp_baemin",
       "companyName": "baemin",
+      "companyNameKo": "배달의민족",
       "domain": "woowahan.com",
       "lastCollectedAt": "2026-06-01T00:00:00.000Z",
       "leadGrade": "A",
       "priorityScore": "88",
-      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15|recent:+10",
-      "salesStage": "qualified",
+      "scoreReason": "domain:+15|email_high:+25|contact_secured:+20|posts_2plus:+20|qa_title:+15",
       "contactSecured": "yes",
-      "reportRequired": "yes",
-      "meetingRequired": "yes",
       "email": "jobs@woowahan.com",
       "emailConfidence": "high",
-      "excludeReason": "",
-      "manualOverrideLocked": false,
       "excluded": false,
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionReasons": [
+        "QA·테스트 Automation 공고 2건.",
+        "대형사라 Phase 2에서 감점 예정."
+      ],
       "posts": [
-        { "id": "job_baemin_1", "title": "QA Engineer (Delivery App)", "url": "https://career.woowahan.com/jobs/qa-delivery", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" },
-        { "id": "job_baemin_2", "title": "Test Automation Engineer", "url": "https://career.woowahan.com/jobs/test-automation", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" }
-      ]
+        {
+          "id": "j4",
+          "title": "QA Engineer (Delivery App)",
+          "url": "https://career.woowahan.com/jobs/qa",
+          "source": "generic",
+          "sourceLabel": "데모",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "j5",
+          "title": "Test Automation Engineer",
+          "url": "https://career.woowahan.com/jobs/ta",
+          "source": "generic",
+          "sourceLabel": "데모",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ],
+      "actionSummary": "제안 · 미팅 · 문의",
+      "salesStage": "qualified",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "manualOverrideLocked": false,
+      "excludeReason": ""
     },
     {
       "companyId": "cmp_karrot",
       "companyName": "karrot",
+      "companyNameKo": "당근마켓",
       "domain": "karrotmarket.com",
       "lastCollectedAt": "2026-05-31T09:00:00.000Z",
       "leadGrade": "A",
       "priorityScore": "82",
-      "scoreReason": "domain:+15|email_medium:+15|contact_secured:+20|posts_2plus:+20|qa_title:+15|verifiable_service:+15",
-      "salesStage": "qualified",
+      "scoreReason": "domain:+15|email_medium:+15|contact_secured:+20|posts_2plus:+20|qa_title:+15",
       "contactSecured": "yes",
-      "reportRequired": "yes",
-      "meetingRequired": "yes",
       "email": "recruit@daangn.com",
       "emailConfidence": "medium",
-      "excludeReason": "",
-      "manualOverrideLocked": false,
       "excluded": false,
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "추천"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionReasons": [
+        "QA·SDET 공고 확인.",
+        "성장기업 우선순위 후보."
+      ],
       "posts": [
-        { "id": "job_karrot_1", "title": "QA Engineer", "url": "https://jobs.lever.co/karrot/qa-engineer", "source": "lever", "status": "new", "failureReason": "", "failureCategory": "" },
-        { "id": "job_karrot_2", "title": "SDET - Marketplace", "url": "https://jobs.lever.co/karrot/sdet-marketplace", "source": "lever", "status": "new", "failureReason": "", "failureCategory": "" }
-      ]
+        {
+          "id": "j6",
+          "title": "QA Engineer",
+          "url": "https://jobs.lever.co/karrot/qa",
+          "source": "lever",
+          "sourceLabel": "데모",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        },
+        {
+          "id": "j7",
+          "title": "SDET - Marketplace",
+          "url": "https://jobs.lever.co/karrot/sdet",
+          "source": "lever",
+          "sourceLabel": "데모",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ],
+      "actionSummary": "제안 · 미팅 · 문의",
+      "salesStage": "qualified",
+      "reportRequired": "yes",
+      "meetingRequired": "yes",
+      "manualOverrideLocked": false,
+      "excludeReason": ""
     },
     {
       "companyId": "cmp_sendbird",
       "companyName": "sendbird",
+      "companyNameKo": "센드버드",
       "domain": "sendbird.com",
       "lastCollectedAt": "2026-05-31T09:00:00.000Z",
       "leadGrade": "B",
       "priorityScore": "65",
-      "scoreReason": "domain:+15|email_medium:+15|contact_secured:+20|posts_1:+10|qa_title:+15|verifiable_service:+15",
-      "salesStage": "qualified",
+      "scoreReason": "domain:+15|email_medium:+15|contact_secured:+20|posts_1:+10|qa_title:+15",
       "contactSecured": "yes",
-      "reportRequired": "no",
-      "meetingRequired": "yes",
       "email": "careers@sendbird.com",
       "emailConfidence": "medium",
-      "excludeReason": "",
-      "manualOverrideLocked": false,
       "excluded": false,
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "보류"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionReasons": [
+        "공고 1건 → 제안은 보류.",
+        "담당자 확보 → 미팅·문의 추천."
+      ],
       "posts": [
-        { "id": "job_sendbird_1", "title": "Senior QA Engineer (Chat SDK)", "url": "https://boards.greenhouse.io/sendbird/jobs/qa-sdk", "source": "greenhouse", "status": "new", "failureReason": "", "failureCategory": "" }
-      ]
+        {
+          "id": "j8",
+          "title": "Senior QA Engineer (Chat SDK)",
+          "url": "https://boards.greenhouse.io/sendbird/jobs/qa",
+          "source": "greenhouse",
+          "sourceLabel": "데모",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ],
+      "actionSummary": "미팅 · 문의",
+      "salesStage": "qualified",
+      "reportRequired": "no",
+      "meetingRequired": "yes",
+      "manualOverrideLocked": false,
+      "excludeReason": ""
     },
     {
       "companyId": "cmp_29cm",
       "companyName": "29cm",
+      "companyNameKo": "29CM",
       "domain": "29cm.co.kr",
       "lastCollectedAt": "2026-05-30T09:00:00.000Z",
       "leadGrade": "B",
       "priorityScore": "58",
-      "scoreReason": "domain:+15|email_medium:+15|contact_secured:+20|posts_1:+10|qa_title:+15",
-      "salesStage": "qualified",
       "contactSecured": "yes",
-      "reportRequired": "no",
-      "meetingRequired": "yes",
       "email": "hr@29cm.co.kr",
       "emailConfidence": "medium",
-      "excludeReason": "",
-      "manualOverrideLocked": false,
       "excluded": false,
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "보류"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "추천"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "추천"
+        }
+      },
+      "actionReasons": [
+        "이커머스 QA 1건.",
+        "추가 공고 확인 후 제안 검토."
+      ],
       "posts": [
-        { "id": "job_29cm_1", "title": "QA Engineer (E-commerce)", "url": "https://www.wanted.co.kr/wd/29cm-qa", "source": "wanted", "status": "new", "failureReason": "", "failureCategory": "" }
-      ]
+        {
+          "id": "j9",
+          "title": "QA Engineer (E-commerce)",
+          "url": "https://www.wanted.co.kr/wd/29cm-qa",
+          "source": "wanted",
+          "sourceLabel": "데모",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ],
+      "actionSummary": "미팅 · 문의",
+      "salesStage": "qualified",
+      "reportRequired": "no",
+      "meetingRequired": "yes",
+      "manualOverrideLocked": false,
+      "excludeReason": ""
     },
     {
       "companyId": "cmp_loplat",
       "companyName": "loplat",
+      "companyNameKo": "로플랫",
       "domain": "loplat.com",
       "lastCollectedAt": "2026-05-30T09:00:00.000Z",
       "leadGrade": "B",
       "priorityScore": "52",
-      "scoreReason": "domain:+15|email_low:+5|posts_1:+10|qa_title:+15|verifiable_service:+15",
-      "salesStage": "new",
       "contactSecured": "no",
-      "reportRequired": "no",
-      "meetingRequired": "no",
       "email": "hello@loplat.com",
       "emailConfidence": "low",
-      "excludeReason": "",
-      "manualOverrideLocked": false,
       "excluded": false,
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "보류"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "보류"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "보류"
+        }
+      },
+      "actionReasons": [
+        "담당자 미확보.",
+        "정보 수집 후 재검토."
+      ],
       "posts": [
-        { "id": "job_loplat_1", "title": "QA / Test Engineer (Location Platform)", "url": "https://loplat.com/careers/qa", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" }
-      ]
+        {
+          "id": "j10",
+          "title": "QA / Test Engineer",
+          "url": "https://loplat.com/careers/qa",
+          "source": "generic",
+          "sourceLabel": "데모",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ],
+      "actionSummary": "보류",
+      "salesStage": "qualified",
+      "reportRequired": "no",
+      "meetingRequired": "no",
+      "manualOverrideLocked": false,
+      "excludeReason": ""
     },
     {
       "companyId": "cmp_zigbang",
       "companyName": "zigbang",
+      "companyNameKo": "직방",
       "domain": "zigbang.com",
       "lastCollectedAt": "2026-05-29T09:00:00.000Z",
       "leadGrade": "C",
       "priorityScore": "35",
-      "scoreReason": "domain:+15|posts_1:+10|qa_title:+15",
-      "salesStage": "new",
       "contactSecured": "no",
-      "reportRequired": "no",
-      "meetingRequired": "no",
       "email": "",
       "emailConfidence": "low",
-      "excludeReason": "",
-      "manualOverrideLocked": false,
       "excluded": false,
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "보류"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "보류"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "보류"
+        }
+      },
+      "actionReasons": [
+        "Junior QA 1건.",
+        "연락처 없음."
+      ],
       "posts": [
-        { "id": "job_zigbang_1", "title": "Junior QA Engineer", "url": "https://zigbang.com/career/qa-junior", "source": "generic", "status": "new", "failureReason": "", "failureCategory": "" }
-      ]
+        {
+          "id": "j11",
+          "title": "Junior QA Engineer",
+          "url": "https://zigbang.com/career/qa-junior",
+          "source": "generic",
+          "sourceLabel": "데모",
+          "status": "new",
+          "failureReason": "",
+          "failureCategory": ""
+        }
+      ],
+      "actionSummary": "보류",
+      "salesStage": "new",
+      "reportRequired": "no",
+      "meetingRequired": "no",
+      "manualOverrideLocked": false,
+      "excludeReason": ""
     },
     {
       "companyId": "cmp_spoon",
       "companyName": "spoonradio",
+      "companyNameKo": "스푼라디오",
       "domain": "spooncast.net",
       "lastCollectedAt": "2026-05-28T09:00:00.000Z",
       "leadGrade": "C",
       "priorityScore": "25",
-      "scoreReason": "posts_1:+10|qa_title:+15",
-      "salesStage": "new",
       "contactSecured": "no",
-      "reportRequired": "no",
-      "meetingRequired": "no",
       "email": "",
       "emailConfidence": "low",
-      "excludeReason": "",
-      "manualOverrideLocked": false,
       "excluded": false,
+      "actions": {
+        "proposal": {
+          "label": "제안",
+          "status": "보류"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "보류"
+        },
+        "inquiry": {
+          "label": "문의",
+          "status": "보류"
+        }
+      },
+      "actionReasons": [
+        "수집 실패 공고 1건.",
+        "수동 확인 필요."
+      ],
       "posts": [
-        { "id": "job_spoon_1", "title": "QA Engineer (Audio Streaming)", "url": "https://boards.greenhouse.io/spoonradio/jobs/qa", "source": "greenhouse", "status": "failed", "failureReason": "http_403", "failureCategory": "blocked" }
-      ]
+        {
+          "id": "j12",
+          "title": "QA Engineer (Audio Streaming)",
+          "url": "https://boards.greenhouse.io/spoonradio/jobs/qa",
+          "source": "greenhouse",
+          "sourceLabel": "데모",
+          "status": "failed",
+          "failureReason": "http_403",
+          "failureCategory": "blocked"
+        }
+      ],
+      "actionSummary": "보류",
+      "salesStage": "new",
+      "reportRequired": "no",
+      "meetingRequired": "no",
+      "manualOverrideLocked": false,
+      "excludeReason": ""
     }
   ],
   "dedupeCandidates": [
@@ -192,24 +460,15 @@
       "candidate_id": "cmp_toss_cmp_baemin",
       "company_id_left": "cmp_toss",
       "company_id_right": "cmp_baemin",
-      "company_name_left": "toss",
-      "company_name_right": "baemin",
-      "match_basis": "same_root_domain:false",
-      "review_status": "pending"
-    },
-    {
-      "candidate_id": "cmp_karrot_cmp_29cm",
-      "company_id_left": "cmp_karrot",
-      "company_id_right": "cmp_29cm",
-      "company_name_left": "karrot",
-      "company_name_right": "29cm",
-      "match_basis": "name_similarity:0.31",
+      "company_name_left": "토스",
+      "company_name_right": "배달의민족",
+      "match_basis": "both enterprise",
       "review_status": "pending"
     }
   ],
   "manualReviewQueue": [
     {
-      "url": "https://www.wanted.co.kr/wd/blocked-qa-page",
+      "url": "https://www.wanted.co.kr/wd/blocked-qa",
       "status": "manual_review",
       "failureReason": "blocked_content_detected",
       "failureCategory": "blocked",
