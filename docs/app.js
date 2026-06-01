@@ -415,31 +415,37 @@ function refreshViews() {
 }
 
 async function boot() {
-  const res = await fetch("./data/snapshot.json");
-  const snapshot = await res.json();
-  state.rows = snapshot.rows ?? [];
-  state.dedupeCandidates = snapshot.dedupeCandidates ?? [];
-  state.manualReviewQueue = snapshot.manualReviewQueue ?? [];
-  state.failureSummary = snapshot.failureSummary ?? {};
-  state.gradeSummary = snapshot.gradeSummary ?? {};
+  try {
+    const res = await fetch("./data/snapshot.json");
+    if (!res.ok) throw new Error(`snapshot HTTP ${res.status}`);
+    const snapshot = await res.json();
+    state.rows = snapshot.rows ?? [];
+    state.dedupeCandidates = snapshot.dedupeCandidates ?? [];
+    state.manualReviewQueue = snapshot.manualReviewQueue ?? [];
+    state.failureSummary = snapshot.failureSummary ?? {};
+    state.gradeSummary = snapshot.gradeSummary ?? {};
 
-  byId("meta").innerHTML = `
+    byId("meta").innerHTML = `
     <div>스냅샷: ${formatDate(snapshot.generatedAt)}</div>
     <div>회사 ${snapshot.totalCompanies || 0} · 공고 ${snapshot.totalPosts || 0}</div>`;
 
-  ["search", "grade", "stage", "contact", "report", "meeting", "exclude", "sort"].forEach((id) => {
-    byId(id).addEventListener("input", () => {
-      state.activePreset = "";
-      renderPresets();
-      refreshViews();
+    ["search", "grade", "stage", "contact", "report", "meeting", "exclude", "sort"].forEach((id) => {
+      byId(id).addEventListener("input", () => {
+        state.activePreset = "";
+        renderPresets();
+        refreshViews();
+      });
     });
-  });
 
-  renderPresets();
-  bindTabs();
-  refreshViews();
-  renderDedupe();
-  renderManualQueue();
+    renderPresets();
+    bindTabs();
+    refreshViews();
+    renderDedupe();
+    renderManualQueue();
+  } catch (err) {
+    byId("meta").textContent = "데이터 로드 실패";
+    byId("leads").innerHTML = `<div class="empty-state">스냅샷을 불러오지 못했습니다. (${escapeHtml(err.message)})</div>`;
+  }
 }
 
 boot();
