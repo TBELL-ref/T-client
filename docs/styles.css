@@ -117,7 +117,7 @@ body {
 .dashboard {
   --donut-size: clamp(96px, 12vw, 128px);
   display: grid;
-  grid-template-columns: 3fr 2fr;
+  grid-template-columns: 3fr 2.5fr;
   gap: 12px;
   margin-bottom: 16px;
   align-items: stretch;
@@ -1342,6 +1342,34 @@ button {
 
 .link-btn:hover {
   color: var(--accent);
+}
+
+.bizno-fetch-row {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.bizno-fetch-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.bizno-fetch-controls .inline-field {
+  flex: 1;
+  min-width: 140px;
+}
+
+.enrich-bizno-status {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.enrich-bizno-status.warn {
+  color: var(--warn);
 }
 
 .icon {

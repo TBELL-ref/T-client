@@ -1,0 +1,29 @@
+name: Enrich Company By BizNo
+
+on:
+  repository_dispatch:
+    types: [enrich-company]
+
+permissions:
+  contents: write
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    if: github.event.client_payload.adminKey == secrets.ADMIN_SAVE_KEY
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch bizno profile and update overrides
+        env:
+          COMPANY_ID: ${{ github.event.client_payload.companyId }}
+          BIZ_NO: ${{ github.event.client_payload.bizNo }}
+        run: node scripts/enrichOneBizno.mjs "$COMPANY_ID" "$BIZ_NO"
+      - name: Commit and push
+        run: |
+          git config user.name "T-client Admin"
+          git config user.email "admin@tclient.local"
+          git add docs/data/overrides.json data/overrides.json
+          git diff --staged --quiet || git commit -m "chore: enrich company ${COMPANY_ID} from bizno"
+          git push
+        env:
+          COMPANY_ID: ${{ github.event.client_payload.companyId }}

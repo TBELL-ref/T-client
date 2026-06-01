@@ -118,7 +118,7 @@ function inlineSelect(id, value, options) {
   return `<select id="${id}" class="inline-field inline-select">${opts}</select>`;
 }
 
-function renderProfileSection(row, admin = false, p = {}, domain = "") {
+function renderProfileSection(row, edit = false, p = {}, domain = "") {
   const fields = [
     ["도메인", "edit-prof-domain", domain],
     ["법인명", "edit-prof-legal", p.companyNameLegal],
@@ -131,12 +131,24 @@ function renderProfileSection(row, admin = false, p = {}, domain = "") {
     ["종업원", "edit-prof-emp", p.employeeCount],
     ["홈페이지", "edit-prof-home", p.homepage],
     ["산업분류", "edit-prof-industry", p.industrySummary]
-  ].filter(([, , v]) => admin || `${v ?? ""}`.trim());
+  ].filter(([, , v]) => edit || `${v ?? ""}`.trim());
 
-  if (!fields.length) return `<p class="muted">사업자·업종 정보 없음</p>`;
+  if (!fields.length && !edit) return `<p class="muted">사업자·업종 정보 없음</p>`;
 
-  if (admin) {
-    return `<table class="profile-table profile-inline"><tbody>${fields
+  if (edit) {
+    const biznoBlock = `
+      <div class="bizno-fetch-row">
+        <div class="inline-row bizno-fetch-line">
+          <span class="inline-label">사업자번호</span>
+          <div class="bizno-fetch-controls">
+            ${inlineInput("edit-prof-bizno", p.bizNo ?? "", "text", "000-00-00000")}
+            <button type="button" class="btn-primary btn-sm" id="btn-enrich-bizno">정보 자동 수집</button>
+          </div>
+        </div>
+        <p class="enrich-bizno-status muted" id="enrich-bizno-status">bizno.net에서 업종·규모·홈페이지를 가져옵니다.</p>
+      </div>`;
+    const tableFields = fields.filter(([, id]) => id !== "edit-prof-bizno");
+    return `${biznoBlock}<table class="profile-table profile-inline"><tbody>${tableFields
       .map(
         ([label, id, val]) =>
           `<tr><th>${escapeHtml(label)}</th><td>${inlineInput(id, val, id.includes("home") ? "url" : "text")}</td></tr>`
@@ -205,9 +217,84 @@ function saveAndRefreshDetail(companyId) {
   }
 }
 
+function setEnrichBiznoStatus(msg, isError = false) {
+  const el = byId("enrich-bizno-status");
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.toggle("warn", isError);
+}
+
+function fillProfileForm(profile) {
+  const map = {
+    "edit-prof-legal": profile.companyNameLegal,
+    "edit-prof-bizno": profile.bizNo,
+    "edit-prof-type": profile.bizType,
+    "edit-prof-item": profile.bizItem,
+    "edit-prof-scale": profile.companyScale,
+    "edit-prof-status": profile.bizStatus,
+    "edit-prof-founded": profile.foundedDate,
+    "edit-prof-emp": profile.employeeCount,
+    "edit-prof-home": profile.homepage,
+    "edit-prof-industry": profile.industrySummary,
+    "edit-prof-domain": profile.domain
+  };
+  for (const [id, val] of Object.entries(map)) {
+    const el = byId(id);
+    if (el && `${val ?? ""}`.trim()) el.value = val;
+  }
+  if (profile.companyNameLegal) {
+    const nameEl = byId("edit-name-ko");
+    if (nameEl && !nameEl.value.trim()) nameEl.value = profile.companyNameLegal;
+  }
+}
+
+async function runEnrichBizNo(row) {
+  const bizNo = byId("edit-prof-bizno")?.value.trim();
+  const btn = byId("btn-enrich-bizno");
+  if (!window.TEnrichBizno?.fetchProfileByBizNo) {
+    setEnrichBiznoStatus("수집 모듈을 불러오지 못했습니다.", true);
+    return;
+  }
+  const digits = window.TEnrichBizno.normalizeBizNoDigits(bizNo);
+  if (!digits) {
+    setEnrichBiznoStatus("사업자번호 10자리를 입력하세요.", true);
+    return;
+  }
+
+  btn.disabled = true;
+  setEnrichBiznoStatus("bizno.net 조회 중…");
+
+  try {
+    const result = await window.TEnrichBizno.fetchProfileByBizNo(bizNo);
+    if (result.ok) {
+      fillProfileForm(result.profile);
+      window.TClientAdmin.setEntry(row.companyId, {
+        profile: result.profile,
+        domain: result.profile.domain || undefined
+      });
+      setEnrichBiznoStatus("수집 완료. 아래 「변경 저장」을 눌러 반영하세요.");
+      return;
+    }
+
+    if (result.reason === "fetch_blocked" && window.TClientAdmin.dispatchEnrichCompany) {
+      setEnrichBiznoStatus("브라우저 조회 불가 — 서버에서 수집 요청 중…");
+      await window.TClientAdmin.dispatchEnrichCompany(row.companyId, bizNo);
+      setEnrichBiznoStatus("서버 수집 요청됨. 1~2분 후 새로고침하거나 저장 반영을 실행하세요.");
+      return;
+    }
+
+    setEnrichBiznoStatus(result.message || "수집에 실패했습니다.", true);
+  } catch (err) {
+    setEnrichBiznoStatus(err.message || "수집 오류", true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function bindDetailEdits(row) {
   const cid = row.companyId;
-  const entry = () => window.TClientAdmin.getEntry(cid);
+
+  byId("btn-enrich-bizno")?.addEventListener("click", () => runEnrichBizNo(row));
 
   byId("detail-save-all")?.addEventListener("click", () => {
     const parts = {};
@@ -255,7 +342,7 @@ function bindDetailEdits(row) {
     const postUrl = byId("edit-post-url")?.value.trim();
     if (postUrl) {
       patch.extraPosts = [
-        ...(entry().extraPosts ?? []),
+        ...(window.TClientAdmin.getEntry(cid).extraPosts ?? []),
         {
           title: byId("edit-post-title")?.value.trim() || "QA 공고",
           url: postUrl,

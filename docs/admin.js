@@ -349,6 +349,34 @@
     throw new Error(`GitHub 저장 실패 (${res.status}). ADMIN_SAVE_KEY·토큰 확인.`);
   }
 
+  async function dispatchEnrichCompany(companyId, bizNo) {
+    const adminKey = sessionStorage.getItem(SS_KEY);
+    if (!adminKey) throw new Error("관리자 로그인이 필요합니다.");
+
+    const auth = xorDecode(DISPATCH_AUTH_XOR);
+    if (!auth) {
+      throw new Error("저장용 토큰 미설정. npm run embed:admin-auth 후 push 필요.");
+    }
+
+    const digits = `${bizNo ?? ""}`.replace(/\D/g, "");
+    const res = await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28"
+      },
+      body: JSON.stringify({
+        event_type: "enrich-company",
+        client_payload: { adminKey, companyId, bizNo: digits }
+      })
+    });
+
+    if (res.status === 204) return true;
+    throw new Error(`서버 수집 요청 실패 (${res.status}).`);
+  }
+
   async function unlock(password) {
     const hash = await sha256(`${password ?? ""}`);
     if (hash !== ADMIN_KEY_SHA256) return false;
@@ -402,6 +430,7 @@
     unlock,
     lock,
     saveToGitHub,
+    dispatchEnrichCompany,
     exportJson,
     importJson,
     isDirty: () => state.dirty,
