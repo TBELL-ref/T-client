@@ -291,6 +291,76 @@ tbody tr.row-failure td {
   color: var(--muted);
 }
 
+.company-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+tbody tr.row-tier-enterprise {
+  background: #fff7ed;
+}
+
+tbody tr.row-tier-mid {
+  background: #f8fafc;
+}
+
+.tier-badge.tier-enterprise {
+  color: #9a3412;
+  border-color: #fdba74;
+  background: #ffedd5;
+}
+
+.tier-badge.tier-mid {
+  color: #1e3a8a;
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.scale-badge,
+.biz-status-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: #f1f5f9;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.biz-status-badge.biz-status-active {
+  color: #166534;
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.biz-status-badge.biz-status-closed {
+  color: #991b1b;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.profile-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.profile-table th {
+  text-align: left;
+  width: 28%;
+  padding: 6px 8px 6px 0;
+  color: var(--muted);
+  font-weight: 500;
+  vertical-align: top;
+}
+
+.profile-table td {
+  padding: 6px 0;
+}
+
 .badge {
   display: inline-block;
   border: 1px solid var(--line);

@@ -13,7 +13,8 @@ const PRESETS = [
   { id: "proposal", label: "제안 추천", apply: () => setFilters({ action: "proposal", exclude: "active" }, { keepPreset: true }) },
   { id: "meeting", label: "미팅 추천", apply: () => setFilters({ action: "meeting", exclude: "active" }, { keepPreset: true }) },
   { id: "contact", label: "담당자 확보", apply: () => setFilters({ contact: "yes", exclude: "active" }, { keepPreset: true }) },
-  { id: "all", label: "전체", apply: () => setFilters({ grade: "", action: "", contact: "", exclude: "" }, { keepPreset: true }) }
+  { id: "startup", label: "스타트업·미확인", apply: () => setFilters({ tier: "startup", exclude: "active" }, { keepPreset: true }) },
+  { id: "all", label: "전체", apply: () => setFilters({ grade: "", action: "", contact: "", exclude: "", tier: "" }, { keepPreset: true }) }
 ];
 
 const byId = (id) => document.getElementById(id);
@@ -36,7 +37,93 @@ function tierBadge(row) {
   const label = row.companyTierLabel || "-";
   const tier = row.companyTier || "unknown";
   if (label === "-") return "";
-  return `<span class="tier-badge tier-${tier}" title="기업 규모">${escapeHtml(label)}</span>`;
+  const hint =
+    tier === "enterprise"
+      ? "대기업 — 스타트업 타깃 아님"
+      : tier === "mid"
+        ? "중견 — 우선순위 낮음"
+        : tier === "startup"
+          ? "스타트업 후보"
+          : "규모 미확인";
+  return `<span class="tier-badge tier-${tier}" title="${escapeHtml(hint)}">${escapeHtml(label)}</span>`;
+}
+
+const PORTAL_HOST_HINT = /jobkorea|saramin|wanted\.co\.kr/i;
+
+function scaleBadge(row) {
+  const scale = row.profile?.companyScale;
+  if (!scale) return "";
+  return `<span class="scale-badge" title="기업규모">${escapeHtml(scale)}</span>`;
+}
+
+function bizStatusBadge(row) {
+  const status = row.profile?.bizStatus;
+  if (!status) return "";
+  const closed = /폐업|휴업|말소/.test(status);
+  const cls = closed ? "biz-status-closed" : "biz-status-active";
+  return `<span class="biz-status-badge ${cls}">${escapeHtml(status.split(/\s+/)[0])}</span>`;
+}
+
+function companySubline(row) {
+  const p = row.profile ?? {};
+  const parts = [];
+  if (p.bizItem) parts.push(p.bizItem);
+  else if (p.bizType) parts.push(p.bizType);
+  if (row.domainVerified && row.domain) {
+    parts.push(row.domain);
+  } else if (p.homepage) {
+    parts.push(p.homepage.replace(/^https?:\/\//i, ""));
+  }
+  if (parts.length) return parts.join(" · ");
+  const namePart =
+    row.companyName && row.companyName !== displayName(row) ? row.companyName : "";
+  const raw = `${row.domain ?? ""}`.trim();
+  if (raw && PORTAL_HOST_HINT.test(raw)) {
+    return namePart ? `${namePart} · 도메인 미확인` : "도메인 미확인 (채용 사이트만 수집)";
+  }
+  return namePart || "도메인 미확인 · 업종 미수집";
+}
+
+function renderProfileSection(row) {
+  const p = row.profile ?? {};
+  if (!row.profileComplete && !p.bizItem && !p.homepage) {
+    return `<section class="detail-section muted-box">
+      <h3>회사 프로필</h3>
+      <p class="muted">사업자·업종 정보 미수집 — <code>npm run enrich:companies</code> 또는 수집 파이프라인 enrichment 실행.</p>
+    </section>`;
+  }
+  const rows = [
+    ["법인명", p.companyNameLegal],
+    ["사업자번호", p.bizNo],
+    ["업태", p.bizType],
+    ["종목", p.bizItem],
+    ["기업규모", p.companyScale],
+    ["사업자상태", p.bizStatus],
+    ["등록일", p.foundedDate],
+    ["종업원", p.employeeCount ? `${p.employeeCount}명` : ""],
+    ["홈페이지", p.homepage ? `<a class="link" href="${escapeAttr(p.homepage)}" target="_blank" rel="noreferrer">${escapeHtml(p.homepage)}</a>` : ""],
+    ["산업분류", p.industrySummary]
+  ].filter(([, v]) => `${v ?? ""}`.trim());
+
+  return `<section class="detail-section">
+    <h3>회사 프로필 ${p.enrichmentSource ? `<span class="muted">(${escapeHtml(p.enrichmentSource)})</span>` : ""}</h3>
+    <table class="profile-table">
+      <tbody>
+        ${rows
+          .map(
+            ([label, value]) =>
+              `<tr><th>${escapeHtml(label)}</th><td>${typeof value === "string" && value.includes("<a ") ? value : escapeHtml(`${value}`)}</td></tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>
+  </section>`;
+}
+
+function rowTierClass(row) {
+  if (row.companyTier === "enterprise") return " row-tier-enterprise";
+  if (row.companyTier === "mid") return " row-tier-mid";
+  return "";
 }
 
 function normalizeActions(row) {
@@ -106,7 +193,7 @@ function passesFilters(row) {
   const exclude = byId("exclude").value;
   const actions = row.actions;
 
-  const haystack = `${displayName(row)} ${row.companyName} ${row.domain}`.toLowerCase();
+  const haystack = `${displayName(row)} ${row.companyName} ${row.domain} ${row.profile?.bizItem ?? ""} ${row.profile?.bizType ?? ""} ${row.profile?.companyScale ?? ""}`.toLowerCase();
   if (q && !haystack.includes(q)) return false;
   if (grade && row.leadGrade !== grade) return false;
   if (action === "proposal" && actions.proposal.status !== "추천") return false;
@@ -115,6 +202,10 @@ function passesFilters(row) {
   if (contact && row.contactSecured !== contact) return false;
   if (exclude === "active" && row.excluded) return false;
   if (exclude === "excluded" && !row.excluded) return false;
+  const tierFilter = byId("tier")?.value;
+  if (tierFilter === "startup" && !["startup", "unknown"].includes(row.companyTier)) return false;
+  if (tierFilter === "enterprise" && row.companyTier !== "enterprise") return false;
+  if (tierFilter === "mid" && row.companyTier !== "mid") return false;
   return true;
 }
 
@@ -144,6 +235,7 @@ function renderKpi() {
     { label: "C", value: s.C ?? 0 },
     { label: "제안 추천", value: s.proposalRecommend ?? s.reportRequired ?? 0 },
     { label: "미팅 추천", value: s.meetingRecommend ?? s.meetingRequired ?? 0 },
+    { label: "프로필 확보", value: s.profileComplete ?? 0 },
     { label: "문의 추천", value: s.inquiryRecommend ?? 0 }
   ];
   byId("kpi").innerHTML = items
@@ -193,13 +285,15 @@ function renderLeadsTable() {
           ${filtered
             .map(
               (row, idx) => `
-            <tr class="${row.excluded ? "row-excluded" : ""}${hasFailedPosts(row) ? " row-failure" : ""}">
+            <tr class="${row.excluded ? "row-excluded" : ""}${hasFailedPosts(row) ? " row-failure" : ""}${rowTierClass(row)}">
               <td class="cell-company">
                 <div class="company-line">
                   <strong>${escapeHtml(displayName(row))}</strong>
                   ${tierBadge(row)}
+                  ${scaleBadge(row)}
+                  ${bizStatusBadge(row)}
                 </div>
-                <span>${escapeHtml(row.companyName !== displayName(row) ? row.companyName : row.domain || "-")}</span>
+                <span class="company-sub">${escapeHtml(companySubline(row))}</span>
               </td>
               <td>${row.posts.length}건</td>
               <td><strong>${row.priorityScore}</strong></td>
@@ -233,9 +327,10 @@ function openDetail(row) {
     <section class="detail-section">
       <h3>회사</h3>
       <p><strong>${escapeHtml(displayName(row))}</strong> ${row.companyName !== displayName(row) ? `(${escapeHtml(row.companyName)})` : ""} ${tierBadge(row)}</p>
-      <p class="muted">${escapeHtml(row.domain || "도메인 없음")} · ${row.leadGrade}등급 · ${row.priorityScore}점${row.companyTierLabel && row.companyTierLabel !== "-" ? ` · ${row.companyTierLabel}기업` : ""}</p>
-      ${row.email ? `<p>${escapeHtml(row.email)} <span class="badge confidence-${row.emailConfidence}">${row.emailConfidence}</span></p>` : ""}
+      <p class="muted">${escapeHtml(companySubline(row))} · ${row.leadGrade}등급 · ${row.priorityScore}점${row.companyTierLabel && row.companyTierLabel !== "-" ? ` · ${row.companyTierLabel}기업` : ""}</p>
+      ${row.email ? `<p>${escapeHtml(row.email)} <span class="badge confidence-${row.emailConfidence}">${row.emailConfidence}</span></p>` : `<p class="muted">담당자 이메일 미확인</p>`}
     </section>
+    ${renderProfileSection(row)}
     <section class="detail-section">
       <h3>다음 액션</h3>
       <div class="action-row">${renderActionBadges(row.actions)}</div>
@@ -447,7 +542,7 @@ async function boot() {
 
     byId("meta").innerHTML = `<div>${formatDate(snapshot.generatedAt)}</div><div>회사 ${snapshot.totalCompanies || 0} · 공고 ${snapshot.totalPosts || 0}</div>`;
 
-    ["search", "grade", "action", "contact", "exclude", "sort"].forEach((id) => {
+    ["search", "grade", "action", "contact", "exclude", "tier", "sort"].forEach((id) => {
       byId(id).addEventListener("input", () => {
         state.activePreset = "";
         renderPresets();
