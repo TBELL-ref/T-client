@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-06-02T05:21:01.813Z",
+  "updatedAt": "2026-06-02T05:42:58.764Z",
   "keywords": [
     {
       "is_active": "true",
@@ -18,7 +18,7 @@
       "source": "generic"
     },
     {
-      "is_active": "true",
+      "is_active": "false",
       "keyword": "sdet",
       "source": "generic"
     },
@@ -35,6 +35,11 @@
     {
       "is_active": "true",
       "keyword": "테스트",
+      "source": "generic"
+    },
+    {
+      "is_active": "true",
+      "keyword": "테스터",
       "source": "generic"
     }
   ]
