@@ -4,14 +4,9 @@
 (function () {
   const ADMIN_KEY_SHA256 =
     "418283f43533ea91bd455529a29125997fcbccca22943ebb3c30b3f3afb18523";
-  const REPO = "TBELL-ref/T-client";
-  const REPO_PRIVATE = "meowdule/T-client";
   const LS_KEY = "tclient-overrides-v2";
   const LS_KEYWORDS_DRAFT = "tclient-keywords-draft";
   const SS_ADMIN = "tclient-admin-unlocked";
-  const SS_KEY = "tclient-admin-key";
-
-  const DISPATCH_AUTH_XOR = [61,51,46,50,47,56,5,42,59,46,5,107,107,24,21,21,105,29,9,27,106,110,62,19,42,21,63,25,57,50,59,54,99,5,62,110,109,8,23,54,23,31,11,108,23,51,59,22,60,13,25,20,98,22,20,55,109,56,57,52,27,62,54,13,56,41,2,30,108,62,13,18,98,19,104,52,56,0,21,8,16,0,111,23,8,54,46,28,21,25,21,11,107];
 
   const TIER_LABEL = { enterprise: "대", mid: "중", startup: "소", unknown: "-" };
   const TIER_PENALTY = { enterprise: 22, mid: 8, startup: 0, unknown: 0 };
@@ -42,12 +37,19 @@
     doc: null,
     dirty: false,
     keywordsDoc: null,
-    activeKeywordDraft: []
+    activeKeywordDraft: [],
+    adminKey: null
   };
 
-  function xorDecode(codes) {
-    if (!codes?.length) return "";
-    return codes.map((c) => String.fromCharCode(c ^ 0x5a)).join("");
+  function adminGatewayUrl() {
+    const meta = document.querySelector('meta[name="tclient-admin-gateway"]');
+    const configured = meta?.getAttribute("content")?.trim();
+    if (configured) return configured.replace(/\/$/, "");
+    const u = new URL(window.location.href);
+    const parts = u.pathname.split("/").filter(Boolean);
+    if (parts.length && /\.[a-z0-9]+$/i.test(parts[parts.length - 1])) parts.pop();
+    const base = parts.length ? `/${parts.join("/")}` : "";
+    return `${u.origin}${base}/api/admin`;
   }
 
   async function sha256(text) {
@@ -172,46 +174,44 @@
     saveKeywordsDraft(state.activeKeywordDraft);
   }
 
-  async function repoDispatch(eventType, payload, repo = REPO) {
-    const adminKey = sessionStorage.getItem(SS_KEY);
-    if (!adminKey) throw new Error("관리자 로그인이 필요합니다.");
+  function requireAdminKey() {
+    if (!state.adminKey) throw new Error("관리자 로그인이 필요합니다.");
+    return state.adminKey;
+  }
 
-    const auth = xorDecode(DISPATCH_AUTH_XOR);
-    if (!auth) {
-      throw new Error("저장용 토큰 미설정. npm run embed:admin-auth 후 push 필요.");
+  async function requestAdminAction(action, payload = {}) {
+    const adminKey = requireAdminKey();
+    const url = adminGatewayUrl();
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminKey, action, payload })
+      });
+    } catch (err) {
+      throw new Error(
+        `게이트웨이 연결 실패 (${url}). GitHub Pages만 사용 중이면 Vercel/Netlify에 api/admin 배포가 필요합니다.`
+      );
     }
-
-    const res = await fetch(`https://api.github.com/repos/${repo}/dispatches`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${auth}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "X-GitHub-Api-Version": "2022-11-28"
-      },
-      body: JSON.stringify({
-        event_type: eventType,
-        client_payload: { adminKey, ...payload }
-      })
-    });
-
-    if (res.status === 204) return true;
-    const detail = await res.text().catch(() => "");
-    throw new Error(`요청 실패 (${res.status}). ${detail || "ADMIN_SAVE_KEY·토큰 권한 확인."}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || data.detail || `요청 실패 (${res.status})`);
+    }
+    return data;
   }
 
   async function saveKeywordsToGitHub() {
     const merged = applyKeywordEdits(getActiveKeywordLabels());
     const updatedAt = new Date().toISOString();
-    await repoDispatch("save-keywords", { keywords: merged, updatedAt });
-    await repoDispatch("sync-keywords", { keywords: merged }, REPO_PRIVATE);
+    await requestAdminAction("save-keywords", { keywords: merged, updatedAt });
     state.keywordsDoc = { version: 1, updatedAt, keywords: merged };
     syncActiveDraftFromDoc();
     return true;
   }
 
   async function triggerCollect() {
-    return repoDispatch("trigger-collect", {}, REPO_PRIVATE);
+    return requestAdminAction("trigger-collect", {});
   }
 
   function emptyDoc() {
@@ -513,47 +513,33 @@
   }
 
   async function saveToGitHub() {
-    return repoDispatch("save-overrides", { overrides: state.doc }).then(() => {
-      state.dirty = false;
-      return true;
-    });
+    await requestAdminAction("save-overrides", { overrides: state.doc });
+    state.dirty = false;
+    return true;
   }
 
   async function dispatchEnrichCompany(companyId, bizNo) {
-    const adminKey = sessionStorage.getItem(SS_KEY);
-    if (!adminKey) throw new Error("관리자 로그인이 필요합니다.");
-
     const digits = `${bizNo ?? ""}`.replace(/\D/g, "");
-    return repoDispatch("enrich-company", { companyId, bizNo: digits });
+    return requestAdminAction("enrich-company", { companyId, bizNo: digits });
   }
 
   async function unlock(password) {
     const hash = await sha256(`${password ?? ""}`);
     if (hash !== ADMIN_KEY_SHA256) return false;
-    sessionStorage.setItem(SS_ADMIN, "1");
-    sessionStorage.setItem(SS_KEY, password);
+    state.adminKey = `${password ?? ""}`;
     state.unlocked = true;
+    sessionStorage.setItem(SS_ADMIN, "1");
     return true;
   }
 
   function lock() {
-    sessionStorage.removeItem(SS_ADMIN);
-    sessionStorage.removeItem(SS_KEY);
+    state.adminKey = null;
     state.unlocked = false;
+    sessionStorage.removeItem(SS_ADMIN);
   }
 
   function isUnlocked() {
-    return state.unlocked || sessionStorage.getItem(SS_ADMIN) === "1";
-  }
-
-  function lock() {
-    sessionStorage.removeItem(SS_ADMIN);
-    sessionStorage.removeItem(SS_KEY);
-    state.unlocked = false;
-  }
-
-  function isUnlocked() {
-    return state.unlocked || sessionStorage.getItem(SS_ADMIN) === "1";
+    return state.unlocked && Boolean(state.adminKey);
   }
 
   window.TClientAdmin = {
