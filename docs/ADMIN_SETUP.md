@@ -36,7 +36,7 @@ git push
 
 | Repo | Secret | Purpose |
 |------|--------|---------|
-| TBELL-ref/T-client | `ADMIN_SAVE_KEY` | Validate save from console |
-| TBELL-ref/T-client | `PUBLIC_REPO_TOKEN` | Sync keywords to private Sheets + trigger collect |
+| TBELL-ref/T-client | `ADMIN_SAVE_KEY` | Validate admin console requests |
+| TBELL-ref/T-client | `PUBLIC_REPO_TOKEN` | Sync keywords to private Sheets + trigger collect (same PAT as meowdule) |
 | meowdule/T-client | `ADMIN_SAVE_KEY` | Validate sync-keywords / trigger-collect |
 | meowdule/T-client | `PUBLIC_REPO_TOKEN` | Publish snapshot + server save |
