@@ -1,65 +1,52 @@
-# Admin console setup
+# Admin console setup (GitHub Pages)
 
-## Architecture
+## Flow
 
-- **Browser** (`docs/admin.js`): admin password check (SHA-256 hash only in JS). Sends `{ adminKey, action, payload }` to **`/api/admin` gateway** — no PAT, no `api.github.com` calls.
-- **Gateway** (`api/admin.js` on Vercel/Netlify): validates `ADMIN_SAVE_KEY`, calls GitHub API with **`GH_PAT` from server env** → `repository_dispatch` on `TBELL-ref/T-client`.
-- **Public Actions** (`admin-gateway.yml`): validates `adminKey`, writes public JSON, forwards crawl/keywords to **meowdule/T-client** using **`secrets.GH_PAT`**.
-- **Private Actions** (`lead-collector.yml`, `sync-keywords`): crawl, Sheets, publish.
+1. User enters admin password in **관리** popup (validated by SHA-256 hash in `admin.js`).
+2. Buttons call GitHub `repository_dispatch` via **embedded Fine-grained PAT** (XOR in `admin.js`, not in sessionStorage).
+3. **TBELL-ref/T-client** Actions: `save-overrides`, `save-keywords`, `enrich-company`.
+4. **meowdule/T-client** Actions: `sync-keywords`, `trigger-collect` → Lead Collector.
+
+## One-time embed (after PAT is in `private-t-client/.env`)
+
+```powershell
+cd private-t-client
+npm run embed:admin-auth
+cd ../public-t-client
+git add docs/admin.js
+git commit -m "chore: embed admin dispatch auth"
+git push
+```
+
+## `.env` (private-t-client, local only)
+
+```env
+PUBLIC_REPO_TOKEN=github_pat_...
+```
+
+Never commit `.env`.
 
 ## GitHub Secrets
 
-### TBELL-ref/T-client (public)
+| Repo | Secret | Purpose |
+|------|--------|---------|
+| TBELL-ref/T-client | `ADMIN_SAVE_KEY` | Same as admin UI password |
+| meowdule/T-client | `ADMIN_SAVE_KEY` | Validate private dispatches |
+| meowdule/T-client | `PUBLIC_REPO_TOKEN` or `GH_PAT` | Publish snapshot (CI only) |
 
-| Secret | Purpose |
-|--------|---------|
-| `ADMIN_SAVE_KEY` | Same password as admin UI (validated in workflows + gateway env) |
+## Fine-grained PAT (recommended)
 
-### meowdule/T-client (private)
+Create one token with access to **both** repositories:
 
-| Secret | Purpose |
-|--------|---------|
-| `ADMIN_SAVE_KEY` | Validate `repository_dispatch` |
-| `GH_PAT` | Publish snapshot, dispatch private/public workflows (repo + `actions:write`) |
-| `GOOGLE_*` | Sheets (existing) |
+| Repository | Permissions |
+|------------|-------------|
+| **TBELL-ref/T-client** | Contents: Read and write · Actions: Read and write · Metadata: Read |
+| **meowdule/T-client** | Contents: Read and write · Actions: Read and write · Metadata: Read |
 
-### Vercel / Netlify (gateway host)
+Required for browser dispatch to both repos (public save + private crawl).
 
-| Env | Purpose |
-|-----|---------|
-| `ADMIN_SAVE_KEY` | Same value as GitHub Secret |
-| `GH_PAT` | Same PAT as private `GH_PAT` secret |
+## Security notes
 
-## Deploy gateway (required for admin buttons)
-
-GitHub Pages alone cannot run `/api/admin`. Use **one** of:
-
-### Option A — Vercel (recommended)
-
-1. Import `TBELL-ref/T-client` on Vercel, root `public-t-client`, output `docs`.
-2. Set env: `ADMIN_SAVE_KEY`, `GH_PAT`.
-3. In `docs/index.html` uncomment and set:
-   ```html
-   <meta name="tclient-admin-gateway" content="https://YOUR-PROJECT.vercel.app/api/admin" />
-   ```
-4. Redeploy Pages or use Vercel URL for the app.
-
-### Option B — Manual workflow (no gateway)
-
-GitHub → **TBELL-ref/T-client** → Actions → **Admin Gateway** → **Run workflow**  
-Fill `admin_key`, `action`, `payload_json`.
-
-## Admin password
-
-Set the same value in:
-
-- `ADMIN_SAVE_KEY` (GitHub Secrets + Vercel env)
-- Share with team (not committed)
-
-Only a **SHA-256 hash** of the password is stored in `docs/admin.js` for client-side unlock check.
-
-## Removed (do not use)
-
-- `npm run embed:admin-auth`
-- `PUBLIC_REPO_TOKEN` in browser / `admin.js`
-- PAT in `DISPATCH_AUTH_XOR`
+- PAT is XOR-obfuscated in `admin.js` (not plain text). Still visible to determined users — use a dedicated token with minimal scope and rotate after the temp admin period.
+- Admin password is kept in **memory only** during the session (`state.adminKey`), not in sessionStorage.
+- Only `SS_ADMIN` unlock flag uses sessionStorage (no PAT, no password persisted).

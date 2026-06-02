@@ -1,31 +1,12 @@
-name: Admin Gateway
+name: Admin Console
 
 on:
   push:
     branches: [main]
     paths:
-      - .github/workflows/admin-gateway.yml
+      - .github/workflows/admin-console.yml
   repository_dispatch:
   workflow_dispatch:
-    inputs:
-      admin_key:
-        description: Admin key (same as ADMIN_SAVE_KEY secret)
-        required: true
-        type: string
-      action:
-        description: Action name
-        required: true
-        type: choice
-        options:
-          - save-overrides
-          - save-keywords
-          - enrich-company
-          - trigger-collect
-      payload_json:
-        description: JSON payload (optional)
-        required: false
-        type: string
-        default: "{}"
 
 permissions:
   contents: write
@@ -35,31 +16,7 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Admin gateway registered."
-
-  from-manual:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Dispatch from manual input
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const adminKey = ${{ toJson(github.event.inputs.admin_key) }};
-            const action = ${{ toJson(github.event.inputs.action) }};
-            let payload = {};
-            try {
-              payload = JSON.parse(${{ toJson(github.event.inputs.payload_json) }} || "{}");
-            } catch (e) {
-              core.setFailed("payload_json must be valid JSON");
-              return;
-            }
-            await github.rest.repos.createDispatchEvent({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              event_type: action,
-              client_payload: { adminKey, ...payload }
-            });
+      - run: echo "Admin console workflow registered (repository_dispatch only)."
 
   save-overrides:
     if: github.event_name == 'repository_dispatch' && github.event.action == 'save-overrides'
@@ -130,19 +87,6 @@ jobs:
           git add docs/data/keywords.json data/keywords.json
           git diff --staged --quiet || git commit -m "chore: update crawl keywords from admin console"
           git push
-      - name: Sync keywords to Google Sheets (private)
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GH_PAT }}
-          script: |
-            const adminKey = context.payload.client_payload.adminKey;
-            const keywords = context.payload.client_payload.keywords;
-            await github.rest.repos.createDispatchEvent({
-              owner: "meowdule",
-              repo: "T-client",
-              event_type: "sync-keywords",
-              client_payload: { adminKey, keywords }
-            });
 
   enrich-company:
     if: github.event_name == 'repository_dispatch' && github.event.action == 'enrich-company'
@@ -172,27 +116,3 @@ jobs:
           git add docs/data/overrides.json data/overrides.json
           git diff --staged --quiet || git commit -m "chore: enrich company ${COMPANY_ID} from bizno"
           git push
-
-  trigger-collect:
-    if: github.event_name == 'repository_dispatch' && github.event.action == 'trigger-collect'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Authorize
-        run: |
-          if [ "${{ github.event.client_payload.adminKey }}" != "${{ secrets.ADMIN_SAVE_KEY }}" ]; then
-            echo "::error::Invalid admin key"
-            exit 1
-          fi
-      - name: Start Lead Collector on private repo
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GH_PAT }}
-          script: |
-            await github.rest.repos.createDispatchEvent({
-              owner: "meowdule",
-              repo: "T-client",
-              event_type: "trigger-collect",
-              client_payload: {
-                adminKey: context.payload.client_payload.adminKey
-              }
-            });

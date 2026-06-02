@@ -1,8 +1,0 @@
-{
-  "buildCommand": null,
-  "outputDirectory": "docs",
-  "rewrites": [
-    { "source": "/api/admin", "destination": "/api/admin.js" },
-    { "source": "/T-client/api/admin", "destination": "/api/admin.js" }
-  ]
-}
