@@ -1,0 +1,52 @@
+name: Trigger Lead Collect
+
+on:
+  repository_dispatch:
+    types: [trigger-collect]
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    if: github.event.client_payload.adminKey == secrets.ADMIN_SAVE_KEY
+    steps:
+      - name: Start private Lead Collector
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          ADMIN_KEY: ${{ github.event.client_payload.adminKey }}
+        run: |
+          node -e "
+          const https = require('https');
+          const body = JSON.stringify({
+            event_type: 'trigger-collect',
+            client_payload: { adminKey: process.env.ADMIN_KEY }
+          });
+          const req = https.request(
+            {
+              hostname: 'api.github.com',
+              path: '/repos/meowdule/T-client/dispatches',
+              method: 'POST',
+              headers: {
+                Authorization: 'Bearer ' + process.env.GH_TOKEN,
+                Accept: 'application/vnd.github+json',
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(body)
+              }
+            },
+            (res) => {
+              let data = '';
+              res.on('data', (c) => (data += c));
+              res.on('end', () => {
+                if (res.statusCode !== 204) {
+                  console.error(data);
+                  process.exit(1);
+                }
+              });
+            }
+          );
+          req.on('error', (e) => { console.error(e); process.exit(1); });
+          req.write(body);
+          req.end();
+          "

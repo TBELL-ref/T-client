@@ -44,10 +44,19 @@
                 </div>
                 <div id="adminTools" class="admin-popover-section hidden">
                   <p class="admin-popover-hint">즐겨찾기·상세 수정 · 로컬 자동 저장</p>
+                  <div class="admin-keyword-block">
+                    <p class="admin-popover-title">크롤링 키워드</p>
+                    <p class="admin-popover-hint">시트 기본값 · 제거 시 비활성(목록에서 숨김)</p>
+                    <div id="keywordChips" class="keyword-chips" aria-live="polite"></div>
+                    <div class="keyword-add-row">
+                      <input type="text" id="keywordInput" class="admin-popover-input" placeholder="키워드 추가" autocomplete="off" />
+                      <button type="button" id="keywordAddBtn" class="btn-sm">추가</button>
+                    </div>
+                  </div>
                   <div class="admin-popover-actions">
-                    <button type="button" id="adminSaveGithub" class="btn-primary btn-sm">저장 반영</button>
-                    <button type="button" id="adminExport" class="btn-sm">보내기</button>
-                    <label class="btn-sm btn-file">가져오기<input type="file" id="adminImport" accept="application/json" hidden /></label>
+                    <button type="button" id="adminSaveKeywords" class="btn-primary btn-sm">키워드 반영</button>
+                    <button type="button" id="adminTriggerCollect" class="btn-sm">크롤링 실행</button>
+                    <button type="button" id="adminSaveGithub" class="btn-sm">저장 반영</button>
                     <button type="button" id="adminLogout" class="btn-sm">잠금</button>
                   </div>
                 </div>

@@ -1,0 +1,81 @@
+name: Save Crawl Keywords
+
+on:
+  repository_dispatch:
+    types: [save-keywords]
+
+permissions:
+  contents: write
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    if: github.event.client_payload.adminKey == secrets.ADMIN_SAVE_KEY
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write keywords.json
+        env:
+          KEYWORDS: ${{ toJson(github.event.client_payload.keywords) }}
+          UPDATED_AT: ${{ github.event.client_payload.updatedAt }}
+        run: |
+          node -e "
+          const fs = require('fs');
+          const keywords = JSON.parse(process.env.KEYWORDS);
+          const doc = {
+            version: 1,
+            updatedAt: process.env.UPDATED_AT || new Date().toISOString(),
+            keywords
+          };
+          const text = JSON.stringify(doc, null, 2);
+          fs.mkdirSync('docs/data', { recursive: true });
+          fs.mkdirSync('data', { recursive: true });
+          fs.writeFileSync('docs/data/keywords.json', text);
+          fs.writeFileSync('data/keywords.json', text);
+          "
+      - name: Commit and push
+        run: |
+          git config user.name "T-client Admin"
+          git config user.email "admin@tclient.local"
+          git add docs/data/keywords.json data/keywords.json
+          git diff --staged --quiet || git commit -m "chore: update crawl keywords from admin console"
+          git push
+      - name: Sync keywords to Google Sheets
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          ADMIN_KEY: ${{ github.event.client_payload.adminKey }}
+          KEYWORDS: ${{ toJson(github.event.client_payload.keywords) }}
+        run: |
+          node -e "
+          const https = require('https');
+          const keywords = JSON.parse(process.env.KEYWORDS);
+          const body = JSON.stringify({
+            event_type: 'sync-keywords',
+            client_payload: { adminKey: process.env.ADMIN_KEY, keywords }
+          });
+          const req = https.request(
+            {
+              hostname: 'api.github.com',
+              path: '/repos/meowdule/T-client/dispatches',
+              method: 'POST',
+              headers: {
+                Authorization: 'Bearer ' + process.env.GH_TOKEN,
+                Accept: 'application/vnd.github+json',
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(body)
+              }
+            },
+            (res) => {
+              let data = '';
+              res.on('data', (c) => (data += c));
+              res.on('end', () => {
+                if (res.statusCode !== 204) {
+                  console.error(data);
+                  process.exit(1);
+                }
+              });
+            }
+          );
+          req.on('error', (e) => { console.error(e); process.exit(1); });
+          req.write(body);
+          req.end();
+          "

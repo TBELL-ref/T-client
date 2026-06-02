@@ -965,13 +965,73 @@ button {
   top: calc(100% + 8px);
   right: 0;
   z-index: 50;
-  width: 260px;
+  width: min(320px, calc(100vw - 32px));
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
   padding: 14px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
   font-size: 13px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(107, 118, 132, 0.35) transparent;
+}
+
+.admin-keyword-block {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.keyword-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 28px;
+  margin-bottom: 8px;
+}
+
+.keyword-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-muted);
+  border-radius: 999px;
+}
+
+.keyword-chip-remove {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.keyword-chip-remove:hover {
+  color: var(--danger);
+}
+
+.keyword-empty {
+  font-size: 12px;
+}
+
+.keyword-add-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.keyword-add-row .admin-popover-input {
+  flex: 1;
+  margin-bottom: 0;
 }
 
 .admin-popover-title {

@@ -1142,8 +1142,71 @@ function toggleAdminPopover() {
   const open = pop?.classList.toggle("hidden") === false;
   pop?.setAttribute("aria-hidden", open ? "false" : "true");
   btn?.setAttribute("aria-expanded", open ? "true" : "false");
-  if (open && window.TClientAdmin.isUnlocked()) setAdminUi(true);
+  if (open && window.TClientAdmin.isUnlocked()) {
+    setAdminUi(true);
+    renderAdminKeywords();
+  }
   if (open) byId("adminPassword")?.focus();
+}
+
+function renderAdminKeywords() {
+  const el = byId("keywordChips");
+  if (!el || !window.TClientAdmin?.isUnlocked()) return;
+  const labels = window.TClientAdmin.getActiveKeywordLabels();
+  el.innerHTML = labels.length
+    ? labels
+        .map(
+          (k) => `<span class="keyword-chip">${escapeHtml(k)}<button type="button" class="keyword-chip-remove" data-kw-remove="${escapeAttr(k)}" aria-label="제거">×</button></span>`
+        )
+        .join("")
+    : `<span class="muted keyword-empty">활성 키워드 없음</span>`;
+  el.querySelectorAll("[data-kw-remove]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      window.TClientAdmin.removeKeywordDraft(btn.getAttribute("data-kw-remove"));
+      renderAdminKeywords();
+    });
+  });
+}
+
+function bindKeywordAdmin() {
+  byId("keywordAddBtn")?.addEventListener("click", () => {
+    const input = byId("keywordInput");
+    const value = input?.value ?? "";
+    if (!window.TClientAdmin.addKeywordDraft(value)) {
+      setAdminStatus(value.trim() ? "이미 있는 키워드입니다." : "키워드를 입력하세요.");
+      return;
+    }
+    input.value = "";
+    renderAdminKeywords();
+    setAdminStatus("");
+  });
+
+  byId("keywordInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") byId("keywordAddBtn")?.click();
+  });
+
+  byId("adminSaveKeywords")?.addEventListener("click", async () => {
+    setAdminStatus("키워드 반영 중…");
+    try {
+      await window.TClientAdmin.saveKeywordsToGitHub();
+      renderAdminKeywords();
+      setAdminStatus("키워드 반영됨 (시트 동기화 중)");
+    } catch (err) {
+      setAdminStatus(err.message || String(err));
+    }
+  });
+
+  byId("adminTriggerCollect")?.addEventListener("click", async () => {
+    setAdminStatus("크롤링 요청 중…");
+    try {
+      await window.TClientAdmin.saveKeywordsToGitHub();
+      await window.TClientAdmin.triggerCollect();
+      renderAdminKeywords();
+      setAdminStatus("크롤링 시작됨 (10~30분 후 새로고침)");
+    } catch (err) {
+      setAdminStatus(err.message || String(err));
+    }
+  });
 }
 
 function bindAdmin() {
@@ -1162,6 +1225,7 @@ function bindAdmin() {
       setAdminUi(true);
       setAdminStatus("관리자 모드");
       byId("adminPassword").value = "";
+      renderAdminKeywords();
       refreshViews();
       if (state.detailRow) paintDetailModal();
     } else {
@@ -1192,22 +1256,12 @@ function bindAdmin() {
     }
   });
 
-  byId("adminExport")?.addEventListener("click", () => window.TClientAdmin.exportJson());
-  byId("adminImport")?.addEventListener("change", async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      await window.TClientAdmin.importJson(file);
-      reloadRowsWithAdmin();
-      refreshViews();
-      setAdminStatus("가져오기 완료");
-    } catch {
-      setAdminStatus("JSON 형식 오류");
-    }
-    e.target.value = "";
-  });
+  bindKeywordAdmin();
 
-  if (window.TClientAdmin.isUnlocked()) setAdminUi(true);
+  if (window.TClientAdmin.isUnlocked()) {
+    setAdminUi(true);
+    renderAdminKeywords();
+  }
 }
 
 async function boot() {

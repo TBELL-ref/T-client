@@ -6,6 +6,7 @@
     "418283f43533ea91bd455529a29125997fcbccca22943ebb3c30b3f3afb18523";
   const REPO = "TBELL-ref/T-client";
   const LS_KEY = "tclient-overrides-v2";
+  const LS_KEYWORDS_DRAFT = "tclient-keywords-draft";
   const SS_ADMIN = "tclient-admin-unlocked";
   const SS_KEY = "tclient-admin-key";
 
@@ -35,7 +36,13 @@
     "locked": "수동 잠금"
   };
 
-  const state = { unlocked: false, doc: null, dirty: false };
+  const state = {
+    unlocked: false,
+    doc: null,
+    dirty: false,
+    keywordsDoc: null,
+    activeKeywordDraft: []
+  };
 
   function xorDecode(codes) {
     if (!codes?.length) return "";
@@ -45,6 +52,163 @@
   async function sha256(text) {
     const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
     return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  function emptyKeywordsDoc() {
+    return { version: 1, updatedAt: null, keywords: [] };
+  }
+
+  function normalizeKeyword(value) {
+    return `${value ?? ""}`.trim().toLowerCase().replace(/\s+/g, " ");
+  }
+
+  function isActiveKeyword(row) {
+    return `${row?.is_active ?? "true"}`.toLowerCase() === "true";
+  }
+
+  function getActiveKeywordLabels() {
+    return state.activeKeywordDraft.map((k) => `${k}`.trim()).filter(Boolean);
+  }
+
+  async function fetchRemoteKeywords() {
+    try {
+      const res = await fetch(`./data/keywords.json?ts=${Date.now()}`);
+      if (!res.ok) return emptyKeywordsDoc();
+      const doc = await res.json();
+      return {
+        version: doc.version ?? 1,
+        updatedAt: doc.updatedAt ?? null,
+        keywords: Array.isArray(doc.keywords) ? doc.keywords : []
+      };
+    } catch {
+      return emptyKeywordsDoc();
+    }
+  }
+
+  function loadKeywordsDraft() {
+    try {
+      const raw = localStorage.getItem(LS_KEYWORDS_DRAFT);
+      if (raw) return JSON.parse(raw);
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
+
+  function saveKeywordsDraft(labels) {
+    localStorage.setItem(LS_KEYWORDS_DRAFT, JSON.stringify(labels));
+  }
+
+  function syncActiveDraftFromDoc() {
+    state.activeKeywordDraft = (state.keywordsDoc?.keywords ?? [])
+      .filter(isActiveKeyword)
+      .map((row) => `${row.keyword}`.trim())
+      .filter(Boolean);
+    saveKeywordsDraft(state.activeKeywordDraft);
+  }
+
+  async function initKeywords() {
+    state.keywordsDoc = await fetchRemoteKeywords();
+    const draft = loadKeywordsDraft();
+    if (draft === null) {
+      syncActiveDraftFromDoc();
+    } else if (Array.isArray(draft)) {
+      state.activeKeywordDraft = draft.map((k) => `${k}`.trim()).filter(Boolean);
+    } else {
+      syncActiveDraftFromDoc();
+    }
+    return state.keywordsDoc;
+  }
+
+  function applyKeywordEdits(activeLabels) {
+    const activeSet = new Set(activeLabels.map(normalizeKeyword));
+    const map = new Map();
+
+    for (const row of state.keywordsDoc?.keywords ?? []) {
+      const keyword = `${row.keyword ?? ""}`.trim();
+      if (!keyword) continue;
+      map.set(normalizeKeyword(keyword), {
+        keyword,
+        source: `${row.source ?? "generic"}`.trim() || "generic",
+        is_active: isActiveKeyword(row) ? "true" : "false"
+      });
+    }
+
+    for (const [norm, row] of map) {
+      row.is_active = activeSet.has(norm) ? "true" : "false";
+    }
+
+    for (const label of activeLabels) {
+      const keyword = `${label}`.trim();
+      if (!keyword) continue;
+      const norm = normalizeKeyword(keyword);
+      if (map.has(norm)) {
+        const row = map.get(norm);
+        row.is_active = "true";
+        row.keyword = keyword;
+      } else {
+        map.set(norm, { keyword, source: "generic", is_active: "true" });
+      }
+    }
+
+    return [...map.values()];
+  }
+
+  function addKeywordDraft(label) {
+    const keyword = `${label ?? ""}`.trim();
+    if (!keyword) return false;
+    const norm = normalizeKeyword(keyword);
+    const exists = state.activeKeywordDraft.some((k) => normalizeKeyword(k) === norm);
+    if (exists) return false;
+    state.activeKeywordDraft.push(keyword);
+    saveKeywordsDraft(state.activeKeywordDraft);
+    return true;
+  }
+
+  function removeKeywordDraft(label) {
+    const norm = normalizeKeyword(label);
+    state.activeKeywordDraft = state.activeKeywordDraft.filter((k) => normalizeKeyword(k) !== norm);
+    saveKeywordsDraft(state.activeKeywordDraft);
+  }
+
+  async function repoDispatch(eventType, payload) {
+    const adminKey = sessionStorage.getItem(SS_KEY);
+    if (!adminKey) throw new Error("관리자 로그인이 필요합니다.");
+
+    const auth = xorDecode(DISPATCH_AUTH_XOR);
+    if (!auth) {
+      throw new Error("저장용 토큰 미설정. npm run embed:admin-auth 후 push 필요.");
+    }
+
+    const res = await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28"
+      },
+      body: JSON.stringify({
+        event_type: eventType,
+        client_payload: { adminKey, ...payload }
+      })
+    });
+
+    if (res.status === 204) return true;
+    throw new Error(`요청 실패 (${res.status}). ADMIN_SAVE_KEY·토큰 확인.`);
+  }
+
+  async function saveKeywordsToGitHub() {
+    const merged = applyKeywordEdits(getActiveKeywordLabels());
+    const updatedAt = new Date().toISOString();
+    await repoDispatch("save-keywords", { keywords: merged, updatedAt });
+    state.keywordsDoc = { version: 1, updatedAt, keywords: merged };
+    syncActiveDraftFromDoc();
+    return true;
+  }
+
+  async function triggerCollect() {
+    return repoDispatch("trigger-collect", {});
   }
 
   function emptyDoc() {
@@ -121,6 +285,7 @@
     const local = loadLocal();
     state.doc = mergeDocs(local, remote);
     saveLocal(state.doc);
+    await initKeywords();
     return state.doc;
   }
 
@@ -345,61 +510,18 @@
   }
 
   async function saveToGitHub() {
-    const adminKey = sessionStorage.getItem(SS_KEY);
-    if (!adminKey) throw new Error("관리자 로그인이 필요합니다.");
-
-    const auth = xorDecode(DISPATCH_AUTH_XOR);
-    if (!auth) {
-      throw new Error("저장용 토큰 미설정. npm run embed:admin-auth 후 push 필요.");
-    }
-
-    const res = await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${auth}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "X-GitHub-Api-Version": "2022-11-28"
-      },
-      body: JSON.stringify({
-        event_type: "save-overrides",
-        client_payload: { adminKey, overrides: state.doc }
-      })
-    });
-
-    if (res.status === 204) {
+    return repoDispatch("save-overrides", { overrides: state.doc }).then(() => {
       state.dirty = false;
       return true;
-    }
-    throw new Error(`GitHub 저장 실패 (${res.status}). ADMIN_SAVE_KEY·토큰 확인.`);
+    });
   }
 
   async function dispatchEnrichCompany(companyId, bizNo) {
     const adminKey = sessionStorage.getItem(SS_KEY);
     if (!adminKey) throw new Error("관리자 로그인이 필요합니다.");
 
-    const auth = xorDecode(DISPATCH_AUTH_XOR);
-    if (!auth) {
-      throw new Error("저장용 토큰 미설정. npm run embed:admin-auth 후 push 필요.");
-    }
-
     const digits = `${bizNo ?? ""}`.replace(/\D/g, "");
-    const res = await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${auth}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "X-GitHub-Api-Version": "2022-11-28"
-      },
-      body: JSON.stringify({
-        event_type: "enrich-company",
-        client_payload: { adminKey, companyId, bizNo: digits }
-      })
-    });
-
-    if (res.status === 204) return true;
-    throw new Error(`서버 수집 요청 실패 (${res.status}).`);
+    return repoDispatch("enrich-company", { companyId, bizNo: digits });
   }
 
   async function unlock(password) {
@@ -421,33 +543,19 @@
     return state.unlocked || sessionStorage.getItem(SS_ADMIN) === "1";
   }
 
-  function exportJson() {
-    const blob = new Blob([JSON.stringify(state.doc, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `tclient-overrides-${Date.now()}.json`;
-    a.click();
+  function lock() {
+    sessionStorage.removeItem(SS_ADMIN);
+    sessionStorage.removeItem(SS_KEY);
+    state.unlocked = false;
   }
 
-  function importJson(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          state.doc = mergeDocs(JSON.parse(reader.result), state.doc);
-          saveLocal(state.doc);
-          resolve(state.doc);
-        } catch (e) {
-          reject(e);
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsText(file);
-    });
+  function isUnlocked() {
+    return state.unlocked || sessionStorage.getItem(SS_ADMIN) === "1";
   }
 
   window.TClientAdmin = {
     initDoc,
+    initKeywords,
     applyToRow,
     getEntry,
     setEntry,
@@ -457,9 +565,12 @@
     unlock,
     lock,
     saveToGitHub,
+    saveKeywordsToGitHub,
+    triggerCollect,
     dispatchEnrichCompany,
-    exportJson,
-    importJson,
+    getActiveKeywordLabels,
+    addKeywordDraft,
+    removeKeywordDraft,
     isDirty: () => state.dirty,
     getDoc: () => state.doc,
     SCORE_LABELS,
