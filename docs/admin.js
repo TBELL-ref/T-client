@@ -5,7 +5,6 @@
   const ADMIN_KEY_SHA256 =
     "418283f43533ea91bd455529a29125997fcbccca22943ebb3c30b3f3afb18523";
   const REPO = "TBELL-ref/T-client";
-  const REPO_PRIVATE = "meowdule/T-client";
   const LS_KEY = "tclient-overrides-v2";
   const LS_KEYWORDS_DRAFT = "tclient-keywords-draft";
   const SS_ADMIN = "tclient-admin-unlocked";
@@ -200,21 +199,22 @@
 
     if (res.status === 204) return true;
     const detail = await res.text().catch(() => "");
-    throw new Error(`요청 실패 (${res.status}). ${detail || "ADMIN_SAVE_KEY·PAT 권한 확인."}`);
+    throw new Error(
+      `요청 실패 (${repo}, ${res.status}). ${detail || "PAT·ADMIN_SAVE_KEY 권한 확인."}`
+    );
   }
 
   async function saveKeywordsToGitHub() {
     const merged = applyKeywordEdits(getActiveKeywordLabels());
     const updatedAt = new Date().toISOString();
     await repoDispatch("save-keywords", { keywords: merged, updatedAt });
-    await repoDispatch("sync-keywords", { keywords: merged }, REPO_PRIVATE);
     state.keywordsDoc = { version: 1, updatedAt, keywords: merged };
     syncActiveDraftFromDoc();
     return true;
   }
 
   async function triggerCollect() {
-    return repoDispatch("trigger-collect", {}, REPO_PRIVATE);
+    return repoDispatch("trigger-collect", {});
   }
 
   function emptyDoc() {

@@ -3,9 +3,11 @@
 ## Flow
 
 1. User enters admin password in **관리** popup (validated by SHA-256 hash in `admin.js`).
-2. Buttons call GitHub `repository_dispatch` via **embedded Fine-grained PAT** (XOR in `admin.js`, not in sessionStorage).
-3. **TBELL-ref/T-client** Actions: `save-overrides`, `save-keywords`, `enrich-company`.
-4. **meowdule/T-client** Actions: `sync-keywords`, `trigger-collect` → Lead Collector.
+2. Browser calls `repository_dispatch` on **TBELL-ref/T-client** only (embedded PAT).
+3. Public Actions commit JSON and chain private jobs via `GH_PAT` secret:
+   - `save-keywords` → commit `keywords.json` → dispatch `sync-keywords` on meowdule/T-client
+   - `trigger-collect` → dispatch Lead Collector on meowdule/T-client
+4. Other public jobs: `save-overrides`, `enrich-company`.
 
 ## One-time embed (after PAT is in `private-t-client/.env`)
 
@@ -30,23 +32,28 @@ Never commit `.env`.
 
 | Repo | Secret | Purpose |
 |------|--------|---------|
-| TBELL-ref/T-client | `ADMIN_SAVE_KEY` | Same as admin UI password |
+| TBELL-ref/T-client | `ADMIN_SAVE_KEY` | Admin UI password |
+| TBELL-ref/T-client | `GH_PAT` | Chain dispatch to meowdule/T-client (Actions + private repo access) |
 | meowdule/T-client | `ADMIN_SAVE_KEY` | Validate private dispatches |
-| meowdule/T-client | `PUBLIC_REPO_TOKEN` or `GH_PAT` | Publish snapshot (CI only) |
+| meowdule/T-client | `GH_PAT` | Publish snapshot (CI only) |
 
-## Fine-grained PAT (recommended)
+## Fine-grained PAT (browser embed)
 
-Create one token with access to **both** repositories:
+Embedded PAT needs **public repo only**:
 
 | Repository | Permissions |
 |------------|-------------|
 | **TBELL-ref/T-client** | Contents: Read and write · Actions: Read and write · Metadata: Read |
-| **meowdule/T-client** | Contents: Read and write · Actions: Read and write · Metadata: Read |
 
-Required for browser dispatch to both repos (public save + private crawl).
+`GH_PAT` (repo secret, not embedded) must reach **meowdule/T-client**:
+
+| Repository | Permissions |
+|------------|-------------|
+| **meowdule/T-client** | Actions: Read and write · Metadata: Read |
 
 ## Security notes
 
 - PAT is XOR-obfuscated in `admin.js` (not plain text). Still visible to determined users — use a dedicated token with minimal scope and rotate after the temp admin period.
+- Private repo is never called from the browser; only GitHub Actions uses `GH_PAT`.
 - Admin password is kept in **memory only** during the session (`state.adminKey`), not in sessionStorage.
 - Only `SS_ADMIN` unlock flag uses sessionStorage (no PAT, no password persisted).

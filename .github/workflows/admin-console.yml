@@ -87,6 +87,60 @@ jobs:
           git add docs/data/keywords.json data/keywords.json
           git diff --staged --quiet || git commit -m "chore: update crawl keywords from admin console"
           git push
+      - name: Sync keywords to private repo (Sheets)
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          ADMIN_KEY: ${{ secrets.ADMIN_SAVE_KEY }}
+          KEYWORDS: ${{ toJson(github.event.client_payload.keywords) }}
+        run: |
+          node -e "
+          const fs = require('fs');
+          const body = {
+            event_type: 'sync-keywords',
+            client_payload: {
+              adminKey: process.env.ADMIN_KEY,
+              keywords: JSON.parse(process.env.KEYWORDS)
+            }
+          };
+          fs.writeFileSync('dispatch.json', JSON.stringify(body));
+          "
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/meowdule/T-client/dispatches \
+            -d @dispatch.json
+
+  trigger-collect:
+    if: github.event_name == 'repository_dispatch' && github.event.action == 'trigger-collect'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authorize
+        run: |
+          if [ "${{ github.event.client_payload.adminKey }}" != "${{ secrets.ADMIN_SAVE_KEY }}" ]; then
+            echo "::error::Invalid admin key"
+            exit 1
+          fi
+      - name: Dispatch Lead Collector on private repo
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          ADMIN_KEY: ${{ secrets.ADMIN_SAVE_KEY }}
+        run: |
+          node -e "
+          const fs = require('fs');
+          fs.writeFileSync('dispatch.json', JSON.stringify({
+            event_type: 'trigger-collect',
+            client_payload: { adminKey: process.env.ADMIN_KEY }
+          }));
+          "
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/meowdule/T-client/dispatches \
+            -d @dispatch.json
 
   enrich-company:
     if: github.event_name == 'repository_dispatch' && github.event.action == 'enrich-company'
