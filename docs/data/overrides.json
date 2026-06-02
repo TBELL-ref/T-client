@@ -1,6 +1,26 @@
 {
-  "version": 1,
-  "updatedAt": null,
+  "version": 2,
+  "updatedAt": "2026-06-01T23:47:42.144Z",
   "favorites": [],
-  "companies": {}
+  "companies": {
+    "cmp_test": {
+      "profile": {
+        "companyNameLegal": "에스에프씨 주식회사",
+        "bizNo": "134-81-54429",
+        "bizType": "제조업",
+        "bizItem": "의료용품 및 기타 의약 관련제품 제조업",
+        "companyScale": "중소기업",
+        "bizStatus": "계속사업자 ※국세청 홈택스 실시간 정보제공",
+        "foundedDate": "1999-01-15",
+        "employeeCount": "258",
+        "homepage": "www.sfc-dye.com",
+        "industrySummary": "대분류 : 제조업 · 중분류 : 의료용 물질 및 의약품 제조업 · 소분류 : 의료용품 및 기타 의약 관련제품 제조업 · 세분류 : 의료용품 및 기타 의약 관련제품 제조업 · 세세분류 : 의료용품 및 기타 의약 관련제품 제조업",
+        "domain": "sfc-dye.com",
+        "enrichmentSource": "bizno"
+      },
+      "domain": "sfc-dye.com",
+      "companyNameKo": "에스에프씨 주식회사",
+      "updatedAt": "2026-06-01T23:47:42.141Z"
+    }
+  }
 }

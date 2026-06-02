@@ -48,7 +48,7 @@
   }
 
   function emptyDoc() {
-    return { version: 2, updatedAt: null, favorites: [], companies: {} };
+    return { version: 2, updatedAt: null, favorites: [], companies: {}, customCompanies: [] };
   }
 
   function loadLocal() {
@@ -83,6 +83,11 @@
     for (const id of out.favorites) {
       out.companies[id] = { ...(out.companies[id] ?? {}), favorite: true };
     }
+    const customMap = new Map();
+    for (const row of [...(a?.customCompanies ?? []), ...(b?.customCompanies ?? [])]) {
+      if (row?.companyId) customMap.set(row.companyId, row);
+    }
+    out.customCompanies = [...customMap.values()];
     return out;
   }
 
@@ -121,6 +126,26 @@
 
   function getEntry(companyId) {
     return state.doc?.companies[companyId] ?? {};
+  }
+
+  function getCustomCompanies() {
+    return [...(state.doc?.customCompanies ?? [])];
+  }
+
+  function addCustomCompany(row) {
+    if (!row?.companyId) return false;
+    const list = state.doc.customCompanies ?? [];
+    if (list.some((r) => r.companyId === row.companyId)) return false;
+    state.doc.customCompanies = [...list, row];
+    state.doc.companies[row.companyId] = {
+      ...(state.doc.companies[row.companyId] ?? {}),
+      companyNameKo: row.companyNameKo || row.companyName,
+      manual: true,
+      updatedAt: new Date().toISOString()
+    };
+    state.dirty = true;
+    saveLocal(state.doc);
+    return true;
   }
 
   function setEntry(companyId, patch) {
@@ -232,7 +257,7 @@
   function applyToRow(row) {
     const entry = getEntry(row.companyId);
     const fav = state.doc.favorites.includes(row.companyId) || entry.favorite;
-    const next = { ...row, userFavorite: fav, userHidden: Boolean(entry.hidden) };
+    const next = { ...row, userFavorite: fav, userHidden: Boolean(entry.hidden), isManual: Boolean(row.isManual) };
 
     if (entry.companyNameKo) next.companyNameKo = entry.companyNameKo;
     if (entry.domain) {
@@ -426,6 +451,8 @@
     applyToRow,
     getEntry,
     setEntry,
+    getCustomCompanies,
+    addCustomCompany,
     isUnlocked,
     unlock,
     lock,

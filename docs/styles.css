@@ -458,10 +458,17 @@ body {
 }
 
 /* Tabs */
+.tabs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 .tabs {
   display: flex;
   gap: 4px;
-  margin-bottom: 12px;
   padding: 4px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -469,6 +476,27 @@ body {
   width: fit-content;
   max-width: 100%;
   overflow-x: auto;
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-add-company {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 196, 113, 0.3);
+  transition: background 0.15s;
+}
+
+.btn-add-company:hover {
+  background: var(--accent-hover);
 }
 
 .tab {
@@ -1103,6 +1131,26 @@ button {
   inset: 0;
   background: rgba(25, 31, 40, 0.5);
   backdrop-filter: blur(4px);
+}
+
+.modal-panel-sm {
+  width: min(440px, 100%);
+}
+
+.add-company-hint {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.badge-manual {
+  color: #7c3aed;
+  border-color: #ddd6fe;
+  background: #f5f3ff;
+}
+
+tbody tr.row-manual {
+  background: #faf8ff;
 }
 
 .modal-panel {

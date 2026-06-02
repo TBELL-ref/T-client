@@ -1,4 +1,5 @@
 const state = {
+  snapshotRows: [],
   rawRows: [],
   rows: [],
   dedupeCandidates: [],
@@ -50,6 +51,11 @@ function favoriteStar(row, interactive = false) {
     return row.userFavorite ? `<span class="star ${cls}" title="즐겨찾기">${filled}</span>` : "";
   }
   return `<button type="button" class="star-btn ${cls}" data-fav="${escapeAttr(row.companyId)}" title="즐겨찾기">${filled}</button>`;
+}
+
+function manualBadge(row) {
+  if (!row.isManual) return "";
+  return `<span class="badge badge-manual" title="수동 등록">수동</span>`;
 }
 
 function tierBadge(row) {
@@ -393,11 +399,74 @@ function bindDetailEdits(row) {
   });
 }
 
+function mergeBaseRows(snapshotRows) {
+  const custom = window.TClientAdmin?.getCustomCompanies?.() ?? [];
+  const ids = new Set(snapshotRows.map((r) => r.companyId));
+  return [...snapshotRows, ...custom.filter((r) => !ids.has(r.companyId))];
+}
+
 function reloadRowsWithAdmin() {
+  state.rawRows = mergeBaseRows(state.snapshotRows);
   state.rows = state.rawRows.map((row) => {
     const enriched = enrichRow(row);
     return window.TClientAdmin ? window.TClientAdmin.applyToRow(enriched) : enriched;
   });
+}
+
+function newManualCompanyId(seed) {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return `cmp_m_${(h >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function sanitizeDomainInput(value) {
+  const raw = `${value ?? ""}`.trim().replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+  return raw.split("/")[0].split("?")[0] || "";
+}
+
+function buildManualCompanyRow({ companyNameKo, domain = "", bizNo = "" }) {
+  const name = `${companyNameKo ?? ""}`.trim();
+  const domainClean = sanitizeDomainInput(domain);
+  const now = new Date().toISOString();
+  const companyId = newManualCompanyId(`${name}|${domainClean}|${now}`);
+
+  return {
+    companyId,
+    companyName: name,
+    companyNameKo: name,
+    companyTier: "unknown",
+    companyTierLabel: "-",
+    domain: domainClean,
+    domainVerified: Boolean(domainClean),
+    profile: bizNo ? { bizNo: `${bizNo}`.trim() } : {},
+    profileComplete: Boolean(bizNo),
+    lastCollectedAt: now,
+    leadGrade: "C",
+    priorityScore: "0",
+    scoreReason: "manual",
+    salesStage: "new",
+    contactSecured: "no",
+    reportRequired: "no",
+    meetingRequired: "no",
+    actions: {
+      proposal: { label: "제안", status: "보류" },
+      meeting: { label: "미팅", status: "보류" },
+      inquiry: { label: "문의", status: "보류" }
+    },
+    actionSummary: "보류",
+    actionReasons: ["수동 등록 회사 — 프로필·공고를 입력하세요."],
+    email: "",
+    emailConfidence: "low",
+    excludeReason: "",
+    manualOverrideLocked: false,
+    manualNotes: "",
+    excluded: false,
+    isManual: true,
+    posts: []
+  };
 }
 
 function toggleFavorite(companyId) {
@@ -674,11 +743,12 @@ function renderLeadsTable() {
           ${filtered
             .map(
               (row, idx) => `
-            <tr class="${row.excluded ? "row-excluded" : ""}${row.userHidden ? " row-hidden-admin" : ""}${hasFailedPosts(row) ? " row-failure" : ""}${rowTierClass(row)}">
+            <tr class="${row.excluded ? "row-excluded" : ""}${row.userHidden ? " row-hidden-admin" : ""}${hasFailedPosts(row) ? " row-failure" : ""}${row.isManual ? " row-manual" : ""}${rowTierClass(row)}">
               <td class="cell-company">
                 <div class="company-line">
                   ${favoriteStar(row, true)}
                   <strong>${escapeHtml(displayName(row))}</strong>
+                  ${manualBadge(row)}
                   ${tierBadge(row)}
                   ${scaleBadge(row)}
                   ${bizStatusBadge(row)}
@@ -859,6 +929,65 @@ function closeDetail() {
   state.detailEdit = false;
   modal.classList.add("hidden");
   modal.setAttribute("aria-hidden", "true");
+}
+
+function openAddCompanyModal() {
+  if (!window.TClientAdmin?.isUnlocked()) {
+    showToast("관리자 로그인이 필요합니다.", "error");
+    return;
+  }
+  const modal = byId("addCompanyModal");
+  byId("add-co-name").value = "";
+  byId("add-co-domain").value = "";
+  byId("add-co-bizno").value = "";
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+  byId("add-co-name")?.focus();
+  hydrateIcons(modal);
+}
+
+function closeAddCompanyModal() {
+  const modal = byId("addCompanyModal");
+  modal?.classList.add("hidden");
+  modal?.setAttribute("aria-hidden", "true");
+}
+
+function submitAddCompany() {
+  const name = byId("add-co-name")?.value.trim();
+  if (!name) {
+    showToast("회사명을 입력하세요.", "error");
+    return;
+  }
+  const row = buildManualCompanyRow({
+    companyNameKo: name,
+    domain: byId("add-co-domain")?.value.trim(),
+    bizNo: byId("add-co-bizno")?.value.trim()
+  });
+  if (!window.TClientAdmin.addCustomCompany(row)) {
+    showToast("이미 등록된 회사입니다.", "error");
+    return;
+  }
+  reloadRowsWithAdmin();
+  refreshViews();
+  closeAddCompanyModal();
+  showToast("회사가 추가되었습니다.");
+  openDetail(state.rows.find((r) => r.companyId === row.companyId) ?? row, true);
+}
+
+function bindAddCompanyModal() {
+  const modal = byId("addCompanyModal");
+  if (!modal) return;
+  byId("btnAddCompany")?.addEventListener("click", openAddCompanyModal);
+  byId("add-co-submit")?.addEventListener("click", submitAddCompany);
+  modal.querySelectorAll("[data-close-add]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeAddCompanyModal();
+    });
+  });
+  byId("add-co-name")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitAddCompany();
+  });
 }
 
 function bindModal() {
@@ -1087,8 +1216,8 @@ async function boot() {
     const res = await fetch("./data/snapshot.json");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const snapshot = await res.json();
-    state.rawRows = snapshot.rows ?? [];
-    state.rows = state.rawRows.map((row) => window.TClientAdmin.applyToRow(enrichRow(row)));
+    state.snapshotRows = snapshot.rows ?? [];
+    reloadRowsWithAdmin();
     state.dedupeCandidates = snapshot.dedupeCandidates ?? [];
     state.manualReviewQueue = snapshot.manualReviewQueue ?? [];
     state.failureSummary = snapshot.failureSummary ?? {};
@@ -1109,6 +1238,7 @@ async function boot() {
     });
 
     bindModal();
+    bindAddCompanyModal();
     bindAdmin();
     renderPresets();
     bindTabs();
