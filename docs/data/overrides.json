@@ -1,26 +1,159 @@
 {
-  "version": 2,
-  "updatedAt": "2026-06-01T23:47:42.144Z",
-  "favorites": [],
   "companies": {
-    "cmp_test": {
-      "profile": {
-        "companyNameLegal": "에스에프씨 주식회사",
-        "bizNo": "134-81-54429",
-        "bizType": "제조업",
-        "bizItem": "의료용품 및 기타 의약 관련제품 제조업",
-        "companyScale": "중소기업",
-        "bizStatus": "계속사업자 ※국세청 홈택스 실시간 정보제공",
-        "foundedDate": "1999-01-15",
-        "employeeCount": "258",
-        "homepage": "www.sfc-dye.com",
-        "industrySummary": "대분류 : 제조업 · 중분류 : 의료용 물질 및 의약품 제조업 · 소분류 : 의료용품 및 기타 의약 관련제품 제조업 · 세분류 : 의료용품 및 기타 의약 관련제품 제조업 · 세세분류 : 의료용품 및 기타 의약 관련제품 제조업",
-        "domain": "sfc-dye.com",
-        "enrichmentSource": "bizno"
+    "cmp_2045acab9e": {
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "보류"
       },
-      "domain": "sfc-dye.com",
+      "companyNameKo": "휴넷",
+      "companyTier": "unknown",
+      "contact": {
+        "email": "",
+        "name": "",
+        "phone": ""
+      },
+      "domain": "hunet.co.kr",
+      "excludeReason": "",
+      "extraPosts": [],
+      "favorite": false,
+      "hidden": false,
+      "leadGrade": "C",
+      "notes": "",
+      "profile": {
+        "bizItem": "시스템 소프트웨어 개발 및 공급업",
+        "bizNo": "214-86-38356",
+        "bizStatus": "계속사업자",
+        "bizType": "교육서비스업",
+        "companyNameLegal": "(주)휴넷",
+        "companyScale": "중소기업",
+        "domain": "hunet.co.kr",
+        "employeeCount": "390",
+        "foundedDate": "1999-09-04",
+        "homepage": "http://www.hunet.co.kr",
+        "industrySummary": "대분류 : 정보통신업 · 중분류 : 정보서비스업 · 소분류 : 기타 정보 서비스업 · 세분류 : 그 외 기타 정보 서비스업 · 세세분류 : 데이터베이스 및 온라인 정보 제공업"
+      },
+      "scoreParts": {
+        "_total": "35"
+      },
+      "updatedAt": "2026-06-01T23:49:20.777Z"
+    },
+    "cmp_393ab6130c": {
+      "actions": {},
+      "contact": {},
+      "extraPosts": [],
+      "favorite": true,
+      "profile": {},
+      "scoreParts": {},
+      "updatedAt": "2026-06-01T22:59:09.550Z"
+    },
+    "cmp_490eb16eb7": {
+      "actions": {},
+      "contact": {},
+      "extraPosts": [],
+      "favorite": false,
+      "profile": {},
+      "scoreParts": {},
+      "updatedAt": "2026-06-02T06:39:18.473Z"
+    },
+    "cmp_50ac179198": {
+      "actions": {},
+      "companyNameKo": "크림",
+      "contact": {},
+      "email": "",
+      "excludeReason": "",
+      "extraPosts": [],
+      "favorite": true,
+      "hidden": false,
+      "leadGrade": "",
+      "notes": "",
+      "profile": {},
+      "scoreParts": {},
+      "updatedAt": "2026-06-01T23:03:36.628Z"
+    },
+    "cmp_644132655e": {
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "보류"
+      },
+      "companyNameKo": "옥서스",
+      "companyTier": "unknown",
+      "contact": {
+        "email": "",
+        "name": "",
+        "phone": ""
+      },
+      "domain": "oxus.co.kr",
+      "excludeReason": "",
+      "extraPosts": [],
+      "favorite": false,
+      "hidden": false,
+      "leadGrade": "C",
+      "notes": "",
+      "profile": {
+        "bizItem": "증류기, 열교환기 및 가스발생기 제조업",
+        "bizNo": "105-86-05041",
+        "bizStatus": "계속사업자",
+        "bizType": "제조업",
+        "companyNameLegal": "(주)옥서스",
+        "companyScale": "중소기업",
+        "domain": "oxus.co.kr",
+        "employeeCount": "59",
+        "foundedDate": "1999-11-04",
+        "homepage": "http://www.oxus.co.kr",
+        "industrySummary": "대분류 : 제조업 · 중분류 : 기타 기계 및 장비 제조업 · 소분류 : 일반 목적용 기계 제조업 · 세분류 : 냉각, 공기 조화, 여과, 증류 및 가스 발생기 제조업 · 세세분류 : 산업용 냉장 및 냉동장비 제조업"
+      },
+      "scoreParts": {
+        "_total": "35"
+      },
+      "updatedAt": "2026-06-02T00:06:12.536Z"
+    },
+    "cmp_90fe138f0f": {
+      "actions": {},
+      "companyNameKo": "티피씨인터넷",
+      "contact": {},
+      "email": "",
+      "excludeReason": "",
+      "extraPosts": [],
+      "favorite": true,
+      "hidden": false,
+      "leadGrade": "",
+      "notes": "",
+      "profile": {},
+      "scoreParts": {},
+      "updatedAt": "2026-06-01T23:00:50.721Z"
+    },
+    "cmp_test": {
+      "actions": {},
       "companyNameKo": "에스에프씨 주식회사",
+      "contact": {},
+      "domain": "sfc-dye.com",
+      "extraPosts": [],
+      "profile": {
+        "bizItem": "의료용품 및 기타 의약 관련제품 제조업",
+        "bizNo": "134-81-54429",
+        "bizStatus": "계속사업자 ※국세청 홈택스 실시간 정보제공",
+        "bizType": "제조업",
+        "companyNameLegal": "에스에프씨 주식회사",
+        "companyScale": "중소기업",
+        "domain": "sfc-dye.com",
+        "employeeCount": "258",
+        "enrichmentSource": "bizno",
+        "foundedDate": "1999-01-15",
+        "homepage": "www.sfc-dye.com",
+        "industrySummary": "대분류 : 제조업 · 중분류 : 의료용 물질 및 의약품 제조업 · 소분류 : 의료용품 및 기타 의약 관련제품 제조업 · 세분류 : 의료용품 및 기타 의약 관련제품 제조업 · 세세분류 : 의료용품 및 기타 의약 관련제품 제조업"
+      },
+      "scoreParts": {},
       "updatedAt": "2026-06-01T23:47:42.141Z"
     }
-  }
+  },
+  "customCompanies": [],
+  "favorites": [
+    "cmp_393ab6130c",
+    "cmp_90fe138f0f",
+    "cmp_50ac179198"
+  ],
+  "updatedAt": "2026-06-02T06:39:18.473Z",
+  "version": 2
 }
