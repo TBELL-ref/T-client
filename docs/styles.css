@@ -73,10 +73,11 @@ body {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: var(--accent);
+  background: #0a0a0a;
   flex-shrink: 0;
-  background-image: url("./favicon.svg");
+  background-image: url("./brand-icon.png");
   background-size: cover;
+  background-position: center;
 }
 
 .brand-name {
