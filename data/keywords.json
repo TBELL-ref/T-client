@@ -1,13 +1,41 @@
 {
   "version": 1,
-  "updatedAt": null,
+  "updatedAt": "2026-06-02T01:42:10.875Z",
   "keywords": [
-    { "keyword": "qa automation", "source": "generic", "is_active": "true" },
-    { "keyword": "qa engineer", "source": "generic", "is_active": "true" },
-    { "keyword": "test automation", "source": "generic", "is_active": "true" },
-    { "keyword": "sdet", "source": "generic", "is_active": "true" },
-    { "keyword": "QA", "source": "generic", "is_active": "true" },
-    { "keyword": "품질보증", "source": "generic", "is_active": "true" },
-    { "keyword": "테스트", "source": "generic", "is_active": "true" }
+    {
+      "is_active": "true",
+      "keyword": "qa automation",
+      "source": "generic"
+    },
+    {
+      "is_active": "true",
+      "keyword": "qa engineer",
+      "source": "generic"
+    },
+    {
+      "is_active": "true",
+      "keyword": "test automation",
+      "source": "generic"
+    },
+    {
+      "is_active": "true",
+      "keyword": "sdet",
+      "source": "generic"
+    },
+    {
+      "is_active": "true",
+      "keyword": "QA",
+      "source": "generic"
+    },
+    {
+      "is_active": "true",
+      "keyword": "품질보증",
+      "source": "generic"
+    },
+    {
+      "is_active": "true",
+      "keyword": "테스트",
+      "source": "generic"
+    }
   ]
 }
