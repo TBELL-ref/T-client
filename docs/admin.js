@@ -5,6 +5,7 @@
   const ADMIN_KEY_SHA256 =
     "418283f43533ea91bd455529a29125997fcbccca22943ebb3c30b3f3afb18523";
   const REPO = "TBELL-ref/T-client";
+  const REPO_PRIVATE = "meowdule/T-client";
   const LS_KEY = "tclient-overrides-v2";
   const LS_KEYWORDS_DRAFT = "tclient-keywords-draft";
   const SS_ADMIN = "tclient-admin-unlocked";
@@ -171,7 +172,7 @@
     saveKeywordsDraft(state.activeKeywordDraft);
   }
 
-  async function repoDispatch(eventType, payload) {
+  async function repoDispatch(eventType, payload, repo = REPO) {
     const adminKey = sessionStorage.getItem(SS_KEY);
     if (!adminKey) throw new Error("관리자 로그인이 필요합니다.");
 
@@ -180,7 +181,7 @@
       throw new Error("저장용 토큰 미설정. npm run embed:admin-auth 후 push 필요.");
     }
 
-    const res = await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
+    const res = await fetch(`https://api.github.com/repos/${repo}/dispatches`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${auth}`,
@@ -195,20 +196,22 @@
     });
 
     if (res.status === 204) return true;
-    throw new Error(`요청 실패 (${res.status}). ADMIN_SAVE_KEY·토큰 확인.`);
+    const detail = await res.text().catch(() => "");
+    throw new Error(`요청 실패 (${res.status}). ${detail || "ADMIN_SAVE_KEY·토큰 권한 확인."}`);
   }
 
   async function saveKeywordsToGitHub() {
     const merged = applyKeywordEdits(getActiveKeywordLabels());
     const updatedAt = new Date().toISOString();
     await repoDispatch("save-keywords", { keywords: merged, updatedAt });
+    await repoDispatch("sync-keywords", { keywords: merged }, REPO_PRIVATE);
     state.keywordsDoc = { version: 1, updatedAt, keywords: merged };
     syncActiveDraftFromDoc();
     return true;
   }
 
   async function triggerCollect() {
-    return repoDispatch("trigger-collect", {});
+    return repoDispatch("trigger-collect", {}, REPO_PRIVATE);
   }
 
   function emptyDoc() {

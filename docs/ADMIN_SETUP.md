@@ -17,9 +17,9 @@ The site stores only a SHA-256 hash in `docs/admin.js`.
 
 1. User enters admin key in the **관리** popup → unlock + consent
 2. **저장 반영** → `repository_dispatch` → Actions validates `ADMIN_SAVE_KEY` → commits `overrides.json`
-3. **키워드 반영** → `save-keywords` → `keywords.json` + private `sync-keywords` → Google Sheets `config_keywords`
-4. **크롤링 실행** → 키워드 반영 후 `trigger-collect` → private Lead Collector
-5. Dispatch API auth uses the same **PUBLIC_REPO_TOKEN** as meowdule publish (obfuscated in `admin.js`)
+3. **키워드 반영** → public `save-keywords` + private `sync-keywords` (브라우저에서 직접 dispatch)
+4. **크롤링 실행** → private `trigger-collect` → Lead Collector
+5. Dispatch API auth uses **PUBLIC_REPO_TOKEN** embedded in `admin.js` (PAT must have `repo` scope on **meowdule/T-client**)
 
 ### One-time embed (after PUBLIC_REPO_TOKEN is in private `.env`)
 
@@ -37,6 +37,5 @@ git push
 | Repo | Secret | Purpose |
 |------|--------|---------|
 | TBELL-ref/T-client | `ADMIN_SAVE_KEY` | Validate admin console requests |
-| TBELL-ref/T-client | `PUBLIC_REPO_TOKEN` | Sync keywords to private Sheets + trigger collect (same PAT as meowdule) |
 | meowdule/T-client | `ADMIN_SAVE_KEY` | Validate sync-keywords / trigger-collect |
-| meowdule/T-client | `PUBLIC_REPO_TOKEN` | Publish snapshot + server save |
+| meowdule/T-client | `PUBLIC_REPO_TOKEN` | Publish snapshot + embed in admin.js dispatch |
