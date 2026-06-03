@@ -1555,6 +1555,10 @@ tbody tr.row-manual {
   color: var(--accent);
 }
 
+.score-recalc-row {
+  margin-top: 0.75rem;
+}
+
 .bizno-fetch-row {
   margin-bottom: 12px;
   padding-bottom: 12px;

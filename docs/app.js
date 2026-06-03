@@ -182,12 +182,15 @@ function actionSelect(id, value) {
   ]);
 }
 
-function renderScoreSection(row, admin = false) {
+function renderScoreSection(row, edit, admin = false) {
   const breakdown = row.scoreBreakdown ?? [];
+  const recalcBtn = admin
+    ? `<p class="score-recalc-row"><button type="button" class="btn-ghost btn-sm" id="btn-recalc-score">점수 재집계</button></p>`
+    : "";
   if (!breakdown.length && !row.scoreReason) {
-    return `<p class="muted">점수 정보 없음</p>`;
+    return `<p class="muted">점수 정보 없음</p>${recalcBtn}`;
   }
-  if (admin && breakdown.length) {
+  if (edit && breakdown.length) {
     const rows = breakdown
       .map((b) => {
         const defaultPts = `${b.pts ?? ""}`.replace(":", "") || "0";
@@ -200,7 +203,7 @@ function renderScoreSection(row, admin = false) {
       .join("");
     return `<table class="profile-table profile-inline"><tbody>${rows}
       <tr><th>총점</th><td>${inlineInput("edit-score-total", row.priorityScore, "number")}</td></tr>
-    </tbody></table>`;
+    </tbody></table>${recalcBtn}`;
   }
   const lines = breakdown.length
     ? breakdown
@@ -210,7 +213,7 @@ function renderScoreSection(row, admin = false) {
         )
         .join("")
     : `<li class="muted">${escapeHtml(row.scoreReason)}</li>`;
-  return `<ul class="score-breakdown">${lines}</ul><p class="score-total">합계 <strong>${escapeHtml(row.priorityScore)}</strong>점 · ${escapeHtml(row.leadGrade)}등급</p>`;
+  return `<ul class="score-breakdown">${lines}</ul><p class="score-total">합계 <strong>${escapeHtml(row.priorityScore)}</strong>점 · ${escapeHtml(row.leadGrade)}등급</p>${recalcBtn}`;
 }
 
 function showToast(message, type = "ok") {
@@ -283,6 +286,25 @@ function fillProfileForm(profile) {
   }
 }
 
+async function applyEnrichedProfile(row, profile) {
+  fillProfileForm(profile);
+  window.TClientAdmin.setEntry(row.companyId, {
+    profile,
+    domain: profile.domain || undefined
+  });
+  reloadRowsWithAdmin();
+  const updated = state.rows.find((r) => r.companyId === row.companyId) ?? row;
+  if (window.TClientAdmin.recalculateCompanyScore) {
+    window.TClientAdmin.recalculateCompanyScore(updated);
+    reloadRowsWithAdmin();
+  }
+  refreshViews();
+  state.detailRow = state.rows.find((r) => r.companyId === row.companyId) ?? updated;
+  paintDetailModal();
+  setEnrichBiznoStatus("수집 완료. 내용 확인 후 「변경 저장」을 눌러주세요.");
+  showToast("회사 정보 수집이 완료되었습니다.");
+}
+
 async function runEnrichBizNo(row) {
   const bizNo = byId("edit-prof-bizno")?.value.trim();
   const btn = byId("btn-enrich-bizno");
@@ -303,29 +325,59 @@ async function runEnrichBizNo(row) {
   try {
     const result = await window.TEnrichBizno.fetchProfileByBizNo(bizNo);
     if (result.ok) {
-      fillProfileForm(result.profile);
+      await applyEnrichedProfile(row, result.profile);
+      return;
+    }
+
+    if (window.TClientAdmin?.dispatchEnrichCompany && window.TClientAdmin.waitForEnrichedProfile) {
+      setDetailLoading(true, "서버에서 회사 정보를 수집 중입니다… (최대 90초)");
+      setEnrichBiznoStatus("브라우저 조회가 끝나지 않아 서버에서 수집 중입니다…");
+
+      const prevProfile = window.TClientAdmin.getEntry(row.companyId).profile ?? {};
       window.TClientAdmin.setEntry(row.companyId, {
-        profile: result.profile,
-        domain: result.profile.domain || undefined
+        profile: { ...prevProfile, bizNo: window.TEnrichBizno.formatBizNo?.(digits) || bizNo }
       });
-      setEnrichBiznoStatus("수집 완료. 내용 확인 후 「변경 저장」을 눌러주세요.");
-      showToast("회사 정보 수집이 완료되었습니다.");
-      return;
-    }
 
-    if (result.reason === "fetch_blocked" && window.TClientAdmin.dispatchEnrichCompany) {
-      setDetailLoading(true, "서버에서 회사 정보를 수집 중입니다…");
       await window.TClientAdmin.dispatchEnrichCompany(row.companyId, bizNo);
-      setEnrichBiznoStatus("서버 수집 요청됨. 1~2분 후 새로고침하거나 저장 반영을 실행하세요.");
-      showToast("서버 수집을 요청했습니다. 잠시 후 새로고침해 주세요.");
-      return;
+      const waited = await window.TClientAdmin.waitForEnrichedProfile(row.companyId, digits, {
+        timeoutMs: 90000,
+        intervalMs: 3500
+      });
+
+      if (waited.ok) {
+        await applyEnrichedProfile(row, waited.profile);
+        return;
+      }
     }
 
-    setEnrichBiznoStatus(result.message || "수집에 실패했습니다.", true);
-    showToast(result.message || "수집에 실패했습니다.", "error");
+    setEnrichBiznoStatus(
+      "수집 시간이 초과되었습니다. GitHub Actions 완료 후 새로고침하면 반영될 수 있습니다.",
+      true
+    );
+    showToast("수집 대기 시간이 초과되었습니다. 잠시 후 새로고침해 주세요.", "error");
   } catch (err) {
     setEnrichBiznoStatus(err.message || "수집 오류", true);
     showToast(err.message || "수집 오류", "error");
+  } finally {
+    setDetailLoading(false);
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function runRecalcScore(row) {
+  if (!window.TClientAdmin?.recalculateCompanyScore) return;
+  const btn = byId("btn-recalc-score");
+  if (btn) btn.disabled = true;
+  setDetailLoading(true, "점수를 재집계합니다…");
+  try {
+    const fresh = state.rows.find((r) => r.companyId === row.companyId) ?? row;
+    const result = window.TClientAdmin.recalculateCompanyScore(fresh);
+    finishDetailSave(row.companyId, {
+      toastMessage: `점수 재집계 완료 (${result.score}점 · ${result.grade}등급)`,
+      exitEdit: false
+    });
+  } catch (err) {
+    showToast(err.message || "재집계 실패", "error");
   } finally {
     setDetailLoading(false);
     if (btn) btn.disabled = false;
@@ -996,7 +1048,7 @@ function tierLabelKo(tier) {
   return map[tier] ?? tier ?? "-";
 }
 
-function renderDetailBody(row, edit) {
+function renderDetailBody(row, edit, admin = false) {
   const e = window.TClientAdmin?.getEntry(row.companyId) ?? {};
   const p = { ...(row.profile ?? {}), ...(e.profile ?? {}) };
   const c = row.contact ?? {};
@@ -1092,7 +1144,7 @@ function renderDetailBody(row, edit) {
     </section>
     <section class="detail-section muted-box">
       ${detailTitle("점수 근거")}
-      ${renderScoreSection(row, edit)}
+      ${renderScoreSection(row, edit, admin)}
     </section>
     ${row.excludeReason ? `<p class="warn">제외: ${escapeHtml(row.excludeReason)}</p>` : ""}
     ${edit ? `<footer class="detail-footer"><button type="button" class="btn-ghost btn-sm" id="detail-cancel-edit">취소</button><button type="button" class="btn-primary" id="detail-save-all">변경 저장</button></footer>` : ""}`;
@@ -1118,7 +1170,11 @@ function paintDetailModal() {
   const deletable = admin && (row.isManual || window.TClientAdmin?.isCustomCompany?.(row.companyId));
   deleteBtn?.classList.toggle("hidden", !deletable);
 
-  byId("detailBody").innerHTML = renderDetailBody(row, edit);
+  byId("detailBody").innerHTML = renderDetailBody(row, edit, admin);
+
+  if (admin) {
+    byId("btn-recalc-score")?.addEventListener("click", () => runRecalcScore(row));
+  }
 
   if (edit) {
     bindDetailEdits(row);

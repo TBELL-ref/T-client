@@ -34,7 +34,9 @@
     "tier_mid:-8": "중견 우선순위 감점",
     "startup_bonus:+8": "스타트업 가점",
     "excluded": "제외 처리",
-    "locked": "수동 잠금"
+    "locked": "수동 잠금",
+    "manual": "수동 등록",
+    "baseline": "기본"
   };
 
   const state = {
@@ -459,6 +461,208 @@
     return next - existing;
   }
 
+  function normalizeBizNoDigits(bizNo) {
+    return `${bizNo ?? ""}`.replace(/\D/g, "");
+  }
+
+  const RECRUITING_PORTAL_HOSTS = new Set([
+    "jobkorea.co.kr",
+    "jobkorea.com",
+    "saramin.co.kr",
+    "wanted.co.kr",
+    "career.co.kr",
+    "job.career.co.kr",
+    "programmers.co.kr",
+    "jumpit.co.kr",
+    "rocketpunch.com",
+    "incruit.com",
+    "catch.co.kr",
+    "theteams.kr",
+    "venturesquare.net",
+    "inflearn.com",
+    "linkedin.com"
+  ]);
+
+  function isRecruitingPortalDomain(domain) {
+    const raw = `${domain ?? ""}`.trim().toLowerCase();
+    if (!raw) return false;
+    try {
+      const host = raw.includes("://") ? new URL(raw).hostname : raw.split("/")[0];
+      const h = host.replace(/^www\./, "");
+      if (RECRUITING_PORTAL_HOSTS.has(h)) return true;
+      if (h.endsWith(".greenhouse.io") || h.endsWith(".lever.co") || h.includes("ashbyhq.com")) return true;
+      if (h.endsWith(".career.co.kr") || h.endsWith(".jobkorea.co.kr") || h.endsWith(".saramin.co.kr")) return true;
+    } catch {
+      return RECRUITING_PORTAL_HOSTS.has(raw.replace(/^www\./, ""));
+    }
+    return false;
+  }
+
+  function isQaRelevantTitle(title) {
+    return /\b(qa|quality|test|testing|automation|sdet|qa engineer|품질|테스트)\b/i.test(`${title ?? ""}`);
+  }
+
+  function isRecentCollection(isoDate, days = 30) {
+    if (!isoDate) return false;
+    const collected = new Date(isoDate).getTime();
+    if (Number.isNaN(collected)) return false;
+    return collected >= Date.now() - days * 24 * 60 * 60 * 1000;
+  }
+
+  function gradeFromScore(score) {
+    if (score >= 70) return "A";
+    if (score >= 40) return "B";
+    return "C";
+  }
+
+  function hasVerifiedDomain(domain) {
+    const d = `${domain ?? ""}`.trim();
+    return Boolean(d) && !isRecruitingPortalDomain(d);
+  }
+
+  function hasCompanyProfile(profile, domain) {
+    const p = profile ?? {};
+    return Boolean((p.bizItem || p.bizNo || p.homepage) && hasVerifiedDomain(domain));
+  }
+
+  async function mergeRemoteOverrides() {
+    const remote = await fetchRemoteOverrides();
+    state.doc = mergeDocs(state.doc, remote);
+    saveLocal(state.doc);
+  }
+
+  async function waitForEnrichedProfile(companyId, bizNoDigits, options = {}) {
+    const { timeoutMs = 90000, intervalMs = 3500 } = options;
+    const deadline = Date.now() + timeoutMs;
+
+    function profileReady(profile) {
+      if (!profile) return false;
+      if (bizNoDigits && normalizeBizNoDigits(profile.bizNo) !== bizNoDigits) return false;
+      return Boolean(profile.bizItem || profile.homepage || profile.companyNameLegal);
+    }
+
+    while (Date.now() < deadline) {
+      const entry = getEntry(companyId);
+      if (profileReady(entry.profile)) {
+        return { ok: true, profile: entry.profile, source: "local" };
+      }
+      await mergeRemoteOverrides();
+      const merged = getEntry(companyId);
+      if (profileReady(merged.profile)) {
+        return { ok: true, profile: merged.profile, source: "remote" };
+      }
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    return { ok: false };
+  }
+
+  function recalculateCompanyScore(row) {
+    const entry = getEntry(row.companyId);
+    const domain = entry.domain || row.domain || entry.profile?.domain || row.profile?.domain || "";
+    const profile = { ...(row.profile ?? {}), ...(entry.profile ?? {}) };
+    const posts = row.posts ?? [];
+    const postCount = posts.length;
+    const qaRelevantPosts = posts.filter((p) => isQaRelevantTitle(p.title)).length;
+    const tier = entry.companyTier || row.companyTier || "unknown";
+    const hasDomain = hasVerifiedDomain(domain);
+    const hasProfile = hasCompanyProfile(profile, domain);
+    const email = `${entry.contact?.email ?? row.contact?.email ?? row.email ?? ""}`.trim();
+    const emailConf = row.emailConfidence || "low";
+    const contactSecured =
+      email && !isRecruitingPortalDomain(email.split("@").slice(1).join("@"))
+        ? emailConf === "high" || emailConf === "medium" || Boolean(email)
+          ? "yes"
+          : "no"
+        : row.contactSecured === "yes"
+          ? "yes"
+          : "no";
+
+    if (row.excluded || entry.excludeReason) {
+      setEntry(row.companyId, {
+        priorityScore: "0",
+        leadGrade: "C",
+        scoreReason: "excluded",
+        scoreParts: {}
+      });
+      return { score: 0, grade: "C", scoreReason: "excluded" };
+    }
+
+    let score = 0;
+    const reasons = [];
+
+    if (hasDomain) {
+      score += 15;
+      reasons.push("domain:+15");
+    } else {
+      reasons.push("domain:pending");
+    }
+
+    if (hasDomain && emailConf === "high") {
+      score += 25;
+      reasons.push("email_high:+25");
+    } else if (hasDomain && emailConf === "medium") {
+      score += 15;
+      reasons.push("email_medium:+15");
+    } else if (hasDomain && email) {
+      score += 5;
+      reasons.push("email_low:+5");
+    }
+
+    if (contactSecured === "yes") {
+      score += 20;
+      reasons.push("contact_secured:+20");
+    }
+
+    if (postCount >= 2) {
+      score += 20;
+      reasons.push("posts_2plus:+20");
+    } else if (postCount >= 1) {
+      score += 10;
+      reasons.push("posts_1:+10");
+    }
+
+    if (qaRelevantPosts > 0) {
+      score += 15;
+      reasons.push("qa_title:+15");
+    }
+
+    if (hasProfile) {
+      score += 15;
+      reasons.push("company_profile:+15");
+    } else if (profile.bizItem || profile.bizNo || profile.homepage) {
+      reasons.push("profile:homepage_pending");
+    }
+
+    if (isRecentCollection(row.lastCollectedAt)) {
+      score += 10;
+      reasons.push("recent:+10");
+    }
+
+    if (tier === "enterprise") {
+      score -= 22;
+      reasons.push("tier_enterprise:-22");
+    } else if (tier === "mid") {
+      score -= 8;
+      reasons.push("tier_mid:-8");
+    } else if (tier === "startup") {
+      score += 8;
+      reasons.push("startup_bonus:+8");
+    }
+
+    score = Math.max(0, score);
+    const grade = gradeFromScore(score);
+    const scoreReason = reasons.join("|") || "baseline";
+
+    setEntry(row.companyId, {
+      priorityScore: String(score),
+      leadGrade: grade,
+      scoreReason,
+      scoreParts: {}
+    });
+
+    return { score, grade, scoreReason };
+  }
+
   function computeScoreFromParts(baseScore, baseReason, scoreParts, tierOverride, baseTier) {
     const overrides = scoreParts ?? {};
     const hasPartOverrides = Object.keys(overrides).some((k) => k !== "_total");
@@ -499,6 +703,7 @@
     }
 
     if (entry.leadGrade) next.leadGrade = entry.leadGrade;
+    if (entry.scoreReason) next.scoreReason = entry.scoreReason;
 
     const profile = { ...(row.profile ?? {}), ...(entry.profile ?? {}) };
     if (Object.keys(entry.profile ?? {}).length) {
@@ -556,13 +761,13 @@
     );
     if (entry.priorityScore !== undefined && entry.priorityScore !== "") {
       next.priorityScore = String(entry.priorityScore);
-    } else if (entry.scoreParts || entry.companyTier) {
+    } else if (entry.scoreParts || entry.companyTier || entry.scoreReason) {
       next.priorityScore = String(newScore);
     } else {
       next.priorityScore = String(baseScore);
     }
 
-    next.scoreBreakdown = parseScoreReason(row.scoreReason).map((p) => {
+    next.scoreBreakdown = parseScoreReason(next.scoreReason ?? row.scoreReason).map((p) => {
       const { label, pts } = scoreLabel(p);
       const override = entry.scoreParts?.[p] ?? entry.scoreParts?.[p.split(":")[0]];
       return { part: p, label, pts, override };
@@ -620,6 +825,9 @@
     saveKeywordsToGitHub,
     triggerCollect,
     dispatchEnrichCompany,
+    mergeRemoteOverrides,
+    waitForEnrichedProfile,
+    recalculateCompanyScore,
     getActiveKeywordLabels,
     addKeywordDraft,
     removeKeywordDraft,

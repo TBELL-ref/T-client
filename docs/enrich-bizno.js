@@ -103,30 +103,48 @@
     };
   }
 
-  async function fetchHtml(url) {
+  async function fetchHtml(url, retries = 3) {
     const headers = { Accept: "text/html", "User-Agent": USER_AGENT };
-    try {
-      const res = await fetch(url, { headers, mode: "cors" });
-      if (res.ok) return res.text();
-    } catch {
-      /* CORS — try proxy */
+    let lastError;
+    for (let attempt = 0; attempt < retries; attempt += 1) {
+      try {
+        const direct = await fetch(url, { headers, mode: "cors", signal: AbortSignal.timeout(20000) });
+        if (direct.ok) return direct.text();
+      } catch (err) {
+        lastError = err;
+      }
+      try {
+        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        const res = await fetch(proxy, { signal: AbortSignal.timeout(35000) });
+        if (res.ok) return res.text();
+        lastError = new Error(`proxy_http_${res.status}`);
+      } catch (err) {
+        lastError = err;
+      }
+      if (attempt < retries - 1) await sleep(1500 * (attempt + 1));
     }
-    const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const res = await fetch(proxy);
-    if (!res.ok) throw new Error("fetch_failed");
-    return res.text();
+    throw lastError ?? new Error("fetch_failed");
   }
 
-  async function listArticlePaths(query, max = 8) {
-    const html = await fetchHtml(`${SEARCH_BASE}/?query=${encodeURIComponent(query)}`);
-    const paths = [];
-    const re = /href="(\/article\/\d+)"/gi;
-    let match;
-    while ((match = re.exec(html)) !== null) {
-      if (!paths.includes(match[1])) paths.push(match[1]);
-      if (paths.length >= max) break;
+  async function listArticlePaths(query, max = 12) {
+    let lastError;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const html = await fetchHtml(`${SEARCH_BASE}/?query=${encodeURIComponent(query)}`);
+        const paths = [];
+        const re = /href="(\/article\/\d+)"/gi;
+        let match;
+        while ((match = re.exec(html)) !== null) {
+          if (!paths.includes(match[1])) paths.push(match[1]);
+          if (paths.length >= max) break;
+        }
+        if (paths.length) return paths;
+      } catch (err) {
+        lastError = err;
+      }
+      if (attempt < 1) await sleep(1200);
     }
-    return paths;
+    throw lastError ?? new Error("search_empty");
   }
 
   async function fetchProfileByBizNo(bizNo) {
@@ -135,19 +153,21 @@
 
     const queries = [formatBizNo(digits), digits];
     const seen = new Set();
+    let lastReason = "bizno_no_match";
 
     for (const q of queries) {
       let paths;
       try {
-        paths = await listArticlePaths(q, 10);
+        paths = await listArticlePaths(q, 12);
       } catch {
-        return { ok: false, reason: "fetch_blocked", message: "브라우저에서 조회할 수 없습니다. 서버 수집을 시도하세요." };
+        lastReason = "fetch_blocked";
+        continue;
       }
 
       for (const path of paths) {
         if (seen.has(path)) continue;
         seen.add(path);
-        await sleep(200);
+        await sleep(250);
         let html;
         try {
           html = await fetchHtml(`${SEARCH_BASE}${path}`);
@@ -155,13 +175,17 @@
           continue;
         }
         const profile = parseBiznoArticleHtml(html, path);
-        if (normalizeBizNoDigits(profile.biz_no) === digits) {
+        const found = normalizeBizNoDigits(profile.biz_no);
+        if (found === digits) {
           return { ok: true, profile: profileToUi(profile) };
         }
       }
     }
 
-    return { ok: false, reason: "bizno_no_match", message: "bizno.net에서 일치하는 사업자를 찾지 못했습니다." };
+    if (lastReason === "fetch_blocked") {
+      return { ok: false, reason: "fetch_blocked", message: "브라우저에서 조회할 수 없습니다. 서버 수집을 시도하세요." };
+    }
+    return { ok: false, reason: "bizno_no_match", message: "bizno.net에서 일치하는 사업자를 찾지 못했습니다. 서버 수집을 시도합니다." };
   }
 
   function profileToUi(p) {
