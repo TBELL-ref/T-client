@@ -146,6 +146,25 @@
       },
       "scoreParts": {},
       "updatedAt": "2026-06-01T23:47:42.141Z"
+    },
+    "cmp_c180dc2755": {
+      "profile": {
+        "companyNameLegal": "(주)에스엠테크",
+        "bizNo": "312-81-86012",
+        "bizType": "제조업",
+        "bizItem": "항공기용 부품 제조업",
+        "companyScale": "중소기업",
+        "bizStatus": "계속사업자 ※국세청 홈택스 실시간 정보제공",
+        "foundedDate": "2006-10",
+        "employeeCount": "57",
+        "homepage": "http://www.sm-tech.or.kr",
+        "industrySummary": "대분류 : 제조업 · 중분류 : 전자 부품, 컴퓨터, 영상, 음향 및 통신장비 제조업 · 소분류 : 반도체 제조업 · 세분류 : 다이오드, 트랜지스터 및 유사 반도체 소자 제조업 · 세세분류 : 기타 반도체 소자 제조업",
+        "domain": "sm-tech.or.kr",
+        "enrichmentSource": "bizno"
+      },
+      "domain": "sm-tech.or.kr",
+      "companyNameKo": "(주)에스엠테크",
+      "updatedAt": "2026-06-03T22:59:43.277Z"
     }
   },
   "customCompanies": [],
@@ -154,6 +173,6 @@
     "cmp_90fe138f0f",
     "cmp_50ac179198"
   ],
-  "updatedAt": "2026-06-02T07:59:39.784Z",
+  "updatedAt": "2026-06-03T22:59:43.277Z",
   "version": 2
 }
