@@ -427,6 +427,34 @@ function sanitizeDomainInput(value) {
   return raw.split("/")[0].split("?")[0] || "";
 }
 
+const RECRUITING_PORTAL_HOSTS = new Set([
+  "jobkorea.co.kr",
+  "jobkorea.com",
+  "saramin.co.kr",
+  "wanted.co.kr",
+  "career.co.kr",
+  "job.career.co.kr",
+  "programmers.co.kr",
+  "jumpit.co.kr",
+  "rocketpunch.com",
+  "incruit.com",
+  "catch.co.kr",
+  "theteams.kr",
+  "venturesquare.net",
+  "inflearn.com",
+  "linkedin.com",
+  "boards.greenhouse.io"
+]);
+
+function isRecruitingPortalHost(host) {
+  const h = `${host ?? ""}`.toLowerCase().replace(/^www\./, "");
+  if (!h) return false;
+  if (RECRUITING_PORTAL_HOSTS.has(h)) return true;
+  if (h.endsWith(".greenhouse.io") || h.endsWith(".lever.co") || h.includes("ashbyhq.com")) return true;
+  if (h.endsWith(".career.co.kr") || h.endsWith(".jobkorea.co.kr") || h.endsWith(".saramin.co.kr")) return true;
+  return false;
+}
+
 function normalizePostUrlInput(value) {
   const raw = `${value ?? ""}`.trim();
   if (!raw) return "";
@@ -438,31 +466,96 @@ function normalizeBizNoDigits(bizNo) {
   return `${bizNo ?? ""}`.replace(/\D/g, "");
 }
 
-function companyNameFromPostUrl(url) {
+function normalizeCompanyNameKey(name) {
+  return `${name ?? ""}`
+    .toLowerCase()
+    .replace(/\(주\)|㈜|주식회사|유한회사|\(유\)/g, "")
+    .replace(/[^a-z0-9가-힣]/g, "")
+    .trim();
+}
+
+function domainFromPostUrl(url) {
   try {
-    return new URL(url).hostname.replace(/^www\./, "") || "수동 공고";
+    const host = new URL(url).hostname.replace(/^www\./i, "");
+    if (isRecruitingPortalHost(host)) return "";
+    return sanitizeDomainInput(host);
   } catch {
-    return "수동 공고";
+    return "";
   }
+}
+
+function profilePatchFromEnrich(p) {
+  if (!p) return null;
+  return {
+    companyNameLegal: p.companyNameLegal ?? "",
+    bizNo: p.bizNo ?? "",
+    bizType: p.bizType ?? "",
+    bizItem: p.bizItem ?? "",
+    companyScale: p.companyScale ?? "",
+    bizStatus: p.bizStatus ?? "",
+    foundedDate: p.foundedDate ?? "",
+    employeeCount: p.employeeCount ?? "",
+    homepage: p.homepage ?? "",
+    industrySummary: p.industrySummary ?? ""
+  };
+}
+
+function rowBizNoDigits(row) {
+  const entry = window.TClientAdmin?.getEntry?.(row.companyId) ?? {};
+  return normalizeBizNoDigits(row.profile?.bizNo ?? entry.profile?.bizNo);
 }
 
 function findCompanyByBizNo(bizNo) {
   const digits = normalizeBizNoDigits(bizNo);
-  if (!digits) return null;
-  return state.rows.find((row) => {
-    const rowDigits = normalizeBizNoDigits(row.profile?.bizNo);
-    const entryDigits = normalizeBizNoDigits(window.TClientAdmin.getEntry(row.companyId)?.profile?.bizNo);
-    return rowDigits === digits || entryDigits === digits;
-  });
+  if (digits.length !== 10) return null;
+
+  const pools = [
+    ...(state.snapshotRows ?? []),
+    ...(window.TClientAdmin?.getCustomCompanies?.() ?? []),
+    ...state.rows
+  ];
+  const seen = new Set();
+  for (const row of pools) {
+    if (!row?.companyId || seen.has(row.companyId)) continue;
+    seen.add(row.companyId);
+    if (rowBizNoDigits(row) === digits) {
+      return state.rows.find((r) => r.companyId === row.companyId) ?? row;
+    }
+  }
+  return null;
+}
+
+function findCompanyByLegalName(legalName) {
+  const needle = normalizeCompanyNameKey(legalName);
+  if (needle.length < 2) return null;
+
+  for (const row of state.snapshotRows ?? []) {
+    const names = [row.companyNameKo, row.companyName, row.profile?.companyNameLegal].map(normalizeCompanyNameKey);
+    if (names.some((n) => n && (n === needle || (n.length >= 4 && (needle.includes(n) || n.includes(needle)))))) {
+      return state.rows.find((r) => r.companyId === row.companyId) ?? row;
+    }
+  }
+  return null;
+}
+
+function findCompanyByDomain(domain) {
+  const target = sanitizeDomainInput(domain).toLowerCase();
+  if (!target || isRecruitingPortalHost(target)) return null;
+
+  for (const row of state.snapshotRows ?? []) {
+    const d = `${row.domain ?? ""}`.replace(/^www\./, "").toLowerCase();
+    if (d && (d === target || target.endsWith(`.${d}`) || d.endsWith(`.${target}`))) {
+      return state.rows.find((r) => r.companyId === row.companyId) ?? row;
+    }
+  }
+  return null;
 }
 
 function findCompanyByPostUrl(url) {
   try {
     const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
-    return state.rows.find((row) => {
-      const domain = `${row.domain ?? ""}`.replace(/^www\./, "").toLowerCase();
-      return domain && (host === domain || host.endsWith(`.${domain}`));
-    });
+    if (isRecruitingPortalHost(host)) return null;
+    return findCompanyByDomain(host);
   } catch {
     return null;
   }
@@ -475,23 +568,79 @@ function postUrlExists(url) {
   );
 }
 
-function resolveCompanyForManualPost(url, bizNo) {
-  const matchedByBiz = findCompanyByBizNo(bizNo);
-  if (matchedByBiz) return { row: matchedByBiz, created: false };
-
-  const matchedByDomain = findCompanyByPostUrl(url);
-  if (matchedByDomain) return { row: matchedByDomain, created: false };
-
-  const row = buildManualCompanyRow({
-    companyNameKo: companyNameFromPostUrl(url),
-    domain: companyNameFromPostUrl(url),
-    bizNo: bizNo || ""
-  });
-  if (!window.TClientAdmin.addCustomCompany(row)) return { row: null, created: false };
-  return { row, created: true };
+function attachBizNoToCompany(companyId, bizNo, enrichProfile = null) {
+  const patch = { profile: { ...(enrichProfile ?? {}), bizNo: bizNo || enrichProfile?.bizNo || "" } };
+  window.TClientAdmin.setEntry(companyId, patch);
+  if (enrichProfile?.companyNameLegal) {
+    window.TClientAdmin.setEntry(companyId, { companyNameKo: enrichProfile.companyNameLegal });
+  }
+  if (enrichProfile?.domain) {
+    window.TClientAdmin.setEntry(companyId, { domain: enrichProfile.domain });
+  }
 }
 
-function buildManualCompanyRow({ companyNameKo, domain = "", bizNo = "" }) {
+async function lookupEnrichProfile(bizNo) {
+  if (!bizNo || !window.TEnrichBizno?.fetchProfileByBizNo) return null;
+  const digits = normalizeBizNoDigits(bizNo);
+  if (digits.length !== 10) return null;
+  try {
+    const result = await window.TEnrichBizno.fetchProfileByBizNo(bizNo);
+    return result.ok ? result.profile : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveCompanyForManualPost(url, bizNo) {
+  const matchedByBiz = findCompanyByBizNo(bizNo);
+  if (matchedByBiz) return { row: matchedByBiz, created: false, enrichProfile: null };
+
+  const enrichProfile = bizNo ? await lookupEnrichProfile(bizNo) : null;
+  if (enrichProfile) {
+    const byEnrichedBiz = findCompanyByBizNo(enrichProfile.bizNo);
+    if (byEnrichedBiz) return { row: byEnrichedBiz, created: false, enrichProfile };
+
+    const byName = findCompanyByLegalName(enrichProfile.companyNameLegal);
+    if (byName) {
+      attachBizNoToCompany(byName.companyId, enrichProfile.bizNo || bizNo, profilePatchFromEnrich(enrichProfile));
+      return { row: state.rows.find((r) => r.companyId === byName.companyId) ?? byName, created: false, enrichProfile };
+    }
+
+    if (enrichProfile.domain) {
+      const byDomain = findCompanyByDomain(enrichProfile.domain);
+      if (byDomain) {
+        attachBizNoToCompany(byDomain.companyId, enrichProfile.bizNo || bizNo, profilePatchFromEnrich(enrichProfile));
+        return { row: state.rows.find((r) => r.companyId === byDomain.companyId) ?? byDomain, created: false, enrichProfile };
+      }
+    }
+  }
+
+  const matchedByDomain = findCompanyByPostUrl(url);
+  if (matchedByDomain) {
+    if (bizNo || enrichProfile?.bizNo) {
+      attachBizNoToCompany(
+        matchedByDomain.companyId,
+        enrichProfile?.bizNo || bizNo,
+        enrichProfile ? profilePatchFromEnrich(enrichProfile) : { bizNo }
+      );
+    }
+    return { row: matchedByDomain, created: false, enrichProfile };
+  }
+
+  const profile = profilePatchFromEnrich(enrichProfile);
+  const companyNameKo = enrichProfile?.companyNameLegal?.trim() || "수동 등록 회사";
+  const domain = enrichProfile?.domain || domainFromPostUrl(url);
+  const row = buildManualCompanyRow({
+    companyNameKo,
+    domain,
+    bizNo: enrichProfile?.bizNo || bizNo || "",
+    profile
+  });
+  if (!window.TClientAdmin.addCustomCompany(row)) return { row: null, created: false, enrichProfile };
+  return { row, created: true, enrichProfile };
+}
+
+function buildManualCompanyRow({ companyNameKo, domain = "", bizNo = "", profile = null }) {
   const name = `${companyNameKo ?? ""}`.trim();
   const domainClean = sanitizeDomainInput(domain);
   const now = new Date().toISOString();
@@ -505,8 +654,8 @@ function buildManualCompanyRow({ companyNameKo, domain = "", bizNo = "" }) {
     companyTierLabel: "-",
     domain: domainClean,
     domainVerified: Boolean(domainClean),
-    profile: bizNo ? { bizNo: `${bizNo}`.trim() } : {},
-    profileComplete: Boolean(bizNo),
+    profile: profile ?? (bizNo ? { bizNo: `${bizNo}`.trim() } : {}),
+    profileComplete: Boolean(profile?.bizItem || profile?.bizNo || profile?.homepage || bizNo),
     lastCollectedAt: now,
     leadGrade: "C",
     priorityScore: "0",
@@ -965,6 +1114,10 @@ function paintDetailModal() {
   editBtn?.classList.toggle("active", edit);
   editBtn?.setAttribute("aria-pressed", edit ? "true" : "false");
 
+  const deleteBtn = byId("detailDeleteBtn");
+  const deletable = admin && (row.isManual || window.TClientAdmin?.isCustomCompany?.(row.companyId));
+  deleteBtn?.classList.toggle("hidden", !deletable);
+
   byId("detailBody").innerHTML = renderDetailBody(row, edit);
 
   if (edit) {
@@ -1059,6 +1212,10 @@ function closeAddPostModal() {
 }
 
 function submitAddPost() {
+  void submitAddPostAsync();
+}
+
+async function submitAddPostAsync() {
   const url = normalizePostUrlInput(byId("add-post-url")?.value);
   if (!url) {
     showToast("공고 URL을 입력하세요.", "error");
@@ -1076,30 +1233,81 @@ function submitAddPost() {
   }
 
   const bizNo = byId("add-post-bizno")?.value.trim();
-  const { row, created } = resolveCompanyForManualPost(url, bizNo);
-  if (!row) {
-    showToast("회사를 만들 수 없습니다.", "error");
+  const digits = normalizeBizNoDigits(bizNo);
+  if (bizNo && digits.length !== 10) {
+    showToast("사업자번호 10자리를 입력하세요.", "error");
     return;
   }
 
-  const post = {
-    title: "QA 공고",
-    url,
-    source: "manual",
-    sourceLabel: "수동"
-  };
-  const profilePatch = bizNo ? { bizNo } : null;
-  if (!window.TClientAdmin.addManualPost(row.companyId, post, profilePatch)) {
-    showToast("공고 추가에 실패했습니다.", "error");
+  byId("add-post-submit").disabled = true;
+  try {
+    const { row, created, enrichProfile } = await resolveCompanyForManualPost(url, bizNo);
+    if (!row) {
+      showToast("회사를 만들 수 없습니다.", "error");
+      return;
+    }
+
+    const post = {
+      title: "QA 공고",
+      url,
+      source: "manual",
+      sourceLabel: "수동"
+    };
+    const profilePatch = enrichProfile
+      ? profilePatchFromEnrich(enrichProfile)
+      : bizNo
+        ? { bizNo }
+        : null;
+    if (!window.TClientAdmin.addManualPost(row.companyId, post, profilePatch)) {
+      showToast("공고 추가에 실패했습니다.", "error");
+      return;
+    }
+
+    if (created && enrichProfile) {
+      window.TClientAdmin.updateCustomCompany(row.companyId, {
+        companyNameKo: enrichProfile.companyNameLegal || row.companyNameKo,
+        companyName: enrichProfile.companyNameLegal || row.companyName,
+        domain: enrichProfile.domain || row.domain,
+        profile: profilePatchFromEnrich(enrichProfile)
+      });
+    }
+
+    reloadRowsWithAdmin();
+    refreshViews();
+    closeAddPostModal();
+
+    if (bizNo && !enrichProfile && !findCompanyByBizNo(bizNo)) {
+      showToast("공고가 추가됐습니다. bizno.net에서 회사를 찾지 못해 이름은 수동 등록 상태입니다.");
+    } else if (created) {
+      showToast(enrichProfile ? "공고와 회사(사업자 조회)가 추가되었습니다." : "공고와 회사가 추가되었습니다.");
+    } else {
+      showToast("기존 회사에 공고가 추가되었습니다.");
+    }
+
+    const target = state.rows.find((r) => r.companyId === row.companyId) ?? row;
+    openDetail(target, true);
+  } finally {
+    byId("add-post-submit").disabled = false;
+  }
+}
+
+function deleteManualCompany(row) {
+  if (!row?.companyId || !window.TClientAdmin?.isUnlocked()) return;
+  if (!row.isManual && !window.TClientAdmin.isCustomCompany(row.companyId)) {
+    showToast("수동 등록 회사만 삭제할 수 있습니다.", "error");
     return;
   }
-
+  const name = displayName(row);
+  if (!window.confirm(`「${name}」 수동 등록을 삭제할까요?\n(로컬 overrides에서 제거, 저장 반영 필요)`)) return;
+  if (!window.TClientAdmin.removeCustomCompany(row.companyId)) {
+    showToast("삭제할 수 없습니다.", "error");
+    return;
+  }
+  closeDetail();
   reloadRowsWithAdmin();
   refreshViews();
-  closeAddPostModal();
-  showToast(created ? "공고와 회사가 추가되었습니다." : "공고가 추가되었습니다.");
-  const target = state.rows.find((r) => r.companyId === row.companyId) ?? row;
-  openDetail(target, true);
+  showToast("수동 등록이 삭제되었습니다. GitHub 반영은 저장 반영을 실행하세요.");
+  setAdminStatus("저장됨 (로컬). GitHub 반영은 상단 관리 → 저장 반영");
 }
 
 function bindAddPostModal() {
@@ -1142,6 +1350,11 @@ function bindModal() {
     if (!state.detailRow || !window.TClientAdmin?.isUnlocked()) return;
     state.detailEdit = !state.detailEdit;
     paintDetailModal();
+  });
+
+  byId("detailDeleteBtn")?.addEventListener("click", () => {
+    if (!state.detailRow) return;
+    deleteManualCompany(state.detailRow);
   });
 
   modal.querySelectorAll("[data-close]").forEach((el) => {

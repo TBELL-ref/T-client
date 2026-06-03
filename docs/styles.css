@@ -1322,6 +1322,26 @@ tbody tr.row-manual {
   background: var(--accent);
 }
 
+.btn-icon-delete {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.btn-icon-delete:hover {
+  border-color: #fca5a5;
+  color: #dc2626;
+  background: #fef2f2;
+}
+
 .modal-header h2 {
   margin: 0;
   font-size: 20px;

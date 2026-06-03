@@ -345,6 +345,36 @@
     return true;
   }
 
+  function isCustomCompany(companyId) {
+    return (state.doc.customCompanies ?? []).some((r) => r.companyId === companyId);
+  }
+
+  function updateCustomCompany(companyId, patch) {
+    const list = state.doc.customCompanies ?? [];
+    const idx = list.findIndex((r) => r.companyId === companyId);
+    if (idx < 0) return false;
+    const prev = list[idx];
+    list[idx] = {
+      ...prev,
+      ...patch,
+      profile: { ...(prev.profile ?? {}), ...(patch.profile ?? {}) }
+    };
+    state.doc.customCompanies = list;
+    state.dirty = true;
+    saveLocal(state.doc);
+    return true;
+  }
+
+  function removeCustomCompany(companyId) {
+    if (!isCustomCompany(companyId)) return false;
+    state.doc.customCompanies = (state.doc.customCompanies ?? []).filter((r) => r.companyId !== companyId);
+    delete state.doc.companies[companyId];
+    state.doc.favorites = (state.doc.favorites ?? []).filter((id) => id !== companyId);
+    state.dirty = true;
+    saveLocal(state.doc);
+    return true;
+  }
+
   function setEntry(companyId, patch) {
     const prev = getEntry(companyId);
     const merged = mergeEntry(prev, patch);
@@ -454,7 +484,7 @@
   function applyToRow(row) {
     const entry = getEntry(row.companyId);
     const fav = state.doc.favorites.includes(row.companyId) || entry.favorite;
-    const next = { ...row, userFavorite: fav, userHidden: Boolean(entry.hidden), isManual: Boolean(row.isManual) };
+    const next = { ...row, userFavorite: fav, userHidden: Boolean(entry.hidden), isManual: Boolean(row.isManual) || isCustomCompany(row.companyId) };
 
     if (entry.companyNameKo) next.companyNameKo = entry.companyNameKo;
     if (entry.domain) {
@@ -580,6 +610,9 @@
     getCustomCompanies,
     addCustomCompany,
     addManualPost,
+    isCustomCompany,
+    updateCustomCompany,
+    removeCustomCompany,
     isUnlocked,
     unlock,
     lock,
