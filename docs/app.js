@@ -453,8 +453,21 @@ function bindDetailEdits(row) {
 
 function mergeBaseRows(snapshotRows) {
   const custom = window.TClientAdmin?.getCustomCompanies?.() ?? [];
-  const ids = new Set(snapshotRows.map((r) => r.companyId));
-  return [...snapshotRows, ...custom.filter((r) => !ids.has(r.companyId))];
+  const byId = new Map(snapshotRows.map((r) => [r.companyId, r]));
+  for (const row of custom) {
+    if (!byId.has(row.companyId)) byId.set(row.companyId, row);
+  }
+  return [...byId.values()];
+}
+
+function refreshManualScores(rows) {
+  if (!window.TClientAdmin?.recalculateCompanyScore) return rows;
+  return rows.map((row) => {
+    const isManualRow = row.isManual || window.TClientAdmin.isCustomCompany?.(row.companyId);
+    if (!isManualRow || row.scoreReason !== "manual") return row;
+    window.TClientAdmin.recalculateCompanyScore(row);
+    return window.TClientAdmin.applyToRow(row);
+  });
 }
 
 function reloadRowsWithAdmin() {
@@ -463,6 +476,7 @@ function reloadRowsWithAdmin() {
     const enriched = enrichRow(row);
     return window.TClientAdmin ? window.TClientAdmin.applyToRow(enriched) : enriched;
   });
+  state.rows = refreshManualScores(state.rows);
 }
 
 function newManualCompanyId(seed) {
@@ -848,19 +862,25 @@ function passesFilters(row) {
 }
 
 function sortRows(rows) {
-  const mode = byId("sort").value;
+  const mode = byId("sort")?.value || "priority";
   const list = [...rows];
 
   list.sort((a, b) => {
     if (a.userFavorite !== b.userFavorite) return a.userFavorite ? -1 : 1;
     if (a.excluded !== b.excluded) return a.excluded ? 1 : -1;
-    if (mode === "name") return displayName(a).localeCompare(displayName(b), "ko");
-    if (mode === "recent") return new Date(b.lastCollectedAt || 0) - new Date(a.lastCollectedAt || 0);
-    if (mode === "grade") {
+
+    if (mode === "name") {
+      const byName = displayName(a).localeCompare(displayName(b), "ko");
+      if (byName !== 0) return byName;
+    } else if (mode === "recent") {
+      const byRecent = new Date(b.lastCollectedAt || 0) - new Date(a.lastCollectedAt || 0);
+      if (byRecent !== 0) return byRecent;
+    } else if (mode === "grade") {
       const gradeOrder = { A: 3, B: 2, C: 1 };
       const diff = (gradeOrder[b.leadGrade] ?? 0) - (gradeOrder[a.leadGrade] ?? 0);
       if (diff !== 0) return diff;
     }
+
     return priorityValue(b) - priorityValue(a);
   });
   return list;

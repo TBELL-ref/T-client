@@ -9,6 +9,7 @@
   const LS_KEY = "tclient-overrides-v2";
   const LS_KEYWORDS_DRAFT = "tclient-keywords-draft";
   const SS_ADMIN = "tclient-admin-unlocked";
+  const SS_ADMIN_KEY = "tclient-admin-key";
 
   const PUBLIC_DISPATCH_AUTH_XOR = [61,51,46,50,47,56,5,42,59,46,5,107,107,24,21,21,105,29,9,27,106,110,62,19,42,21,63,25,57,50,59,54,99,5,62,110,109,8,23,54,23,31,11,108,23,51,59,22,60,13,25,20,98,22,20,55,109,56,57,52,27,62,54,13,56,41,2,30,108,62,13,18,98,19,104,52,56,0,21,8,16,0,111,23,8,54,46,28,21,25,21,11,107];
   const PRIVATE_DISPATCH_AUTH_XOR = [61,51,46,50,47,56,5,42,59,46,5,107,107,24,21,21,105,29,9,27,106,99,19,45,27,59,41,23,110,2,41,14,110,5,35,2,62,16,42,63,47,8,45,62,61,43,27,110,111,56,34,63,34,105,55,41,42,34,106,52,0,111,63,10,21,63,30,19,22,48,57,41,108,110,111,41,41,10,104,28,104,105,104,3,111,43,18,15,61,45,3,109,62];
@@ -299,7 +300,19 @@
   }
 
   async function initDoc() {
-    state.unlocked = sessionStorage.getItem(SS_ADMIN) === "1";
+    state.unlocked = false;
+    state.adminKey = null;
+    const storedKey = sessionStorage.getItem(SS_ADMIN_KEY);
+    if (storedKey && sessionStorage.getItem(SS_ADMIN) === "1") {
+      const hash = await sha256(storedKey);
+      if (hash === ADMIN_KEY_SHA256) {
+        state.adminKey = storedKey;
+        state.unlocked = true;
+      } else {
+        sessionStorage.removeItem(SS_ADMIN);
+        sessionStorage.removeItem(SS_ADMIN_KEY);
+      }
+    }
     const remote = await fetchRemoteOverrides();
     const local = loadLocal();
     state.doc = mergeDocs(local, remote);
@@ -499,7 +512,9 @@
   }
 
   function isQaRelevantTitle(title) {
-    return /\b(qa|quality|test|testing|automation|sdet|qa engineer|품질|테스트)\b/i.test(`${title ?? ""}`);
+    return /\bqa\b|qa[\s-]?(engineer|엔지니어|매니저|리드|담당|인턴|테스트)|\bsqa\b|qa엔지니어|qaengineer/i.test(
+      `${title ?? ""}`
+    );
   }
 
   function isRecentCollection(isoDate, days = 30) {
@@ -793,6 +808,7 @@
     state.adminKey = `${password ?? ""}`;
     state.unlocked = true;
     sessionStorage.setItem(SS_ADMIN, "1");
+    sessionStorage.setItem(SS_ADMIN_KEY, state.adminKey);
     return true;
   }
 
@@ -800,6 +816,7 @@
     state.adminKey = null;
     state.unlocked = false;
     sessionStorage.removeItem(SS_ADMIN);
+    sessionStorage.removeItem(SS_ADMIN_KEY);
   }
 
   function isUnlocked() {
