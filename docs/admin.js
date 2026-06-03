@@ -330,6 +330,21 @@
     return true;
   }
 
+  function addManualPost(companyId, post, profilePatch = null) {
+    if (!companyId || !post?.url) return false;
+    const entry = getEntry(companyId);
+    const extraPosts = entry.extraPosts ?? [];
+    if (extraPosts.some((p) => p.url === post.url)) return false;
+    const patch = {
+      extraPosts: [...extraPosts, post]
+    };
+    if (profilePatch && Object.keys(profilePatch).length) {
+      patch.profile = { ...(entry.profile ?? {}), ...profilePatch };
+    }
+    setEntry(companyId, patch);
+    return true;
+  }
+
   function setEntry(companyId, patch) {
     const prev = getEntry(companyId);
     const merged = mergeEntry(prev, patch);
@@ -564,6 +579,7 @@
     setEntry,
     getCustomCompanies,
     addCustomCompany,
+    addManualPost,
     isUnlocked,
     unlock,
     lock,

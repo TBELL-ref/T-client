@@ -427,6 +427,70 @@ function sanitizeDomainInput(value) {
   return raw.split("/")[0].split("?")[0] || "";
 }
 
+function normalizePostUrlInput(value) {
+  const raw = `${value ?? ""}`.trim();
+  if (!raw) return "";
+  if (!/^https?:\/\//i.test(raw)) return `https://${raw}`;
+  return raw;
+}
+
+function normalizeBizNoDigits(bizNo) {
+  return `${bizNo ?? ""}`.replace(/\D/g, "");
+}
+
+function companyNameFromPostUrl(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "") || "수동 공고";
+  } catch {
+    return "수동 공고";
+  }
+}
+
+function findCompanyByBizNo(bizNo) {
+  const digits = normalizeBizNoDigits(bizNo);
+  if (!digits) return null;
+  return state.rows.find((row) => {
+    const rowDigits = normalizeBizNoDigits(row.profile?.bizNo);
+    const entryDigits = normalizeBizNoDigits(window.TClientAdmin.getEntry(row.companyId)?.profile?.bizNo);
+    return rowDigits === digits || entryDigits === digits;
+  });
+}
+
+function findCompanyByPostUrl(url) {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    return state.rows.find((row) => {
+      const domain = `${row.domain ?? ""}`.replace(/^www\./, "").toLowerCase();
+      return domain && (host === domain || host.endsWith(`.${domain}`));
+    });
+  } catch {
+    return null;
+  }
+}
+
+function postUrlExists(url) {
+  const norm = url.toLowerCase();
+  return state.rows.some((row) =>
+    (row.posts ?? []).some((p) => `${p.url ?? ""}`.toLowerCase() === norm)
+  );
+}
+
+function resolveCompanyForManualPost(url, bizNo) {
+  const matchedByBiz = findCompanyByBizNo(bizNo);
+  if (matchedByBiz) return { row: matchedByBiz, created: false };
+
+  const matchedByDomain = findCompanyByPostUrl(url);
+  if (matchedByDomain) return { row: matchedByDomain, created: false };
+
+  const row = buildManualCompanyRow({
+    companyNameKo: companyNameFromPostUrl(url),
+    domain: companyNameFromPostUrl(url),
+    bizNo: bizNo || ""
+  });
+  if (!window.TClientAdmin.addCustomCompany(row)) return { row: null, created: false };
+  return { row, created: true };
+}
+
 function buildManualCompanyRow({ companyNameKo, domain = "", bizNo = "" }) {
   const name = `${companyNameKo ?? ""}`.trim();
   const domainClean = sanitizeDomainInput(domain);
@@ -974,6 +1038,86 @@ function submitAddCompany() {
   openDetail(state.rows.find((r) => r.companyId === row.companyId) ?? row, true);
 }
 
+function openAddPostModal() {
+  if (!window.TClientAdmin?.isUnlocked()) {
+    showToast("관리자 로그인이 필요합니다.", "error");
+    return;
+  }
+  const modal = byId("addPostModal");
+  byId("add-post-url").value = "";
+  byId("add-post-bizno").value = "";
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+  byId("add-post-url")?.focus();
+  hydrateIcons(modal);
+}
+
+function closeAddPostModal() {
+  const modal = byId("addPostModal");
+  modal?.classList.add("hidden");
+  modal?.setAttribute("aria-hidden", "true");
+}
+
+function submitAddPost() {
+  const url = normalizePostUrlInput(byId("add-post-url")?.value);
+  if (!url) {
+    showToast("공고 URL을 입력하세요.", "error");
+    return;
+  }
+  try {
+    new URL(url);
+  } catch {
+    showToast("올바른 URL을 입력하세요.", "error");
+    return;
+  }
+  if (postUrlExists(url)) {
+    showToast("이미 등록된 공고 URL입니다.", "error");
+    return;
+  }
+
+  const bizNo = byId("add-post-bizno")?.value.trim();
+  const { row, created } = resolveCompanyForManualPost(url, bizNo);
+  if (!row) {
+    showToast("회사를 만들 수 없습니다.", "error");
+    return;
+  }
+
+  const post = {
+    title: "QA 공고",
+    url,
+    source: "manual",
+    sourceLabel: "수동"
+  };
+  const profilePatch = bizNo ? { bizNo } : null;
+  if (!window.TClientAdmin.addManualPost(row.companyId, post, profilePatch)) {
+    showToast("공고 추가에 실패했습니다.", "error");
+    return;
+  }
+
+  reloadRowsWithAdmin();
+  refreshViews();
+  closeAddPostModal();
+  showToast(created ? "공고와 회사가 추가되었습니다." : "공고가 추가되었습니다.");
+  const target = state.rows.find((r) => r.companyId === row.companyId) ?? row;
+  openDetail(target, true);
+}
+
+function bindAddPostModal() {
+  const modal = byId("addPostModal");
+  if (!modal) return;
+  byId("btnAddPost")?.addEventListener("click", openAddPostModal);
+  byId("add-post-submit")?.addEventListener("click", submitAddPost);
+  modal.querySelectorAll("[data-close-add-post]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeAddPostModal();
+    });
+  });
+  byId("add-post-url")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitAddPost();
+  });
+}
+
 function bindAddCompanyModal() {
   const modal = byId("addCompanyModal");
   if (!modal) return;
@@ -1293,6 +1437,7 @@ async function boot() {
 
     bindModal();
     bindAddCompanyModal();
+    bindAddPostModal();
     bindAdmin();
     renderPresets();
     bindTabs();
