@@ -165,6 +165,25 @@
       "domain": "sm-tech.or.kr",
       "companyNameKo": "(주)에스엠테크",
       "updatedAt": "2026-06-03T22:59:43.277Z"
+    },
+    "cmp_76b43ecc5f": {
+      "profile": {
+        "companyNameLegal": "주식회사 에이티센스",
+        "bizNo": "449-87-00846",
+        "bizType": "제조업",
+        "bizItem": "그 외 기타 의료용 기기 제조업",
+        "companyScale": "중소기업",
+        "bizStatus": "계속사업자 ※국세청 홈택스 실시간 정보제공",
+        "foundedDate": "2017-09-20",
+        "employeeCount": "55",
+        "homepage": "www.atsens.com",
+        "industrySummary": "대분류 : 제조업 · 중분류 : 의료용 물질 및 의약품 제조업 · 소분류 : 의료용품 및 기타 의약 관련제품 제조업 · 세분류 : 의료용품 및 기타 의약 관련제품 제조업 · 세세분류 : 의료용품 및 기타 의약 관련제품 제조업",
+        "domain": "atsens.com",
+        "enrichmentSource": "bizno"
+      },
+      "domain": "atsens.com",
+      "companyNameKo": "주식회사 에이티센스",
+      "updatedAt": "2026-06-04T02:22:29.749Z"
     }
   },
   "customCompanies": [],
@@ -173,6 +192,6 @@
     "cmp_90fe138f0f",
     "cmp_50ac179198"
   ],
-  "updatedAt": "2026-06-03T22:59:43.277Z",
+  "updatedAt": "2026-06-04T02:22:29.749Z",
   "version": 2
 }
