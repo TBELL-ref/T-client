@@ -1,5 +1,7 @@
 const state = {
+  snapshotGeneratedAt: null,
   snapshotRows: [],
+  userOverridesAppliedAt: null,
   rawRows: [],
   rows: [],
   dedupeCandidates: [],
@@ -1530,6 +1532,20 @@ function formatDate(value) {
   }
 }
 
+/** 상단 갱신일·회사·공고 수 — 스냅샷 메타 + 실제 로드·병합된 rows 기준 */
+function paintMetaBanner() {
+  const meta = byId("meta");
+  if (!meta) return;
+  const visible = state.rows.filter((r) => !r.userHidden);
+  const companies = visible.filter((r) => (r.posts?.length ?? 0) > 0).length;
+  const posts = visible.reduce((n, r) => n + (r.posts?.length ?? 0), 0);
+  const generatedAt =
+    state.snapshotGeneratedAt ||
+    state.userOverridesAppliedAt ||
+    null;
+  meta.innerHTML = `<strong>T-client</strong><span>${formatDate(generatedAt)} 갱신</span><span>회사 ${companies} · 공고 ${posts}</span>`;
+}
+
 function bindTabs() {
   document.querySelectorAll(".tabs .tab").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -1544,6 +1560,7 @@ function bindTabs() {
 }
 
 function refreshViews() {
+  paintMetaBanner();
   renderKpi();
   renderLeadsTable();
   renderAllPosts();
@@ -1700,17 +1717,16 @@ function bindAdmin() {
 async function boot() {
   try {
     await window.TClientAdmin.initDoc();
-    const res = await fetch("./data/snapshot.json");
+    const res = await fetch(`./data/snapshot.json?ts=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const snapshot = await res.json();
+    state.snapshotGeneratedAt = snapshot.generatedAt ?? null;
     state.snapshotRows = snapshot.rows ?? [];
     reloadRowsWithAdmin();
     state.dedupeCandidates = snapshot.dedupeCandidates ?? [];
     state.manualReviewQueue = snapshot.manualReviewQueue ?? [];
     state.failureSummary = snapshot.failureSummary ?? {};
     state.gradeSummary = snapshot.gradeSummary ?? {};
-
-    byId("meta").innerHTML = `<strong>T-client</strong><span>${formatDate(snapshot.generatedAt)} 갱신</span><span>회사 ${snapshot.totalCompanies || 0} · 공고 ${snapshot.totalPosts || 0}</span>`;
 
     hydrateIcons();
 
