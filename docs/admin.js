@@ -793,6 +793,7 @@
 
   async function saveToGitHub() {
     await repoDispatch("save-overrides", { overrides: state.doc });
+    await repoDispatch("sync-overrides", { overrides: state.doc }, REPO_PRIVATE);
     state.dirty = false;
     return true;
   }
