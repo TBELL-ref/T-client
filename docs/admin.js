@@ -547,7 +547,7 @@
   }
 
   async function waitForEnrichedProfile(companyId, bizNoDigits, options = {}) {
-    const { timeoutMs = 90000, intervalMs = 3500 } = options;
+    const { timeoutMs = 120000, intervalMs = 2000, onTick } = options;
     const deadline = Date.now() + timeoutMs;
 
     function profileReady(profile) {
@@ -566,6 +566,7 @@
       if (profileReady(merged.profile)) {
         return { ok: true, profile: merged.profile, source: "remote" };
       }
+      onTick?.();
       await new Promise((r) => setTimeout(r, intervalMs));
     }
     return { ok: false };

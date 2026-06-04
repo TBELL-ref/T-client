@@ -103,75 +103,71 @@
     };
   }
 
-  async function fetchHtml(url, retries = 3) {
+  async function fetchHtml(url, { useProxy = true } = {}) {
     const headers = { Accept: "text/html", "User-Agent": USER_AGENT };
-    let lastError;
-    for (let attempt = 0; attempt < retries; attempt += 1) {
-      try {
-        const direct = await fetch(url, { headers, mode: "cors", signal: AbortSignal.timeout(20000) });
-        if (direct.ok) return direct.text();
-      } catch (err) {
-        lastError = err;
-      }
-      try {
-        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-        const res = await fetch(proxy, { signal: AbortSignal.timeout(35000) });
-        if (res.ok) return res.text();
-        lastError = new Error(`proxy_http_${res.status}`);
-      } catch (err) {
-        lastError = err;
-      }
-      if (attempt < retries - 1) await sleep(1500 * (attempt + 1));
+    try {
+      const direct = await fetch(url, { headers, mode: "cors", signal: AbortSignal.timeout(8000) });
+      if (direct.ok) return direct.text();
+    } catch {
+      /* CORS/network — fall through to proxy once */
     }
-    throw lastError ?? new Error("fetch_failed");
+    if (!useProxy) throw new Error("fetch_blocked");
+    const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const res = await fetch(proxy, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error(`proxy_http_${res.status}`);
+    return res.text();
   }
 
-  async function listArticlePaths(query, max = 12) {
-    let lastError;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        const html = await fetchHtml(`${SEARCH_BASE}/?query=${encodeURIComponent(query)}`);
-        const paths = [];
-        const re = /href="(\/article\/\d+)"/gi;
-        let match;
-        while ((match = re.exec(html)) !== null) {
-          if (!paths.includes(match[1])) paths.push(match[1]);
-          if (paths.length >= max) break;
-        }
-        if (paths.length) return paths;
-      } catch (err) {
-        lastError = err;
-      }
-      if (attempt < 1) await sleep(1200);
+  async function listArticlePaths(query, max = 5) {
+    const html = await fetchHtml(`${SEARCH_BASE}/?query=${encodeURIComponent(query)}`);
+    const paths = [];
+    const re = /href="(\/article\/\d+)"/gi;
+    let match;
+    while ((match = re.exec(html)) !== null) {
+      if (!paths.includes(match[1])) paths.push(match[1]);
+      if (paths.length >= max) break;
     }
-    throw lastError ?? new Error("search_empty");
+    return paths;
   }
 
-  async function fetchProfileByBizNo(bizNo) {
+  /**
+   * @param {string} bizNo
+   * @param {{ maxMs?: number }} [options] — browser budget (default 18s); overrun → fetch_blocked for server fallback
+   */
+  async function fetchProfileByBizNo(bizNo, options = {}) {
     const digits = normalizeBizNoDigits(bizNo);
     if (!digits) return { ok: false, reason: "invalid_biz_no", message: "사업자번호 10자리를 입력하세요." };
+
+    const deadline = Date.now() + (options.maxMs ?? 18000);
+    const timedOut = () => Date.now() >= deadline;
 
     const queries = [formatBizNo(digits), digits];
     const seen = new Set();
     let lastReason = "bizno_no_match";
 
     for (const q of queries) {
+      if (timedOut()) break;
       let paths;
       try {
-        paths = await listArticlePaths(q, 12);
+        paths = await listArticlePaths(q, 5);
       } catch {
         lastReason = "fetch_blocked";
-        continue;
+        break;
       }
+      if (!paths.length) continue;
 
       for (const path of paths) {
+        if (timedOut()) {
+          lastReason = "fetch_blocked";
+          break;
+        }
         if (seen.has(path)) continue;
         seen.add(path);
-        await sleep(250);
         let html;
         try {
           html = await fetchHtml(`${SEARCH_BASE}${path}`);
         } catch {
+          lastReason = "fetch_blocked";
           continue;
         }
         const profile = parseBiznoArticleHtml(html, path);
@@ -182,10 +178,18 @@
       }
     }
 
-    if (lastReason === "fetch_blocked") {
-      return { ok: false, reason: "fetch_blocked", message: "브라우저에서 조회할 수 없습니다. 서버 수집을 시도하세요." };
+    if (lastReason === "fetch_blocked" || timedOut()) {
+      return {
+        ok: false,
+        reason: "fetch_blocked",
+        message: "브라우저 조회가 제한되어 서버에서 수집합니다."
+      };
     }
-    return { ok: false, reason: "bizno_no_match", message: "bizno.net에서 일치하는 사업자를 찾지 못했습니다. 서버 수집을 시도합니다." };
+    return {
+      ok: false,
+      reason: "bizno_no_match",
+      message: "bizno.net에서 일치하는 사업자를 찾지 못했습니다. 서버 수집을 시도합니다."
+    };
   }
 
   function profileToUi(p) {

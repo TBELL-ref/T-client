@@ -126,7 +126,7 @@ function inlineSelect(id, value, options) {
   return `<select id="${id}" class="inline-field inline-select">${opts}</select>`;
 }
 
-function renderProfileSection(row, edit = false, p = {}, domain = "") {
+function renderProfileSection(row, edit = false, p = {}, domain = "", admin = false) {
   const fields = [
     ["도메인", "edit-prof-domain", domain],
     ["법인명", "edit-prof-legal", p.companyNameLegal],
@@ -144,7 +144,8 @@ function renderProfileSection(row, edit = false, p = {}, domain = "") {
   if (!fields.length && !edit) return `<p class="muted">사업자·업종 정보 없음</p>`;
 
   if (edit) {
-    const biznoBlock = `
+    const enrichBlock = admin
+      ? `
       <div class="bizno-fetch-row">
         <div class="inline-row bizno-fetch-line">
           <span class="inline-label">사업자번호</span>
@@ -153,10 +154,11 @@ function renderProfileSection(row, edit = false, p = {}, domain = "") {
             <button type="button" class="btn-primary btn-sm" id="btn-enrich-bizno">정보 자동 수집</button>
           </div>
         </div>
-        <p class="enrich-bizno-status muted" id="enrich-bizno-status">bizno.net에서 업종·규모·홈페이지를 가져옵니다.</p>
-      </div>`;
-    const tableFields = fields.filter(([, id]) => id !== "edit-prof-bizno");
-    return `${biznoBlock}<table class="profile-table profile-inline"><tbody>${tableFields
+        <p class="enrich-bizno-status muted" id="enrich-bizno-status">관리자 전용 · bizno.net에서 업종·규모·홈페이지를 가져옵니다.</p>
+      </div>`
+      : "";
+    const tableFields = admin ? fields.filter(([, id]) => id !== "edit-prof-bizno") : fields;
+    return `${enrichBlock}<table class="profile-table profile-inline"><tbody>${tableFields
       .map(
         ([label, id, val]) =>
           `<tr><th>${escapeHtml(label)}</th><td>${inlineInput(id, val, id.includes("home") ? "url" : "text")}</td></tr>`
@@ -307,6 +309,28 @@ async function applyEnrichedProfile(row, profile) {
   showToast("회사 정보 수집이 완료되었습니다.");
 }
 
+async function waitForServerEnrich(row, bizNo, digits) {
+  const started = Date.now();
+  const tick = () => {
+    const sec = Math.floor((Date.now() - started) / 1000);
+    setDetailLoading(true, `서버에서 회사 정보 수집 중… (${sec}초)`);
+    setEnrichBiznoStatus(`GitHub Actions가 bizno.net을 조회합니다. (${sec}초 경과)`);
+  };
+
+  const prevProfile = window.TClientAdmin.getEntry(row.companyId).profile ?? {};
+  window.TClientAdmin.setEntry(row.companyId, {
+    profile: { ...prevProfile, bizNo: window.TEnrichBizno.formatBizNo?.(digits) || bizNo }
+  });
+
+  await window.TClientAdmin.dispatchEnrichCompany(row.companyId, bizNo);
+  tick();
+  return window.TClientAdmin.waitForEnrichedProfile(row.companyId, digits, {
+    timeoutMs: 120000,
+    intervalMs: 2000,
+    onTick: tick
+  });
+}
+
 async function runEnrichBizNo(row) {
   const bizNo = byId("edit-prof-bizno")?.value.trim();
   const btn = byId("btn-enrich-bizno");
@@ -322,41 +346,33 @@ async function runEnrichBizNo(row) {
 
   if (btn) btn.disabled = true;
   setDetailLoading(true, "회사 정보를 수집하고 있습니다…");
-  setEnrichBiznoStatus("");
+  setEnrichBiznoStatus("bizno.net 조회 중 (브라우저, 최대 20초)…");
+
+  if (!window.TClientAdmin?.isUnlocked?.()) {
+    setEnrichBiznoStatus("관리자 입장 후 사용할 수 있습니다.", true);
+    showToast("관리자 입장 후 다시 시도해 주세요.", "error");
+    return;
+  }
 
   try {
-    const result = await window.TEnrichBizno.fetchProfileByBizNo(bizNo);
-    if (result.ok) {
-      await applyEnrichedProfile(row, result.profile);
+    const browserResult = await window.TEnrichBizno.fetchProfileByBizNo(bizNo, { maxMs: 18000 });
+    if (browserResult.ok) {
+      await applyEnrichedProfile(row, browserResult.profile);
       return;
     }
 
-    if (window.TClientAdmin?.dispatchEnrichCompany && window.TClientAdmin.waitForEnrichedProfile) {
-      setDetailLoading(true, "서버에서 회사 정보를 수집 중입니다… (최대 90초)");
-      setEnrichBiznoStatus("브라우저 조회가 끝나지 않아 서버에서 수집 중입니다…");
-
-      const prevProfile = window.TClientAdmin.getEntry(row.companyId).profile ?? {};
-      window.TClientAdmin.setEntry(row.companyId, {
-        profile: { ...prevProfile, bizNo: window.TEnrichBizno.formatBizNo?.(digits) || bizNo }
-      });
-
-      await window.TClientAdmin.dispatchEnrichCompany(row.companyId, bizNo);
-      const waited = await window.TClientAdmin.waitForEnrichedProfile(row.companyId, digits, {
-        timeoutMs: 90000,
-        intervalMs: 3500
-      });
-
-      if (waited.ok) {
-        await applyEnrichedProfile(row, waited.profile);
-        return;
-      }
+    setEnrichBiznoStatus("브라우저 조회 실패 — 서버 수집으로 전환합니다.");
+    const waited = await waitForServerEnrich(row, bizNo, digits);
+    if (waited.ok) {
+      await applyEnrichedProfile(row, waited.profile);
+      return;
     }
 
     setEnrichBiznoStatus(
-      "수집 시간이 초과되었습니다. GitHub Actions 완료 후 새로고침하면 반영될 수 있습니다.",
+      "수집 시간이 초과되었습니다. Actions 탭에서 enrich-company 완료 후 새로고침하세요.",
       true
     );
-    showToast("수집 대기 시간이 초과되었습니다. 잠시 후 새로고침해 주세요.", "error");
+    showToast("수집 대기 시간이 초과되었습니다. 1~2분 뒤 새로고침해 주세요.", "error");
   } catch (err) {
     setEnrichBiznoStatus(err.message || "수집 오류", true);
     showToast(err.message || "수집 오류", "error");
@@ -1131,7 +1147,7 @@ function renderDetailBody(row, edit, admin = false) {
     </section>
     <section class="detail-section">
       ${detailTitle("회사 프로필")}
-      ${renderProfileSection(row, edit, p, e.domain || row.domain || "")}
+      ${renderProfileSection(row, edit, p, e.domain || row.domain || "", admin)}
     </section>
     <section class="detail-section">
       ${detailTitle("다음 액션")}
