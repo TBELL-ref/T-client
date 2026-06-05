@@ -1,5 +1,45 @@
 {
   "companies": {
+    "cmp_1d5e8ca632": {
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "추천"
+      },
+      "companyNameKo": "쿠팡",
+      "companyTier": "enterprise",
+      "contact": {
+        "email": "",
+        "name": "",
+        "phone": ""
+      },
+      "domain": "coupang.com",
+      "excludeReason": "",
+      "extraPosts": [],
+      "favorite": false,
+      "hidden": false,
+      "leadGrade": "B",
+      "notes": "",
+      "priorityScore": "53",
+      "profile": {
+        "bizItem": "",
+        "bizNo": "120-88-00767",
+        "bizStatus": "계속사업자",
+        "bizType": "",
+        "companyNameLegal": "쿠팡 주식회사",
+        "companyScale": "중소기업",
+        "domain": "coupang.com",
+        "employeeCount": "10061",
+        "foundedDate": "2013-07-16",
+        "homepage": "http://www.coupang.com/",
+        "industrySummary": "대분류 : 도매 및 소매업 · 중분류 : 소매업; 자동차 제외 · 소분류 : 무점포 소매업 · 세분류 : 통신 판매업 · 세세분류 : 기타 통신 판매업"
+      },
+      "scoreParts": {
+        "_total": "53"
+      },
+      "scoreReason": "domain:+15|posts_2plus:+20|qa_title:+15|company_profile:+15|recent:+10|tier_enterprise:-22",
+      "updatedAt": "2026-06-04T02:08:38.722Z"
+    },
     "cmp_2045acab9e": {
       "actions": {
         "inquiry": "보류",
@@ -46,6 +86,46 @@
       "profile": {},
       "scoreParts": {},
       "updatedAt": "2026-06-01T22:59:09.550Z"
+    },
+    "cmp_3a09ae6008": {
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "보류"
+      },
+      "companyNameKo": "드림에이지",
+      "companyTier": "startup",
+      "contact": {
+        "email": "",
+        "name": "",
+        "phone": ""
+      },
+      "domain": "xn--%20-kt8lext47gfa348cjraga8764aha",
+      "excludeReason": "",
+      "extraPosts": [],
+      "favorite": false,
+      "hidden": false,
+      "leadGrade": "A",
+      "notes": "",
+      "priorityScore": "73",
+      "profile": {
+        "bizItem": "정보처리 및 기타컴퓨터운용관련사업",
+        "bizNo": "843-86-02224",
+        "bizStatus": "계속사업자",
+        "bizType": "정보통신업",
+        "companyNameLegal": "(주)하이브아이엠",
+        "companyScale": "중견기업",
+        "domain": "xn--%20-kt8lext47gfa348cjraga8764aha",
+        "employeeCount": "216",
+        "foundedDate": "2022-03-25",
+        "homepage": "앱스토어 구글스토어",
+        "industrySummary": "대분류 : 정보통신업 · 중분류 : 출판업 · 소분류 : 소프트웨어 개발 및 공급업 · 세분류 : 게임 소프트웨어 개발 및 공급업 · 세세분류 : 모바일 게임 소프트웨어 개발 및 공급업"
+      },
+      "scoreParts": {
+        "_total": "73"
+      },
+      "scoreReason": "domain:+15|posts_1:+10|qa_title:+15|company_profile:+15|recent:+10|startup_bonus:+8",
+      "updatedAt": "2026-06-04T02:20:57.269Z"
     },
     "cmp_490eb16eb7": {
       "actions": {},
@@ -109,6 +189,47 @@
       },
       "updatedAt": "2026-06-02T00:06:12.536Z"
     },
+    "cmp_76b43ecc5f": {
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "보류"
+      },
+      "companyNameKo": "주식회사 에이티센스",
+      "companyTier": "unknown",
+      "contact": {
+        "email": "",
+        "name": "",
+        "phone": ""
+      },
+      "domain": "atsens.com",
+      "excludeReason": "",
+      "extraPosts": [],
+      "favorite": false,
+      "hidden": false,
+      "leadGrade": "B",
+      "notes": "",
+      "priorityScore": "65",
+      "profile": {
+        "bizItem": "그 외 기타 의료용 기기 제조업",
+        "bizNo": "449-87-00846",
+        "bizStatus": "계속사업자 ※국세청 홈택스 실시간 정보제공",
+        "bizType": "제조업",
+        "companyNameLegal": "주식회사 에이티센스",
+        "companyScale": "중소기업",
+        "domain": "atsens.com",
+        "employeeCount": "55",
+        "enrichmentSource": "bizno",
+        "foundedDate": "2017-09-20",
+        "homepage": "www.atsens.com",
+        "industrySummary": "대분류 : 제조업 · 중분류 : 의료용 물질 및 의약품 제조업 · 소분류 : 의료용품 및 기타 의약 관련제품 제조업 · 세분류 : 의료용품 및 기타 의약 관련제품 제조업 · 세세분류 : 의료용품 및 기타 의약 관련제품 제조업"
+      },
+      "scoreParts": {
+        "_total": "65"
+      },
+      "scoreReason": "domain:+15|posts_1:+10|qa_title:+15|company_profile:+15|recent:+10",
+      "updatedAt": "2026-06-04T02:22:29.749Z"
+    },
     "cmp_90fe138f0f": {
       "actions": {},
       "companyNameKo": "티피씨인터넷",
@@ -120,9 +241,276 @@
       "hidden": false,
       "leadGrade": "",
       "notes": "",
+      "priorityScore": "45",
       "profile": {},
       "scoreParts": {},
+      "scoreReason": "domain:pending|posts_2plus:+20|qa_title:+15|recent:+10",
       "updatedAt": "2026-06-01T23:00:50.721Z"
+    },
+    "cmp_c180dc2755": {
+      "actions": {},
+      "companyNameKo": "(주)에스엠테크",
+      "contact": {},
+      "domain": "sm-tech.or.kr",
+      "extraPosts": [],
+      "leadGrade": "B",
+      "priorityScore": "65",
+      "profile": {
+        "bizItem": "항공기용 부품 제조업",
+        "bizNo": "312-81-86012",
+        "bizStatus": "계속사업자 ※국세청 홈택스 실시간 정보제공",
+        "bizType": "제조업",
+        "companyNameLegal": "(주)에스엠테크",
+        "companyScale": "중소기업",
+        "domain": "sm-tech.or.kr",
+        "employeeCount": "57",
+        "enrichmentSource": "bizno",
+        "foundedDate": "2006-10",
+        "homepage": "http://www.sm-tech.or.kr",
+        "industrySummary": "대분류 : 제조업 · 중분류 : 전자 부품, 컴퓨터, 영상, 음향 및 통신장비 제조업 · 소분류 : 반도체 제조업 · 세분류 : 다이오드, 트랜지스터 및 유사 반도체 소자 제조업 · 세세분류 : 기타 반도체 소자 제조업"
+      },
+      "scoreParts": {},
+      "scoreReason": "domain:+15|posts_1:+10|qa_title:+15|company_profile:+15|recent:+10",
+      "updatedAt": "2026-06-03T22:59:43.277Z"
+    },
+    "cmp_m_07ab4042": {
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "보류"
+      },
+      "companyNameKo": "위펀",
+      "companyTier": "unknown",
+      "contact": {
+        "email": "",
+        "name": "",
+        "phone": ""
+      },
+      "domain": "snack24h.com",
+      "excludeReason": "",
+      "extraPosts": [
+        {
+          "source": "manual",
+          "sourceLabel": "수동",
+          "title": "QA 공고",
+          "url": "https://www.wanted.co.kr/wd/360029"
+        }
+      ],
+      "favorite": true,
+      "hidden": false,
+      "leadGrade": "B",
+      "manual": true,
+      "notes": "",
+      "priorityScore": "65",
+      "profile": {
+        "bizItem": "가공식품 도매업",
+        "bizNo": "881-87-01258",
+        "bizStatus": "계속사업자",
+        "bizType": "도매업",
+        "companyNameLegal": "주식회사 위펀",
+        "companyScale": "중소기업",
+        "domain": "snack24h.com",
+        "employeeCount": "202",
+        "foundedDate": "2018-12-24",
+        "homepage": "www.snack24h.com",
+        "industrySummary": "대분류 : 도매 및 소매업 · 중분류 : 도매 및 상품 중개업 · 소분류 : 음ㆍ식료품 및 담배 도매업 · 세분류 : 가공식품 도매업 · 세세분류 : 빵류, 과자류, 당류, 초콜릿 도매업"
+      },
+      "scoreParts": {
+        "_total": "65"
+      },
+      "scoreReason": "domain:+15|posts_1:+10|qa_title:+15|company_profile:+15|recent:+10",
+      "updatedAt": "2026-06-05T06:36:01.650Z"
+    },
+    "cmp_m_42eb5ccf": {
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "추천"
+      },
+      "companyNameKo": "주식회사 두핸즈",
+      "companyTier": "unknown",
+      "contact": {
+        "email": "recruit@dohands.com",
+        "name": "확인 필요",
+        "phone": ""
+      },
+      "domain": "dohands.com",
+      "excludeReason": "",
+      "extraPosts": [
+        {
+          "source": "manual",
+          "sourceLabel": "수동",
+          "title": "QA 공고",
+          "url": "https://www.wanted.co.kr/wd/365342"
+        }
+      ],
+      "favorite": true,
+      "hidden": false,
+      "leadGrade": "B",
+      "manual": true,
+      "notes": "",
+      "priorityScore": "65",
+      "profile": {
+        "bizItem": "화물 포장, 검수 및 계량 서비스업",
+        "bizNo": "201-86-31231",
+        "bizStatus": "계속사업자 ※국세청 홈택스 실시간 정보제공",
+        "bizType": "운수 및 창고업",
+        "companyNameLegal": "주식회사 두핸즈",
+        "companyScale": "중소기업",
+        "domain": "dohands.com",
+        "employeeCount": "144",
+        "enrichmentSource": "bizno",
+        "foundedDate": "2013-01-15",
+        "homepage": "www.dohands.com",
+        "industrySummary": "대분류 : 도매 및 소매업 · 중분류 : 소매업; 자동차 제외 · 소분류 : 무점포 소매업 · 세분류 : 통신 판매업 · 세세분류 : 전자상거래 소매업"
+      },
+      "scoreParts": {
+        "_total": "65"
+      },
+      "scoreReason": "domain:+15|posts_1:+10|qa_title:+15|company_profile:+15|recent:+10",
+      "updatedAt": "2026-06-05T06:38:25.537Z"
+    },
+    "cmp_m_89c58fb9": {
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "추천"
+      },
+      "companyNameKo": "주식회사 아임웹( Imweb Corp.)",
+      "companyTier": "unknown",
+      "contact": {
+        "email": "join@imweb.me",
+        "name": "확인 필요",
+        "phone": ""
+      },
+      "domain": "cocoa-studio.com",
+      "excludeReason": "",
+      "extraPosts": [
+        {
+          "source": "manual",
+          "sourceLabel": "수동",
+          "title": "QA 공고",
+          "url": "https://www.wanted.co.kr/wd/358969"
+        }
+      ],
+      "favorite": true,
+      "hidden": false,
+      "leadGrade": "B",
+      "manual": true,
+      "notes": "",
+      "priorityScore": "65",
+      "profile": {
+        "bizItem": "시스템 소프트웨어 개발 및 공급업",
+        "bizNo": "105-87-83592",
+        "bizStatus": "계속사업자",
+        "bizType": "정보통신업",
+        "companyNameLegal": "주식회사 아임웹( Imweb Corp.)",
+        "companyScale": "중소기업",
+        "employeeCount": "113",
+        "foundedDate": "2013-02-28",
+        "homepage": "http://cocoa-studio.com",
+        "industrySummary": "대분류 : 도매 및 소매업 · 중분류 : 소매업; 자동차 제외 · 소분류 : 무점포 소매업 · 세분류 : 통신 판매업 · 세세분류 : 전자상거래 소매업"
+      },
+      "scoreParts": {
+        "_total": "65"
+      },
+      "scoreReason": "domain:+15|posts_1:+10|qa_title:+15|company_profile:+15|recent:+10",
+      "updatedAt": "2026-06-05T06:33:45.110Z"
+    },
+    "cmp_m_f4f0feca": {
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "보류"
+      },
+      "companyNameKo": "컴즈",
+      "companyTier": "unknown",
+      "contact": {
+        "email": "",
+        "name": "",
+        "phone": ""
+      },
+      "domain": "comes.co.kr",
+      "excludeReason": "",
+      "extraPosts": [
+        {
+          "source": "manual",
+          "sourceLabel": "수동",
+          "title": "QA 공고",
+          "url": "https://job.career.co.kr/recruit/view/21879399"
+        }
+      ],
+      "favorite": false,
+      "hidden": false,
+      "leadGrade": "B",
+      "manual": true,
+      "notes": "",
+      "priorityScore": "65",
+      "profile": {
+        "bizItem": "소프트웨어개발",
+        "bizNo": "119-87-02905",
+        "bizStatus": "계속사업자",
+        "bizType": "서비스",
+        "companyNameLegal": "컴즈 주식회사",
+        "companyScale": "중소기업",
+        "domain": "comes.co.kr",
+        "employeeCount": "246",
+        "foundedDate": "2014-11-27",
+        "homepage": "http://comes.co.kr",
+        "industrySummary": "대분류 : 정보통신업 · 중분류 : 출판업 · 소분류 : 소프트웨어 개발 및 공급업 · 세분류 : 시스템ㆍ응용 소프트웨어 개발 및 공급업 · 세세분류 : 응용 소프트웨어 개발 및 공급업"
+      },
+      "scoreParts": {
+        "_total": "65"
+      },
+      "scoreReason": "domain:+15|posts_1:+10|qa_title:+15|company_profile:+15|recent:+10",
+      "updatedAt": "2026-06-03T23:41:54.259Z"
+    },
+    "cmp_m_fadf711e": {
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "추천"
+      },
+      "companyNameKo": "주식회사 중고나라",
+      "companyTier": "unknown",
+      "contact": {
+        "email": "joongna@joonggonara.co.kr",
+        "name": "확인 필요",
+        "phone": ""
+      },
+      "domain": "qdillion.com",
+      "excludeReason": "",
+      "extraPosts": [
+        {
+          "source": "manual",
+          "sourceLabel": "수동",
+          "title": "QA 공고",
+          "url": "https://www.wanted.co.kr/wd/365480"
+        }
+      ],
+      "favorite": true,
+      "hidden": false,
+      "leadGrade": "B",
+      "manual": true,
+      "notes": "",
+      "priorityScore": "65",
+      "profile": {
+        "bizItem": "시스템 소프트웨어 개발 및 공급업",
+        "bizNo": "215-87-87482",
+        "bizStatus": "계속사업자",
+        "bizType": "정보통신업",
+        "companyNameLegal": "주식회사 중고나라",
+        "companyScale": "중소기업",
+        "employeeCount": "120",
+        "foundedDate": "2014-01-02",
+        "homepage": "www.qdillion.com",
+        "industrySummary": "대분류 : 도매 및 소매업 · 중분류 : 소매업; 자동차 제외 · 소분류 : 무점포 소매업 · 세분류 : 통신 판매업 · 세세분류 : 전자상거래 소매업"
+      },
+      "scoreParts": {
+        "_total": "65"
+      },
+      "scoreReason": "domain:+15|posts_1:+10|qa_title:+15|company_profile:+15|recent:+10",
+      "updatedAt": "2026-06-05T06:34:07.692Z"
     },
     "cmp_test": {
       "actions": {},
@@ -146,71 +534,272 @@
       },
       "scoreParts": {},
       "updatedAt": "2026-06-01T23:47:42.141Z"
-    },
-    "cmp_c180dc2755": {
-      "profile": {
-        "companyNameLegal": "(주)에스엠테크",
-        "bizNo": "312-81-86012",
-        "bizType": "제조업",
-        "bizItem": "항공기용 부품 제조업",
-        "companyScale": "중소기업",
-        "bizStatus": "계속사업자 ※국세청 홈택스 실시간 정보제공",
-        "foundedDate": "2006-10",
-        "employeeCount": "57",
-        "homepage": "http://www.sm-tech.or.kr",
-        "industrySummary": "대분류 : 제조업 · 중분류 : 전자 부품, 컴퓨터, 영상, 음향 및 통신장비 제조업 · 소분류 : 반도체 제조업 · 세분류 : 다이오드, 트랜지스터 및 유사 반도체 소자 제조업 · 세세분류 : 기타 반도체 소자 제조업",
-        "domain": "sm-tech.or.kr",
-        "enrichmentSource": "bizno"
-      },
-      "domain": "sm-tech.or.kr",
-      "companyNameKo": "(주)에스엠테크",
-      "updatedAt": "2026-06-03T22:59:43.277Z"
-    },
-    "cmp_76b43ecc5f": {
-      "profile": {
-        "companyNameLegal": "주식회사 에이티센스",
-        "bizNo": "449-87-00846",
-        "bizType": "제조업",
-        "bizItem": "그 외 기타 의료용 기기 제조업",
-        "companyScale": "중소기업",
-        "bizStatus": "계속사업자 ※국세청 홈택스 실시간 정보제공",
-        "foundedDate": "2017-09-20",
-        "employeeCount": "55",
-        "homepage": "www.atsens.com",
-        "industrySummary": "대분류 : 제조업 · 중분류 : 의료용 물질 및 의약품 제조업 · 소분류 : 의료용품 및 기타 의약 관련제품 제조업 · 세분류 : 의료용품 및 기타 의약 관련제품 제조업 · 세세분류 : 의료용품 및 기타 의약 관련제품 제조업",
-        "domain": "atsens.com",
-        "enrichmentSource": "bizno"
-      },
-      "domain": "atsens.com",
-      "companyNameKo": "주식회사 에이티센스",
-      "updatedAt": "2026-06-04T02:22:29.749Z"
-    },
-    "cmp_m_42eb5ccf": {
-      "profile": {
-        "companyNameLegal": "주식회사 두핸즈",
-        "bizNo": "201-86-31231",
-        "bizType": "운수 및 창고업",
-        "bizItem": "화물 포장, 검수 및 계량 서비스업",
-        "companyScale": "중소기업",
-        "bizStatus": "계속사업자 ※국세청 홈택스 실시간 정보제공",
-        "foundedDate": "2013-01-15",
-        "employeeCount": "144",
-        "homepage": "www.dohands.com",
-        "industrySummary": "대분류 : 도매 및 소매업 · 중분류 : 소매업; 자동차 제외 · 소분류 : 무점포 소매업 · 세분류 : 통신 판매업 · 세세분류 : 전자상거래 소매업",
-        "domain": "dohands.com",
-        "enrichmentSource": "bizno"
-      },
-      "domain": "dohands.com",
-      "companyNameKo": "주식회사 두핸즈",
-      "updatedAt": "2026-06-05T06:37:14.000Z"
     }
   },
-  "customCompanies": [],
+  "customCompanies": [
+    {
+      "actionReasons": [
+        "수동 등록 회사 — 프로필·공고를 입력하세요."
+      ],
+      "actionSummary": "보류",
+      "actions": {
+        "inquiry": {
+          "label": "문의",
+          "status": "보류"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "보류"
+        },
+        "proposal": {
+          "label": "제안",
+          "status": "보류"
+        }
+      },
+      "companyId": "cmp_m_f4f0feca",
+      "companyName": "job.career.co.kr",
+      "companyNameKo": "job.career.co.kr",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "contactSecured": "no",
+      "domain": "job.career.co.kr",
+      "domainVerified": true,
+      "email": "",
+      "emailConfidence": "low",
+      "excludeReason": "",
+      "excluded": false,
+      "isManual": true,
+      "lastCollectedAt": "2026-06-03T22:51:03.474Z",
+      "leadGrade": "C",
+      "manualNotes": "",
+      "manualOverrideLocked": false,
+      "meetingRequired": "no",
+      "posts": [],
+      "priorityScore": "0",
+      "profile": {
+        "bizNo": "1198702905"
+      },
+      "profileComplete": true,
+      "reportRequired": "no",
+      "salesStage": "new",
+      "scoreReason": "manual"
+    },
+    {
+      "actionReasons": [
+        "수동 등록 회사 — 프로필·공고를 입력하세요."
+      ],
+      "actionSummary": "보류",
+      "actions": {
+        "inquiry": {
+          "label": "문의",
+          "status": "보류"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "보류"
+        },
+        "proposal": {
+          "label": "제안",
+          "status": "보류"
+        }
+      },
+      "companyId": "cmp_m_fadf711e",
+      "companyName": "주식회사 중고나라",
+      "companyNameKo": "주식회사 중고나라",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "contactSecured": "no",
+      "domain": "qdillion.com",
+      "domainVerified": true,
+      "email": "",
+      "emailConfidence": "low",
+      "excludeReason": "",
+      "excluded": false,
+      "isManual": true,
+      "lastCollectedAt": "2026-06-03T23:41:07.967Z",
+      "leadGrade": "C",
+      "manualNotes": "",
+      "manualOverrideLocked": false,
+      "meetingRequired": "no",
+      "posts": [],
+      "priorityScore": "0",
+      "profile": {
+        "bizItem": "시스템 소프트웨어 개발 및 공급업",
+        "bizNo": "215-87-87482",
+        "bizStatus": "계속사업자",
+        "bizType": "정보통신업",
+        "companyNameLegal": "주식회사 중고나라",
+        "companyScale": "중소기업",
+        "employeeCount": "120",
+        "foundedDate": "2014-01-02",
+        "homepage": "www.qdillion.com",
+        "industrySummary": "대분류 : 도매 및 소매업 · 중분류 : 소매업; 자동차 제외 · 소분류 : 무점포 소매업 · 세분류 : 통신 판매업 · 세세분류 : 전자상거래 소매업"
+      },
+      "profileComplete": true,
+      "reportRequired": "no",
+      "salesStage": "new",
+      "scoreReason": "manual"
+    },
+    {
+      "actionReasons": [
+        "수동 등록 회사 — 프로필·공고를 입력하세요."
+      ],
+      "actionSummary": "보류",
+      "actions": {
+        "inquiry": {
+          "label": "문의",
+          "status": "보류"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "보류"
+        },
+        "proposal": {
+          "label": "제안",
+          "status": "보류"
+        }
+      },
+      "companyId": "cmp_m_89c58fb9",
+      "companyName": "주식회사 아임웹( Imweb Corp.)",
+      "companyNameKo": "주식회사 아임웹( Imweb Corp.)",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "contactSecured": "no",
+      "domain": "cocoa-studio.com",
+      "domainVerified": true,
+      "email": "",
+      "emailConfidence": "low",
+      "excludeReason": "",
+      "excluded": false,
+      "isManual": true,
+      "lastCollectedAt": "2026-06-05T06:33:17.791Z",
+      "leadGrade": "C",
+      "manualNotes": "",
+      "manualOverrideLocked": false,
+      "meetingRequired": "no",
+      "posts": [],
+      "priorityScore": "0",
+      "profile": {
+        "bizItem": "시스템 소프트웨어 개발 및 공급업",
+        "bizNo": "105-87-83592",
+        "bizStatus": "계속사업자",
+        "bizType": "정보통신업",
+        "companyNameLegal": "주식회사 아임웹( Imweb Corp.)",
+        "companyScale": "중소기업",
+        "employeeCount": "113",
+        "foundedDate": "2013-02-28",
+        "homepage": "http://cocoa-studio.com",
+        "industrySummary": "대분류 : 도매 및 소매업 · 중분류 : 소매업; 자동차 제외 · 소분류 : 무점포 소매업 · 세분류 : 통신 판매업 · 세세분류 : 전자상거래 소매업"
+      },
+      "profileComplete": true,
+      "reportRequired": "no",
+      "salesStage": "new",
+      "scoreReason": "manual"
+    },
+    {
+      "actionReasons": [
+        "수동 등록 회사 — 프로필·공고를 입력하세요."
+      ],
+      "actionSummary": "보류",
+      "actions": {
+        "inquiry": {
+          "label": "문의",
+          "status": "보류"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "보류"
+        },
+        "proposal": {
+          "label": "제안",
+          "status": "보류"
+        }
+      },
+      "companyId": "cmp_m_07ab4042",
+      "companyName": "수동 등록 회사",
+      "companyNameKo": "수동 등록 회사",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "contactSecured": "no",
+      "domain": "",
+      "domainVerified": false,
+      "email": "",
+      "emailConfidence": "low",
+      "excludeReason": "",
+      "excluded": false,
+      "isManual": true,
+      "lastCollectedAt": "2026-06-05T06:34:51.040Z",
+      "leadGrade": "C",
+      "manualNotes": "",
+      "manualOverrideLocked": false,
+      "meetingRequired": "no",
+      "posts": [],
+      "priorityScore": "0",
+      "profile": {
+        "bizNo": "881-87-01258"
+      },
+      "profileComplete": true,
+      "reportRequired": "no",
+      "salesStage": "new",
+      "scoreReason": "manual"
+    },
+    {
+      "actionReasons": [
+        "수동 등록 회사 — 프로필·공고를 입력하세요."
+      ],
+      "actionSummary": "보류",
+      "actions": {
+        "inquiry": {
+          "label": "문의",
+          "status": "보류"
+        },
+        "meeting": {
+          "label": "미팅",
+          "status": "보류"
+        },
+        "proposal": {
+          "label": "제안",
+          "status": "보류"
+        }
+      },
+      "companyId": "cmp_m_42eb5ccf",
+      "companyName": "수동 등록 회사",
+      "companyNameKo": "수동 등록 회사",
+      "companyTier": "unknown",
+      "companyTierLabel": "-",
+      "contactSecured": "no",
+      "domain": "",
+      "domainVerified": false,
+      "email": "",
+      "emailConfidence": "low",
+      "excludeReason": "",
+      "excluded": false,
+      "isManual": true,
+      "lastCollectedAt": "2026-06-05T06:36:41.826Z",
+      "leadGrade": "C",
+      "manualNotes": "",
+      "manualOverrideLocked": false,
+      "meetingRequired": "no",
+      "posts": [],
+      "priorityScore": "0",
+      "profile": {
+        "bizNo": "201-86-31231"
+      },
+      "profileComplete": true,
+      "reportRequired": "no",
+      "salesStage": "new",
+      "scoreReason": "manual"
+    }
+  ],
   "favorites": [
     "cmp_393ab6130c",
     "cmp_90fe138f0f",
-    "cmp_50ac179198"
+    "cmp_50ac179198",
+    "cmp_m_fadf711e",
+    "cmp_m_89c58fb9",
+    "cmp_m_07ab4042",
+    "cmp_m_42eb5ccf"
   ],
-  "updatedAt": "2026-06-05T06:37:14.000Z",
+  "updatedAt": "2026-06-05T06:38:25.537Z",
   "version": 2
 }
