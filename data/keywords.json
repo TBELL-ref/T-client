@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-06-02T07:20:43.306Z",
+  "updatedAt": "2026-06-05T05:12:51.337Z",
   "keywords": [
     {
       "is_active": "true",
@@ -43,27 +43,27 @@
       "source": "generic"
     },
     {
-      "is_active": "false",
+      "is_active": "true",
       "keyword": "qa엔지니어",
       "source": "generic"
     },
     {
-      "is_active": "false",
+      "is_active": "true",
       "keyword": "sqa",
       "source": "generic"
     },
     {
-      "is_active": "false",
+      "is_active": "true",
       "keyword": "qaengineer",
       "source": "generic"
     },
     {
-      "is_active": "false",
+      "is_active": "true",
       "keyword": "검증",
       "source": "generic"
     },
     {
-      "is_active": "false",
+      "is_active": "true",
       "keyword": "qa검증",
       "source": "generic"
     }
