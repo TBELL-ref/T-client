@@ -184,6 +184,25 @@
       "domain": "atsens.com",
       "companyNameKo": "주식회사 에이티센스",
       "updatedAt": "2026-06-04T02:22:29.749Z"
+    },
+    "cmp_m_42eb5ccf": {
+      "profile": {
+        "companyNameLegal": "주식회사 두핸즈",
+        "bizNo": "201-86-31231",
+        "bizType": "운수 및 창고업",
+        "bizItem": "화물 포장, 검수 및 계량 서비스업",
+        "companyScale": "중소기업",
+        "bizStatus": "계속사업자 ※국세청 홈택스 실시간 정보제공",
+        "foundedDate": "2013-01-15",
+        "employeeCount": "144",
+        "homepage": "www.dohands.com",
+        "industrySummary": "대분류 : 도매 및 소매업 · 중분류 : 소매업; 자동차 제외 · 소분류 : 무점포 소매업 · 세분류 : 통신 판매업 · 세세분류 : 전자상거래 소매업",
+        "domain": "dohands.com",
+        "enrichmentSource": "bizno"
+      },
+      "domain": "dohands.com",
+      "companyNameKo": "주식회사 두핸즈",
+      "updatedAt": "2026-06-05T06:37:14.000Z"
     }
   },
   "customCompanies": [],
@@ -192,6 +211,6 @@
     "cmp_90fe138f0f",
     "cmp_50ac179198"
   ],
-  "updatedAt": "2026-06-04T02:22:29.749Z",
+  "updatedAt": "2026-06-05T06:37:14.000Z",
   "version": 2
 }
