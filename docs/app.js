@@ -192,18 +192,40 @@ function parseStarSelect(raw) {
 }
 
 function detailCard(title, body, extraClass = "") {
-  return `<section class="detail-card ${extraClass}">
-    <header class="detail-card-head"><h3 class="detail-card-title">${escapeHtml(title)}</h3></header>
-    <div class="detail-card-body">${body}</div>
+  return `<section class="detail-block ${extraClass}">
+    <h4 class="detail-block-title">${escapeHtml(title)}</h4>
+    <div class="detail-block-content">${body}</div>
   </section>`;
+}
+
+function detailMetric(label, value, extraClass = "") {
+  return `<div class="detail-metric ${extraClass}">
+    <span class="detail-metric-label">${escapeHtml(label)}</span>
+    <span class="detail-metric-value">${value}</span>
+  </div>`;
+}
+
+function renderDetailActionList(actions) {
+  const items = [actions.proposal, actions.meeting, actions.inquiry];
+  return `<div class="detail-action-list">${items
+    .map((a) => {
+      const tone =
+        a.status === "추천" ? "tone-recommend" : a.status === "진행" ? "tone-progress" : "tone-hold";
+      const statusText = a.label === a.status ? a.status : a.status;
+      return `<div class="detail-action-item ${tone}">
+        <span class="detail-action-label">${escapeHtml(a.label)}</span>
+        <span class="detail-action-status">${escapeHtml(statusText)}</span>
+      </div>`;
+    })
+    .join("")}</div>`;
 }
 
 function detailKvGrid(rows) {
   return `<dl class="detail-kv">${rows
-    .map(
-      ([label, value]) =>
-        `<div class="detail-kv-row"><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`
-    )
+    .map(([label, value]) => {
+      const wide = label === "장점" || label === "단점";
+      return `<div class="detail-kv-row${wide ? " is-wide" : ""}"><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`;
+    })
     .join("")}</dl>`;
 }
 
@@ -1296,10 +1318,7 @@ function renderCandidatesTable() {
 }
 
 function detailStat(label, value, extraClass = "") {
-  return `<div class="detail-stat ${extraClass}">
-    <span class="detail-stat-label">${escapeHtml(label)}</span>
-    <span class="detail-stat-value">${value}</span>
-  </div>`;
+  return detailMetric(label, value, extraClass);
 }
 
 function paintDetailHeader(row) {
@@ -1307,21 +1326,16 @@ function paintDetailHeader(row) {
   const sub = byId("detailHeaderSub");
   if (sub) {
     const parts = [companySubline(row)];
-    if (row.isCandidate) parts.push(`후보 ${formatDate(row.candidateSince)}`);
+    if (row.isCandidate) parts.push(`후보 · ${formatDate(row.candidateSince)}`);
     sub.textContent = parts.filter(Boolean).join(" · ");
   }
   const chips = byId("detailHeaderChips");
   if (!chips) return;
-  const items = [
-    `<span class="detail-header-chip grade-${row.leadGrade}">${row.leadGrade}등급</span>`,
-    `<span class="detail-header-chip">${row.priorityScore}점</span>`,
-    `<span class="detail-header-chip">공고 ${row.posts.length}</span>`
-  ];
-  if (row.isCandidate) items.push('<span class="detail-header-chip chip-warm">후보</span>');
-  if (row.isManual) items.unshift('<span class="detail-header-chip chip-purple">수동</span>');
+  const items = [];
+  if (row.isManual) items.push('<span class="detail-tag tag-purple">수동</span>');
+  if (row.isCandidate) items.push('<span class="detail-tag tag-amber">후보</span>');
   if (row.userFavoriteStage) items.push(favoriteStageBadge(row));
-  else if (row.userFavorite) items.push(favoriteStageBadge(row));
-  items.push(tierBadge(row));
+  if (row.leadGrade) items.push(`<span class="detail-tag tag-grade tag-grade-${row.leadGrade}">${row.leadGrade}</span>`);
   chips.innerHTML = items.filter(Boolean).join("");
   hydrateIcons(chips);
 }
@@ -1344,11 +1358,11 @@ function renderDetailBody(row, edit, admin = false) {
 
   const statsRow = edit
     ? ""
-    : `<div class="detail-stats">
-        ${detailStat("우선순위", `<strong>${row.priorityScore}</strong>점`)}
-        ${detailStat("등급", `<span class="badge grade-${row.leadGrade}">${row.leadGrade}</span>`)}
-        ${detailStat("규모", escapeHtml(tierLabelKo(row.companyTier)))}
-        ${detailStat("담당자", row.contactSecured === "yes" ? "확보" : "미확보", row.contactSecured === "yes" ? "stat-ok" : "")}
+    : `<div class="detail-metrics">
+        ${detailMetric("우선순위", `<strong>${row.priorityScore}</strong><small>점</small>`)}
+        ${detailMetric("등급", `<span class="detail-grade-mark grade-${row.leadGrade}">${row.leadGrade}</span>`)}
+        ${detailMetric("공고", `<strong>${row.posts.length}</strong><small>건</small>`)}
+        ${detailMetric("담당자", row.contactSecured === "yes" ? "확보" : "미확보", row.contactSecured === "yes" ? "metric-ok" : "metric-muted")}
       </div>`;
 
   const classifyBlock = edit
@@ -1400,7 +1414,7 @@ function renderDetailBody(row, edit, admin = false) {
         <div class="inline-row"><span class="inline-label">진행</span>${actionSelect("edit-act-meeting", row.actions.meeting.status)}</div>
         <div class="inline-row"><span class="inline-label">제안</span>${actionSelect("edit-act-inquiry", row.actions.inquiry.status)}</div>
       </div>`
-    : `<div class="detail-action-panel">${renderActionBadges(row.actions)}</div>`;
+    : renderDetailActionList(row.actions);
 
   const candidateBlock = edit
     ? `<div class="detail-form-grid cols-2">
@@ -1426,10 +1440,16 @@ function renderDetailBody(row, edit, admin = false) {
         <div class="inline-row span-2"><span class="inline-label">단점</span>${inlineInput("edit-cand-cons", row.candidateCons ?? "")}</div>
       </div>`
     : row.isCandidate
-      ? `<div class="detail-candidate-highlight">
-          <div class="detail-candidate-scores">
-            <div><span class="muted">파일럿</span>${renderStarRating(row.pilotDifficulty, 3)}</div>
-            <div><span class="muted">추천</span>${renderStarRating(row.recommendScore, 5)}</div>
+      ? `<div class="detail-candidate-panel">
+          <div class="detail-candidate-top">
+            <div class="detail-score-box">
+              <span class="detail-score-label">파일럿 난이도</span>
+              ${renderStarRating(row.pilotDifficulty, 3)}
+            </div>
+            <div class="detail-score-box">
+              <span class="detail-score-label">추천 점수</span>
+              ${renderStarRating(row.recommendScore, 5)}
+            </div>
           </div>
           ${detailKvGrid([
             ["순위", escapeHtml(`${row.candidateRank || "-"}`)],
@@ -1499,15 +1519,15 @@ function renderDetailBody(row, edit, admin = false) {
       : `<p class="muted detail-empty-hint">등록된 공고가 없습니다.</p>`;
 
   const sections = [];
-  if (edit && classifyBlock) sections.push(detailCard("기본 정보", classifyBlock, "detail-card-form"));
+  if (edit && classifyBlock) sections.push(detailCard("기본 정보", classifyBlock, "detail-block-form"));
   if (statsRow) sections.push(statsRow);
   sections.push(
     `<div class="detail-split">${detailCard("담당자", contactBlock)}${detailCard("다음 액션", `${actionsBlock}${reasons.length ? `<ul class="reason-list reason-list-compact">${reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>` : ""}`)}</div>`
   );
   sections.push(detailCard("회사 프로필", renderProfileSection(row, edit, p, e.domain || row.domain || "", admin)));
-  sections.push(detailCard("영업 후보", candidateBlock, row.isCandidate ? "detail-card-warm" : ""));
+  sections.push(detailCard("영업 후보", candidateBlock, row.isCandidate ? "detail-block-warm" : ""));
   sections.push(detailCard(`QA 채용 공고 · ${row.posts.length}건`, postsBlock));
-  sections.push(detailCard("점수 근거", renderScoreSection(row, edit, admin), "detail-card-muted"));
+  sections.push(detailCard("점수 근거", renderScoreSection(row, edit, admin), "detail-block-muted"));
 
   return `
     <div class="detail-shell">
