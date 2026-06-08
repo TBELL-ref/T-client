@@ -155,24 +155,62 @@
       </main>
     </div>
 
+    <div id="detailModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close="1"></div>
+      <div class="modal-panel modal-panel-detail" role="dialog" aria-labelledby="detailTitle">
+        <header class="modal-header detail-modal-header">
+          <div class="detail-header-main">
+            <div id="detailHeaderChips" class="detail-header-chips"></div>
+            <h2 id="detailTitle" class="detail-header-title"></h2>
+            <p id="detailHeaderSub" class="detail-header-sub"></p>
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="detailEditBtn" class="btn-icon-edit hidden" aria-label="수정" title="수정">
+              <span data-icon="pencil"></span>
+            </button>
+            <button type="button" id="detailMergeBtn" class="btn-icon-edit btn-icon-merge hidden" aria-label="병합" title="회사 병합">
+              <span data-icon="layers"></span>
+            </button>
+            <button type="button" id="detailDeleteBtn" class="btn-icon-delete hidden" aria-label="삭제" title="회사 삭제">
+              <span data-icon="trash"></span>
+            </button>
+            <button type="button" class="modal-close" data-close="1" aria-label="닫기">
+              <span data-icon="x"></span>
+            </button>
+          </div>
+        </header>
+        <div id="detailBody" class="modal-body modal-body-detail"></div>
+        <div id="detailLoading" class="detail-loading hidden" aria-hidden="true">
+          <div class="detail-loading-inner">
+            <div class="detail-spinner" aria-hidden="true"></div>
+            <p id="detailLoadingText">처리 중…</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="mergeModal" class="modal modal-stack hidden" aria-hidden="true">
       <div class="modal-backdrop" data-close-merge="1"></div>
-      <div class="modal-panel modal-panel-sm" role="dialog" aria-labelledby="mergeTitle">
-        <header class="modal-header">
-          <h2 id="mergeTitle">회사 병합</h2>
+      <div class="modal-panel modal-panel-sm modal-panel-merge" role="dialog" aria-labelledby="mergeTitle">
+        <header class="modal-header merge-modal-header">
+          <div>
+            <p class="merge-modal-eyebrow">회사 병합</p>
+            <h2 id="mergeTitle" class="merge-modal-title">병합 대상 선택</h2>
+          </div>
           <button type="button" class="modal-close" data-close-merge="1" aria-label="닫기">
             <span data-icon="x"></span>
           </button>
         </header>
         <div class="modal-body">
-          <p id="mergeSourceHint" class="muted add-company-hint"></p>
+          <div id="mergeSourceBadge" class="merge-source-badge"></div>
+          <p id="mergeSourceHint" class="merge-source-hint"></p>
           <div class="search-box merge-search-box">
             <span class="search-icon" data-icon="search"></span>
-            <input id="mergeSearch" type="search" placeholder="병합 대상 회사 검색 (회사명, 도메인, 사업자번호)" />
+            <input id="mergeSearch" type="search" placeholder="회사명, 도메인, 사업자번호 검색" />
           </div>
           <div id="mergeResults" class="merge-results" role="listbox" aria-label="병합 대상 목록"></div>
         </div>
-        <footer class="detail-footer">
+        <footer class="detail-footer merge-modal-footer">
           <button type="button" class="btn-ghost btn-sm" data-close-merge="1">취소</button>
         </footer>
       </div>
@@ -225,35 +263,6 @@
       </div>
     </div>
 
-    <div id="detailModal" class="modal hidden" aria-hidden="true">
-      <div class="modal-backdrop" data-close="1"></div>
-      <div class="modal-panel" role="dialog" aria-labelledby="detailTitle">
-        <header class="modal-header">
-          <h2 id="detailTitle"></h2>
-          <div class="modal-actions">
-            <button type="button" id="detailEditBtn" class="btn-icon-edit hidden" aria-label="수정" title="수정">
-              <span data-icon="pencil"></span>
-            </button>
-            <button type="button" id="detailMergeBtn" class="btn-icon-edit btn-icon-merge hidden" aria-label="병합" title="회사 병합">
-              <span data-icon="layers"></span>
-            </button>
-            <button type="button" id="detailDeleteBtn" class="btn-icon-delete hidden" aria-label="삭제" title="회사 삭제">
-              <span data-icon="trash"></span>
-            </button>
-            <button type="button" class="modal-close" data-close="1" aria-label="닫기">
-              <span data-icon="x"></span>
-            </button>
-          </div>
-        </header>
-        <div id="detailBody" class="modal-body"></div>
-        <div id="detailLoading" class="detail-loading hidden" aria-hidden="true">
-          <div class="detail-loading-inner">
-            <div class="detail-spinner" aria-hidden="true"></div>
-            <p id="detailLoadingText">처리 중…</p>
-          </div>
-        </div>
-      </div>
-    </div>
     <div id="toastRoot" class="toast-root" aria-live="polite"></div>
   </body>
 </html>

@@ -247,7 +247,7 @@ function renderProfileSection(row, edit = false, p = {}, domain = "", admin = fa
       .join("")}</tbody></table>`;
   }
 
-  return `<dl class="detail-kv profile-kv">${fields
+  return `<dl class="detail-kv detail-kv-profile">${fields
     .map(([label, , val]) => {
       const v = `${val ?? ""}`.trim();
       const cell =
@@ -1295,9 +1295,35 @@ function renderCandidatesTable() {
   });
 }
 
-function tierLabelKo(tier) {
-  const map = { startup: "소·스타트업", mid: "중견", enterprise: "대기업", unknown: "미확인" };
-  return map[tier] ?? tier ?? "-";
+function detailStat(label, value, extraClass = "") {
+  return `<div class="detail-stat ${extraClass}">
+    <span class="detail-stat-label">${escapeHtml(label)}</span>
+    <span class="detail-stat-value">${value}</span>
+  </div>`;
+}
+
+function paintDetailHeader(row) {
+  byId("detailTitle").textContent = displayName(row);
+  const sub = byId("detailHeaderSub");
+  if (sub) {
+    const parts = [companySubline(row)];
+    if (row.isCandidate) parts.push(`후보 ${formatDate(row.candidateSince)}`);
+    sub.textContent = parts.filter(Boolean).join(" · ");
+  }
+  const chips = byId("detailHeaderChips");
+  if (!chips) return;
+  const items = [
+    `<span class="detail-header-chip grade-${row.leadGrade}">${row.leadGrade}등급</span>`,
+    `<span class="detail-header-chip">${row.priorityScore}점</span>`,
+    `<span class="detail-header-chip">공고 ${row.posts.length}</span>`
+  ];
+  if (row.isCandidate) items.push('<span class="detail-header-chip chip-warm">후보</span>');
+  if (row.isManual) items.unshift('<span class="detail-header-chip chip-purple">수동</span>');
+  if (row.userFavoriteStage) items.push(favoriteStageBadge(row));
+  else if (row.userFavorite) items.push(favoriteStageBadge(row));
+  items.push(tierBadge(row));
+  chips.innerHTML = items.filter(Boolean).join("");
+  hydrateIcons(chips);
 }
 
 function renderDetailBody(row, edit, admin = false) {
@@ -1316,86 +1342,79 @@ function renderDetailBody(row, edit, admin = false) {
   const tierVal = e.companyTier || row.companyTier || "";
   const email = c.email || row.email || "";
 
-  const heroChips = [
-    `<span class="detail-chip grade-chip grade-${row.leadGrade}">${row.leadGrade}등급</span>`,
-    `<span class="detail-chip">${row.priorityScore}점</span>`,
-    `<span class="detail-chip">공고 ${row.posts.length}건</span>`
-  ];
-  if (row.isCandidate) heroChips.push(`<span class="detail-chip chip-candidate">후보</span>`);
-  if (row.isManual) heroChips.unshift(`<span class="detail-chip chip-manual">수동</span>`);
-
-  const heroBlock = edit
-    ? `<div class="detail-hero-card detail-hero-edit">
-        <div class="detail-chip-row">${heroChips.join("")} ${favoriteStageBadge(row)}</div>
-        <div class="inline-grid">
-          <div class="inline-row"><span class="inline-label">회사명</span>${inlineInput("edit-name-ko", e.companyNameKo || row.companyNameKo)}</div>
-          <div class="inline-row"><span class="inline-label">규모</span>${inlineSelect("edit-tier", tierVal, [
-            ["", "(자동)"],
-            ["startup", "소·스타트업"],
-            ["mid", "중견"],
-            ["enterprise", "대기업"],
-            ["unknown", "미확인"]
-          ])}</div>
-          <div class="inline-row"><span class="inline-label">등급</span>${inlineSelect("edit-grade", e.leadGrade || row.leadGrade, [
-            ["", "(유지)"],
-            ["A", "A"],
-            ["B", "B"],
-            ["C", "C"]
-          ])}</div>
-          <div class="inline-row inline-checks">
-            <label><input type="checkbox" id="edit-is-candidate" ${row.isCandidate ? "checked" : ""} /> 후보</label>
-            <label><input type="checkbox" id="edit-hidden" ${e.hidden ? "checked" : ""} /> 숨김</label>
-          </div>
-          <div class="inline-row"><span class="inline-label">분류</span>${inlineSelect("edit-fav-stage", e.favoriteStage || row.userFavoriteStage || "", [
-            ["", "(없음)"],
-            ["basic", "기본"],
-            ["recommended", "추천"],
-            ["confirmed", "확정"]
-          ])}</div>
-          <div class="inline-row"><span class="inline-label">제외</span>${inlineInput("edit-exclude", e.excludeReason ?? row.excludeReason ?? "")}</div>
-          <div class="inline-row full-width"><span class="inline-label">메모</span>${inlineInput("edit-notes", e.notes ?? row.manualNotes ?? "")}</div>
-        </div>
-      </div>`
-    : `<div class="detail-hero-card">
-        <div class="detail-chip-row">${heroChips.join("")} ${tierBadge(row)} ${favoriteStageBadge(row)}</div>
-        <p class="detail-hero-name">${escapeHtml(displayName(row))}</p>
-        <p class="detail-hero-sub">${escapeHtml(companySubline(row))}</p>
-        ${row.isCandidate ? `<p class="detail-hero-meta">후보 등록 · ${formatDate(row.candidateSince)}</p>` : ""}
+  const statsRow = edit
+    ? ""
+    : `<div class="detail-stats">
+        ${detailStat("우선순위", `<strong>${row.priorityScore}</strong>점`)}
+        ${detailStat("등급", `<span class="badge grade-${row.leadGrade}">${row.leadGrade}</span>`)}
+        ${detailStat("규모", escapeHtml(tierLabelKo(row.companyTier)))}
+        ${detailStat("담당자", row.contactSecured === "yes" ? "확보" : "미확보", row.contactSecured === "yes" ? "stat-ok" : "")}
       </div>`;
 
+  const classifyBlock = edit
+    ? `<div class="detail-form-grid">
+        <div class="inline-row"><span class="inline-label">회사명</span>${inlineInput("edit-name-ko", e.companyNameKo || row.companyNameKo)}</div>
+        <div class="inline-row"><span class="inline-label">규모</span>${inlineSelect("edit-tier", tierVal, [
+          ["", "(자동)"],
+          ["startup", "소·스타트업"],
+          ["mid", "중견"],
+          ["enterprise", "대기업"],
+          ["unknown", "미확인"]
+        ])}</div>
+        <div class="inline-row"><span class="inline-label">등급</span>${inlineSelect("edit-grade", e.leadGrade || row.leadGrade, [
+          ["", "(유지)"],
+          ["A", "A"],
+          ["B", "B"],
+          ["C", "C"]
+        ])}</div>
+        <div class="inline-row inline-checks span-2">
+          <label><input type="checkbox" id="edit-is-candidate" ${row.isCandidate ? "checked" : ""} /> 후보</label>
+          <label><input type="checkbox" id="edit-hidden" ${e.hidden ? "checked" : ""} /> 숨김</label>
+        </div>
+        <div class="inline-row"><span class="inline-label">분류</span>${inlineSelect("edit-fav-stage", e.favoriteStage || row.userFavoriteStage || "", [
+          ["", "(없음)"],
+          ["basic", "기본"],
+          ["recommended", "추천"],
+          ["confirmed", "확정"]
+        ])}</div>
+        <div class="inline-row"><span class="inline-label">제외</span>${inlineInput("edit-exclude", e.excludeReason ?? row.excludeReason ?? "")}</div>
+        <div class="inline-row span-2"><span class="inline-label">메모</span>${inlineInput("edit-notes", e.notes ?? row.manualNotes ?? "")}</div>
+      </div>`
+    : "";
+
   const contactBlock = edit
-    ? `<div class="inline-grid">
+    ? `<div class="detail-form-grid">
         <div class="inline-row"><span class="inline-label">이름</span>${inlineInput("edit-contact-name", c.name ?? "")}</div>
         <div class="inline-row"><span class="inline-label">이메일</span>${inlineInput("edit-contact-email", email, "email")}</div>
-        <div class="inline-row"><span class="inline-label">전화</span>${inlineInput("edit-contact-phone", c.phone ?? "", "tel")}</div>
+        <div class="inline-row span-2"><span class="inline-label">전화</span>${inlineInput("edit-contact-phone", c.phone ?? "", "tel")}</div>
       </div>`
     : detailKvGrid([
         ["이름", c.name ? `<strong>${escapeHtml(c.name)}</strong>` : '<span class="muted">—</span>'],
-        ["이메일", email ? escapeHtml(email) : '<span class="muted">없음</span>'],
+        ["이메일", email ? `<a class="link" href="mailto:${escapeAttr(email)}">${escapeHtml(email)}</a>` : '<span class="muted">없음</span>'],
         ["전화", c.phone ? escapeHtml(c.phone) : '<span class="muted">—</span>']
       ]);
 
   const actionsBlock = edit
-    ? `<div class="inline-grid action-inline">
+    ? `<div class="detail-form-grid cols-3">
         <div class="inline-row"><span class="inline-label">적합</span>${actionSelect("edit-act-proposal", row.actions.proposal.status)}</div>
         <div class="inline-row"><span class="inline-label">진행</span>${actionSelect("edit-act-meeting", row.actions.meeting.status)}</div>
         <div class="inline-row"><span class="inline-label">제안</span>${actionSelect("edit-act-inquiry", row.actions.inquiry.status)}</div>
       </div>`
-    : `<div class="action-row action-row-spaced">${renderActionBadges(row.actions)}</div>`;
+    : `<div class="detail-action-panel">${renderActionBadges(row.actions)}</div>`;
 
   const candidateBlock = edit
-    ? `<div class="inline-grid cols-2">
+    ? `<div class="detail-form-grid cols-2">
         <div class="inline-row"><span class="inline-label">순위</span>${inlineInput("edit-cand-rank", row.candidateRank || "", "number", "1")}</div>
         <div class="inline-row"><span class="inline-label">등록일</span>${inlineInput("edit-cand-since", row.candidateSince ? row.candidateSince.slice(0, 10) : "", "date")}</div>
         <div class="inline-row"><span class="inline-label">업종</span>${inlineInput("edit-cand-industry", row.candidateIndustry || candidateIndustryLabel(row))}</div>
         <div class="inline-row"><span class="inline-label">반복공고</span>${inlineInput("edit-cand-repeat", row.candidateRepeatPosts || candidateRepeatLabel(row), "text", "7회+")}</div>
-        <div class="inline-row"><span class="inline-label">파일럿 난이도</span>${inlineSelect("edit-cand-pilot", scoreSelectValue(row.pilotDifficulty), [
+        <div class="inline-row"><span class="inline-label">파일럿</span>${inlineSelect("edit-cand-pilot", scoreSelectValue(row.pilotDifficulty), [
           ["", "(선택)"],
           ["1", "★☆☆ (쉬움)"],
           ["2", "★★☆ (보통)"],
           ["3", "★★★ (어려움)"]
         ])}</div>
-        <div class="inline-row"><span class="inline-label">추천 점수</span>${inlineSelect("edit-cand-score", scoreSelectValue(row.recommendScore), [
+        <div class="inline-row"><span class="inline-label">추천</span>${inlineSelect("edit-cand-score", scoreSelectValue(row.recommendScore), [
           ["", "(선택)"],
           ["5", "★★★★★"],
           ["4", "★★★★☆"],
@@ -1403,80 +1422,104 @@ function renderDetailBody(row, edit, admin = false) {
           ["2", "★★☆☆☆"],
           ["1", "★☆☆☆☆"]
         ])}</div>
-        <div class="inline-row full-width"><span class="inline-label">주요 장점</span>${inlineInput("edit-cand-pros", row.candidatePros ?? "")}</div>
-        <div class="inline-row full-width"><span class="inline-label">주요 단점</span>${inlineInput("edit-cand-cons", row.candidateCons ?? "")}</div>
+        <div class="inline-row span-2"><span class="inline-label">장점</span>${inlineInput("edit-cand-pros", row.candidatePros ?? "")}</div>
+        <div class="inline-row span-2"><span class="inline-label">단점</span>${inlineInput("edit-cand-cons", row.candidateCons ?? "")}</div>
       </div>`
     : row.isCandidate
-      ? detailKvGrid([
-          ["순위", escapeHtml(`${row.candidateRank || "-"}`)],
-          ["후보 등록", formatDate(row.candidateSince)],
-          ["업종", escapeHtml(candidateIndustryLabel(row))],
-          ["반복공고", escapeHtml(candidateRepeatLabel(row))],
-          ["파일럿 난이도", renderStarRating(row.pilotDifficulty, 3)],
-          ["추천 점수", renderStarRating(row.recommendScore, 5)],
-          ["주요 장점", `<span class="detail-prose">${escapeHtml(row.candidatePros || "-")}</span>`],
-          ["주요 단점", `<span class="detail-prose">${escapeHtml(row.candidateCons || "-")}</span>`]
-        ])
+      ? `<div class="detail-candidate-highlight">
+          <div class="detail-candidate-scores">
+            <div><span class="muted">파일럿</span>${renderStarRating(row.pilotDifficulty, 3)}</div>
+            <div><span class="muted">추천</span>${renderStarRating(row.recommendScore, 5)}</div>
+          </div>
+          ${detailKvGrid([
+            ["순위", escapeHtml(`${row.candidateRank || "-"}`)],
+            ["업종", escapeHtml(candidateIndustryLabel(row))],
+            ["반복공고", escapeHtml(candidateRepeatLabel(row))],
+            ["장점", `<span class="detail-prose">${escapeHtml(row.candidatePros || "-")}</span>`],
+            ["단점", `<span class="detail-prose">${escapeHtml(row.candidateCons || "-")}</span>`]
+          ])}
+        </div>`
       : `<p class="muted detail-empty-hint">후보로 등록되지 않았습니다. 수정 모드에서 「후보」를 켜세요.</p>`;
 
-  const postsRows = row.posts
-    .map(
-      (post) => `
-    <tr>
-      <td class="cell-post-title">${escapeHtml(post.title)}</td>
-      <td>${escapeHtml(post.sourceLabel || post.source)}</td>
-      <td class="cell-post-link">
-        <a class="link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${iconSvg("external", 14)} 열기</a>
-        ${
-          admin
-            ? '<button type="button" class="btn-icon-delete post-delete-btn" data-post-url="' +
-              escapeAttr(post.url) +
-              '" data-post-manual="' +
-              (post.isManualPost ? "1" : "0") +
-              '" title="공고 삭제"><span data-icon="trash"></span></button>'
-            : ""
-        }
-      </td>
-    </tr>`
-    )
-    .join("");
-
-  const postsBlock = `
-    <div class="detail-table-wrap">
-      <table class="detail-table detail-table-compact">
-        <thead><tr><th>공고</th><th>출처</th><th></th></tr></thead>
-        <tbody>${postsRows || '<tr><td colspan="3" class="muted">등록된 공고 없음</td></tr>'}</tbody>
-      </table>
-    </div>
-    ${
-      edit
-        ? `<div class="inline-grid cols-2 post-add-row">
-        <div class="inline-row"><span class="inline-label">추가 제목</span>${inlineInput("edit-post-title", "", "text", "QA 엔지니어")}</div>
+  const postsBlock = edit
+    ? `<div class="detail-table-wrap">
+        <table class="detail-table detail-table-compact">
+          <thead><tr><th>공고</th><th>출처</th><th></th></tr></thead>
+          <tbody>${row.posts
+            .map(
+              (post) => `
+            <tr>
+              <td>${escapeHtml(post.title)}</td>
+              <td>${escapeHtml(post.sourceLabel || post.source)}</td>
+              <td class="cell-post-link">
+                <a class="link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${iconSvg("external", 14)}</a>
+                ${
+                  admin
+                    ? '<button type="button" class="btn-icon-delete post-delete-btn" data-post-url="' +
+                      escapeAttr(post.url) +
+                      '" data-post-manual="' +
+                      (post.isManualPost ? "1" : "0") +
+                      '" title="삭제"><span data-icon="trash"></span></button>'
+                    : ""
+                }
+              </td>
+            </tr>`
+            )
+            .join("")}</tbody>
+        </table>
+      </div>
+      <div class="detail-form-grid cols-2 post-add-row">
+        <div class="inline-row"><span class="inline-label">제목</span>${inlineInput("edit-post-title", "", "text", "QA 엔지니어")}</div>
         <div class="inline-row"><span class="inline-label">URL</span>${inlineInput("edit-post-url", "", "url", "https://...")}</div>
       </div>`
-        : ""
-    }`;
+    : row.posts.length
+      ? `<ul class="post-list">${row.posts
+          .map(
+            (post) => `
+          <li class="post-list-item">
+            <div class="post-list-main">
+              <strong>${escapeHtml(post.title)}</strong>
+              <span class="post-list-meta">${escapeHtml(post.sourceLabel || post.source)}</span>
+            </div>
+            <div class="post-list-actions">
+              <a class="link post-list-link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${iconSvg("external", 14)} 열기</a>
+              ${
+                admin
+                  ? '<button type="button" class="btn-icon-delete post-delete-btn" data-post-url="' +
+                    escapeAttr(post.url) +
+                    '" data-post-manual="' +
+                    (post.isManualPost ? "1" : "0") +
+                    '" title="삭제"><span data-icon="trash"></span></button>'
+                  : ""
+              }
+            </div>
+          </li>`
+          )
+          .join("")}</ul>`
+      : `<p class="muted detail-empty-hint">등록된 공고가 없습니다.</p>`;
 
-  const sidebar = `
-    ${heroBlock}
-    ${detailCard("담당자", contactBlock)}
-    ${detailCard("다음 액션", `${actionsBlock}${reasons.length ? `<ul class="reason-list reason-list-compact">${reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>` : ""}`)}
-  `;
-
-  const main = `
-    ${detailCard("회사 프로필", renderProfileSection(row, edit, p, e.domain || row.domain || "", admin))}
-    ${detailCard("영업 후보", candidateBlock, row.isCandidate ? "detail-card-accent" : "")}
-    ${detailCard(`QA 채용 공고 · ${row.posts.length}건`, postsBlock)}
-    ${detailCard("점수 근거", renderScoreSection(row, edit, admin), "detail-card-muted")}
-  `;
+  const sections = [];
+  if (edit && classifyBlock) sections.push(detailCard("기본 정보", classifyBlock, "detail-card-form"));
+  if (statsRow) sections.push(statsRow);
+  sections.push(
+    `<div class="detail-split">${detailCard("담당자", contactBlock)}${detailCard("다음 액션", `${actionsBlock}${reasons.length ? `<ul class="reason-list reason-list-compact">${reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>` : ""}`)}</div>`
+  );
+  sections.push(detailCard("회사 프로필", renderProfileSection(row, edit, p, e.domain || row.domain || "", admin)));
+  sections.push(detailCard("영업 후보", candidateBlock, row.isCandidate ? "detail-card-warm" : ""));
+  sections.push(detailCard(`QA 채용 공고 · ${row.posts.length}건`, postsBlock));
+  sections.push(detailCard("점수 근거", renderScoreSection(row, edit, admin), "detail-card-muted"));
 
   return `
-    <div class="detail-layout">
-      <aside class="detail-sidebar">${sidebar}</aside>
-      <div class="detail-main">${main}</div>
+    <div class="detail-shell">
+      ${sections.join("")}
     </div>
     ${row.excludeReason ? `<p class="warn detail-warn">제외 사유: ${escapeHtml(row.excludeReason)}</p>` : ""}
     ${edit ? `<footer class="detail-footer detail-footer-sticky"><button type="button" class="btn-ghost btn-sm" id="detail-cancel-edit">취소</button><button type="button" class="btn-primary" id="detail-save-all">변경 저장</button></footer>` : ""}`;
+}
+
+function tierLabelKo(tier) {
+  const map = { startup: "소·스타트업", mid: "중견", enterprise: "대기업", unknown: "미확인" };
+  return map[tier] ?? tier ?? "-";
 }
 
 function paintDetailModal() {
@@ -1489,7 +1532,7 @@ function paintDetailModal() {
   const admin = window.TClientAdmin?.isUnlocked();
   const edit = state.detailEdit && admin;
 
-  byId("detailTitle").textContent = displayName(row);
+  paintDetailHeader(row);
   const editBtn = byId("detailEditBtn");
   editBtn?.classList.toggle("hidden", !admin);
   editBtn?.classList.toggle("active", edit);
@@ -1739,19 +1782,32 @@ function deletePostFromCompany(row, postUrl, isManualPost) {
   showToast(isManualPost ? "수동 공고가 삭제되었습니다." : "공고가 삭제(숨김 처리)되었습니다.");
 }
 
+function isMergeModalOpen() {
+  const modal = byId("mergeModal");
+  return modal && !modal.classList.contains("hidden");
+}
+
 function openMergeModal(row) {
   if (!row?.companyId || !window.TClientAdmin?.isUnlocked()) return;
 
   state.mergeSourceRow = row;
   const modal = byId("mergeModal");
+  const detail = byId("detailModal");
   const hint = byId("mergeSourceHint");
+  const badge = byId("mergeSourceBadge");
+  if (badge) {
+    badge.innerHTML = `<span class="merge-source-label">병합 원본</span><strong>${escapeHtml(displayName(row))}</strong>${manualBadge(row)}`;
+  }
   if (hint) {
-    hint.textContent = `「${displayName(row)}」의 메모·후보·공고·프로필 정보를 다른 회사로 옮깁니다. 병합 대상을 검색해 선택하세요.`;
+    hint.textContent = "아래에서 데이터를 합칠 대상 회사를 검색해 선택하세요.";
   }
   byId("mergeSearch").value = "";
   renderMergeResults("");
+  document.body.appendChild(modal);
+  detail?.classList.add("modal-backstack");
   modal?.classList.remove("hidden");
   modal?.setAttribute("aria-hidden", "false");
+  document.body.classList.add("merge-open");
   hydrateIcons(modal);
   byId("mergeSearch")?.focus();
 }
@@ -1760,6 +1816,8 @@ function closeMergeModal() {
   const modal = byId("mergeModal");
   modal?.classList.add("hidden");
   modal?.setAttribute("aria-hidden", "true");
+  byId("detailModal")?.classList.remove("modal-backstack");
+  document.body.classList.remove("merge-open");
   state.mergeSourceRow = null;
 }
 
@@ -1930,13 +1988,19 @@ function bindModal() {
   });
 
   modal.addEventListener("click", (e) => {
+    if (isMergeModalOpen()) return;
     if (e.target === modal || e.target.classList.contains("modal-backdrop")) {
       closeDetail();
     }
   });
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeDetail();
+    if (e.key !== "Escape") return;
+    if (isMergeModalOpen()) {
+      closeMergeModal();
+      return;
+    }
+    closeDetail();
   });
 }
 
