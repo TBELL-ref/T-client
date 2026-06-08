@@ -1087,24 +1087,108 @@ function paginate(items, page) {
   };
 }
 
-function renderPagerHtml(page, totalPages, total, unit = "건") {
-  if (totalPages <= 1) return "";
+function buildPageList(current, total) {
+  const items = [];
+  const window = 1;
+  const addPage = (p) => {
+    if (p < 1 || p > total) return;
+    items.push({ type: "page", value: p, active: p === current });
+  };
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) addPage(i);
+    return items;
+  }
+
+  addPage(1);
+  if (current > window + 2) items.push({ type: "ellipsis" });
+  for (let p = Math.max(2, current - window); p <= Math.min(total - 1, current + window); p++) {
+    addPage(p);
+  }
+  if (current < total - window - 1) items.push({ type: "ellipsis" });
+  addPage(total);
+  return items;
+}
+
+function renderPagerHtml(page, totalPages, total, unit = "건", pagerKey = "main") {
+  if (totalPages <= 1) {
+    if (total <= PAGE_SIZE) return "";
+    return `
+      <nav class="table-pager table-pager--compact" aria-label="페이지">
+        <span class="pager-summary">총 <strong>${total}</strong>${unit}</span>
+      </nav>`;
+  }
+
+  const pageItems = buildPageList(page, totalPages);
+  const pageBtns = pageItems
+    .map((item) => {
+      if (item.type === "ellipsis") return `<span class="pager-ellipsis" aria-hidden="true">…</span>`;
+      return `<button type="button" class="pager-num${item.active ? " active" : ""}" data-page="${item.value}"${item.active ? ' aria-current="page"' : ""}>${item.value}</button>`;
+    })
+    .join("");
+
   return `
-    <nav class="table-pager" aria-label="페이지">
-      <button type="button" class="pager-btn" data-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>이전</button>
-      <span class="pager-meta">${page} / ${totalPages} 페이지 · 총 ${total}${unit}</span>
-      <button type="button" class="pager-btn" data-page="${page + 1}" ${page >= totalPages ? "disabled" : ""}>다음</button>
+    <nav class="table-pager" aria-label="페이지" data-pager="${escapeAttr(pagerKey)}">
+      <div class="pager-summary">총 <strong>${total}</strong>${unit} · <strong>${totalPages}</strong>페이지</div>
+      <div class="pager-controls">
+        <button type="button" class="pager-btn pager-btn-icon" data-page="1" ${page <= 1 ? "disabled" : ""} title="처음" aria-label="처음 페이지">
+          <span aria-hidden="true">«</span>
+        </button>
+        <button type="button" class="pager-btn pager-btn-icon pager-btn-prev" data-page="${page - 1}" ${page <= 1 ? "disabled" : ""} title="이전" aria-label="이전 페이지">
+          ${iconSvg("chevron", 16)}
+        </button>
+        <div class="pager-nums" role="group" aria-label="페이지 번호">${pageBtns}</div>
+        <button type="button" class="pager-btn pager-btn-icon pager-btn-next" data-page="${page + 1}" ${page >= totalPages ? "disabled" : ""} title="다음" aria-label="다음 페이지">
+          ${iconSvg("chevron", 16)}
+        </button>
+        <button type="button" class="pager-btn pager-btn-icon" data-page="${totalPages}" ${page >= totalPages ? "disabled" : ""} title="마지막" aria-label="마지막 페이지">
+          <span aria-hidden="true">»</span>
+        </button>
+      </div>
+      <form class="pager-jump" data-pager-jump="${escapeAttr(pagerKey)}">
+        <label class="pager-jump-label" for="pager-input-${escapeAttr(pagerKey)}">이동</label>
+        <input
+          id="pager-input-${escapeAttr(pagerKey)}"
+          class="pager-input"
+          type="number"
+          min="1"
+          max="${totalPages}"
+          value="${page}"
+          inputmode="numeric"
+          aria-label="이동할 페이지 번호"
+        />
+        <span class="pager-jump-of">/ ${totalPages}</span>
+        <button type="submit" class="pager-btn pager-btn-go">GO</button>
+      </form>
     </nav>`;
 }
 
-function bindPager(root, { page, totalPages, onPage }) {
+function bindPager(root, { page, totalPages, onPage, pagerKey = "main" }) {
   if (!root) return;
-  root.querySelectorAll(".pager-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const next = Number.parseInt(btn.dataset.page ?? "", 10);
-      if (!Number.isFinite(next) || next < 1 || next > totalPages || next === page) return;
-      onPage(next);
-    });
+  const nav = root.querySelector(`[data-pager="${pagerKey}"]`) || root.querySelector(".table-pager");
+  if (!nav) return;
+
+  const go = (next) => {
+    const n = Number.parseInt(`${next ?? ""}`, 10);
+    if (!Number.isFinite(n) || n < 1 || n > totalPages || n === page) return;
+    onPage(n);
+  };
+
+  nav.querySelectorAll(".pager-btn[data-page], .pager-num[data-page]").forEach((btn) => {
+    btn.addEventListener("click", () => go(btn.dataset.page));
+  });
+
+  const form = nav.querySelector("form.pager-jump");
+  const input = nav.querySelector(".pager-input");
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    go(input?.value);
+  });
+  input?.addEventListener("blur", () => {
+    const n = Number.parseInt(`${input.value ?? ""}`, 10);
+    if (Number.isFinite(n)) {
+      input.value = String(Math.min(Math.max(1, n), totalPages));
+    }
   });
 }
 
@@ -1374,12 +1458,13 @@ function renderLeadsTable() {
         </tbody>
       </table>
     </div>
-    ${renderPagerHtml(paged.page, paged.totalPages, paged.total, "건")}`;
+    ${renderPagerHtml(paged.page, paged.totalPages, paged.total, "건", "leads")}`;
 
   const panel = byId("leads");
   bindPager(panel, {
     page: paged.page,
     totalPages: paged.totalPages,
+    pagerKey: "leads",
     onPage: (next) => {
       state.leadsPage = next;
       renderLeadsTable();
@@ -2256,12 +2341,13 @@ function renderAllPosts() {
         </tbody>
       </table>
     </div>
-    ${renderPagerHtml(paged.page, paged.totalPages, paged.total, "건")}`;
+    ${renderPagerHtml(paged.page, paged.totalPages, paged.total, "건", "posts")}`;
 
   const panel = byId("posts");
   bindPager(panel, {
     page: paged.page,
     totalPages: paged.totalPages,
+    pagerKey: "posts",
     onPage: (next) => {
       state.postsPage = next;
       renderAllPosts();
