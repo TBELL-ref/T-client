@@ -317,61 +317,68 @@ body {
   pointer-events: none;
 }
 
-.portfolio-matrix-kpi {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
+.portfolio-cluster-picker {
+  position: fixed;
+  z-index: 1300;
+  min-width: 220px;
+  max-width: 320px;
+  max-height: min(360px, 70vh);
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  padding: 10px 0 6px;
 }
 
-.portfolio-matrix-kpi-card {
+.portfolio-cluster-picker-head {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 10px 8px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: var(--surface-muted);
-  cursor: pointer;
-  text-align: center;
+  gap: 4px;
+  padding: 0 12px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
 }
 
-.portfolio-matrix-kpi-card.is-highlight {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+.portfolio-cluster-picker-head strong {
+  font-size: 13px;
 }
 
-.portfolio-matrix-kpi-emphasis-1 {
-  background: #ecfdf5;
-  border-color: #86efac;
-}
-
-.portfolio-matrix-kpi-emphasis-2 {
-  background: #eff6ff;
-  border-color: #93c5fd;
-}
-
-.portfolio-matrix-kpi-emphasis-3 {
-  background: #fffbeb;
-  border-color: #fcd34d;
-}
-
-.portfolio-matrix-kpi-muted {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
-.portfolio-matrix-kpi-value {
-  font-size: 20px;
-  font-weight: 800;
-  line-height: 1;
-  color: var(--text);
-}
-
-.portfolio-matrix-kpi-label {
-  font-size: 10px;
-  font-weight: 700;
+.portfolio-cluster-picker-meta {
+  font-size: 11px;
   color: var(--muted);
+  line-height: 1.4;
+}
+
+.portfolio-cluster-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.portfolio-cluster-picker-item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.portfolio-cluster-picker-item:hover {
+  background: #f0fdf4;
+  color: #047857;
+}
+
+.portfolio-tooltip-hint {
+  margin: 6px 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #86efac;
 }
 
 .portfolio-tooltip-host {
@@ -3618,10 +3625,6 @@ tbody tr.row-manual {
 
   .portfolio-legend-col {
     order: -1;
-  }
-
-  .portfolio-matrix-kpi {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .stat-strip {

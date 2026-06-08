@@ -18,8 +18,7 @@ const state = {
   tableSort: { column: "priorityScore", direction: "desc" },
   leadsPage: 1,
   postsPage: 1,
-  portfolioLegendFilter: null,
-  portfolioSelectedCompanyId: null
+  portfolioLegendFilter: null
 };
 
 const PAGE_SIZE = 10;
@@ -1339,7 +1338,7 @@ function renderPortfolioClusterTooltip(cluster) {
     <div>파일럿 난이도 : ${starGlyphs(cluster.pilot, 3)}</div>
     ${
       cluster.rows.length > 1
-        ? `<ul class="portfolio-tooltip-list">${cluster.rows
+        ? `<p class="portfolio-tooltip-hint">클릭하여 기업 선택</p><ul class="portfolio-tooltip-list">${cluster.rows
             .slice(0, 6)
             .map((r) => `<li>${escapeHtml(displayName(r))}</li>`)
             .join("")}${cluster.rows.length > 6 ? `<li class="muted">+${cluster.rows.length - 6}곳</li>` : ""}</ul>`
@@ -1349,17 +1348,62 @@ function renderPortfolioClusterTooltip(cluster) {
   </div>`;
 }
 
-function renderPortfolioMatrixKpi(counts) {
-  return `<div class="portfolio-matrix-kpi">${PORTFOLIO_QUADRANTS.map((q) => {
-    const selected =
-      state.portfolioSelectedCompanyId &&
-      portfolioQuadrant(state.rows.find((r) => r.companyId === state.portfolioSelectedCompanyId)) === q.id;
-    const filtered = state.portfolioLegendFilter === q.id;
-    return `<button type="button" class="portfolio-matrix-kpi-card portfolio-matrix-kpi-${q.tone}${selected || filtered ? " is-highlight" : ""}" data-matrix-kpi="${q.id}">
-      <span class="portfolio-matrix-kpi-value">${counts[q.id] ?? 0}</span>
-      <span class="portfolio-matrix-kpi-label">${escapeHtml(q.label)}</span>
-    </button>`;
-  }).join("")}</div>`;
+function closePortfolioClusterPicker() {
+  byId("portfolioClusterPicker")?.remove();
+  document.removeEventListener("click", onPortfolioPickerOutside, true);
+}
+
+function onPortfolioPickerOutside(ev) {
+  const picker = byId("portfolioClusterPicker");
+  if (!picker) return;
+  if (picker.contains(ev.target) || ev.target.closest(".portfolio-cluster")) return;
+  closePortfolioClusterPicker();
+}
+
+function showPortfolioClusterPicker(ev, cluster) {
+  closePortfolioClusterPicker();
+  const meta = portfolioQuadrantMeta(cluster.quadrant);
+  const picker = document.createElement("div");
+  picker.id = "portfolioClusterPicker";
+  picker.className = "portfolio-cluster-picker";
+  picker.dataset.clusterKey = cluster.key;
+  picker.innerHTML = `
+    <div class="portfolio-cluster-picker-head">
+      <strong>${cluster.rows.length}개 기업</strong>
+      <span class="portfolio-cluster-picker-meta">${escapeHtml(meta.label)} · 추천 ${starGlyphs(cluster.score, 5)} · 난이도 ${starGlyphs(cluster.pilot, 3)}</span>
+    </div>
+    <ul class="portfolio-cluster-picker-list">
+      ${cluster.rows
+        .map(
+          (r) =>
+            `<li><button type="button" class="portfolio-cluster-picker-item" data-company="${escapeAttr(r.companyId)}">${escapeHtml(displayName(r))}</button></li>`
+        )
+        .join("")}
+    </ul>`;
+
+  document.body.appendChild(picker);
+
+  const margin = 12;
+  const pw = picker.offsetWidth;
+  const ph = picker.offsetHeight;
+  let left = ev.clientX + margin;
+  let top = ev.clientY + margin;
+  if (left + pw > window.innerWidth - margin) left = ev.clientX - pw - margin;
+  if (top + ph > window.innerHeight - margin) top = ev.clientY - ph - margin;
+  picker.style.left = `${Math.max(margin, left)}px`;
+  picker.style.top = `${Math.max(margin, top)}px`;
+
+  picker.querySelectorAll(".portfolio-cluster-picker-item").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const row = state.rows.find((r) => r.companyId === btn.dataset.company);
+      closePortfolioClusterPicker();
+      byId("portfolioTooltip")?.classList.add("hidden");
+      if (row) openDetail(row);
+    });
+  });
+
+  setTimeout(() => document.addEventListener("click", onPortfolioPickerOutside, true), 0);
 }
 
 function renderPortfolioMap() {
@@ -1424,11 +1468,10 @@ function renderPortfolioMap() {
       const cy = yFor(cluster.score);
       const n = cluster.rows.length;
       const r = n > 1 ? 11 + Math.min(n, 5) : 8;
-      const selected = cluster.rows.some((r) => r.companyId === state.portfolioSelectedCompanyId);
       const companyIds = cluster.rows.map((r) => r.companyId).join(",");
-      return `<g class="portfolio-cluster${selected ? " is-selected" : ""}" data-companies="${escapeAttr(companyIds)}" data-quadrant="${cluster.quadrant}" tabindex="0" role="button" aria-label="${escapeAttr(displayName(cluster.rows[0]))}${n > 1 ? ` 외 ${n - 1}곳` : ""}">
+      return `<g class="portfolio-cluster" data-cluster-key="${escapeAttr(cluster.key)}" data-companies="${escapeAttr(companyIds)}" data-quadrant="${cluster.quadrant}" tabindex="0" role="button" aria-label="${escapeAttr(displayName(cluster.rows[0]))}${n > 1 ? ` 외 ${n - 1}곳` : ""}">
         <circle class="portfolio-cluster-bg" cx="${cx}" cy="${cy}" r="${r + 3}" fill="${meta.color}" opacity="0.18"/>
-        <circle class="portfolio-cluster-dot" cx="${cx}" cy="${cy}" r="${r}" fill="${meta.color}" stroke="${selected ? "#111827" : "#fff"}" stroke-width="${selected ? 2.5 : 2}"/>
+        <circle class="portfolio-cluster-dot" cx="${cx}" cy="${cy}" r="${r}" fill="${meta.color}" stroke="#fff" stroke-width="2"/>
         ${n > 1 ? `<text x="${cx}" y="${cy + 4}" text-anchor="middle" class="portfolio-cluster-count">${n}</text>` : ""}
       </g>`;
     })
@@ -1459,12 +1502,11 @@ function renderPortfolioMap() {
         </div>
         <p class="portfolio-axis-caption portfolio-axis-caption-x">파일럿 난이도 <span class="muted">(낮을수록 좋음 ← · → 높을수록 어려움)</span></p>
         <p class="portfolio-axis-caption portfolio-axis-caption-y">추천점수 <span class="muted">(높을수록 좋음 ↑)</span></p>
-        ${renderPortfolioMatrixKpi(counts)}
       </div>
       <aside class="portfolio-legend-col">
         <p class="portfolio-legend-title">사분면</p>
         <div class="portfolio-legend portfolio-legend-vertical">${legend}</div>
-        <p class="portfolio-legend-hint muted">클릭하여 필터 · 점/숫자 클릭 시 상세</p>
+        <p class="portfolio-legend-hint muted">범례 클릭 · 필터 · 클러스터 클릭 → 기업 선택</p>
       </aside>
     </div>`
       : `<p class="muted dash-empty-hint">표시할 평가 데이터가 없습니다.<br />상세 → 수정에서 추천 점수·파일럿 난이도를 입력하세요.</p>`;
@@ -1479,17 +1521,12 @@ function bindPortfolioMap() {
   const host = byId("dashboard");
   if (!host) return;
 
+  closePortfolioClusterPicker();
+
   host.querySelectorAll("[data-portfolio-filter]").forEach((btn) => {
     btn.addEventListener("click", () => {
+      closePortfolioClusterPicker();
       const id = btn.dataset.portfolioFilter;
-      state.portfolioLegendFilter = state.portfolioLegendFilter === id ? null : id;
-      renderDashboard();
-    });
-  });
-
-  host.querySelectorAll("[data-matrix-kpi]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = btn.dataset.matrixKpi;
       state.portfolioLegendFilter = state.portfolioLegendFilter === id ? null : id;
       renderDashboard();
     });
@@ -1500,7 +1537,7 @@ function bindPortfolioMap() {
     const rows = ids.map((id) => state.rows.find((r) => r.companyId === id)).filter(Boolean);
     if (!rows.length) return;
     const cluster = {
-      key: "",
+      key: g.dataset.clusterKey ?? `${parseRecommendScore(rows[0])}:${parsePilotDifficulty(rows[0])}`,
       score: parseRecommendScore(rows[0]),
       pilot: parsePilotDifficulty(rows[0]),
       rows,
@@ -1508,6 +1545,7 @@ function bindPortfolioMap() {
     };
 
     g.addEventListener("mouseenter", (ev) => {
+      if (byId("portfolioClusterPicker")) return;
       const tip = byId("portfolioTooltip");
       if (!tip) return;
       tip.classList.remove("hidden");
@@ -1516,17 +1554,33 @@ function bindPortfolioMap() {
       tip.style.top = `${ev.clientY + 12}px`;
     });
     g.addEventListener("mousemove", (ev) => {
+      if (byId("portfolioClusterPicker")) return;
       const tip = byId("portfolioTooltip");
       if (!tip) return;
       tip.style.left = `${ev.clientX + 12}px`;
       tip.style.top = `${ev.clientY + 12}px`;
     });
-    g.addEventListener("mouseleave", () => byId("portfolioTooltip")?.classList.add("hidden"));
+    g.addEventListener("mouseleave", () => {
+      if (!byId("portfolioClusterPicker")) byId("portfolioTooltip")?.classList.add("hidden");
+    });
 
-    g.addEventListener("click", () => {
-      state.portfolioSelectedCompanyId = rows[0].companyId;
-      renderDashboard();
-      openDetail(rows[0]);
+    g.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      byId("portfolioTooltip")?.classList.add("hidden");
+
+      if (rows.length === 1) {
+        closePortfolioClusterPicker();
+        openDetail(rows[0]);
+        return;
+      }
+
+      const picker = byId("portfolioClusterPicker");
+      if (picker?.dataset.clusterKey === cluster.key) {
+        closePortfolioClusterPicker();
+        return;
+      }
+
+      showPortfolioClusterPicker(ev, cluster);
     });
   });
 }
@@ -2243,6 +2297,7 @@ function closeDetail() {
   const modal = byId("detailModal");
   state.detailRow = null;
   state.detailEdit = false;
+  closePortfolioClusterPicker();
   modal?.classList.remove("is-edit");
   modal.classList.add("hidden");
   modal.setAttribute("aria-hidden", "true");
