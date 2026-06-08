@@ -1450,7 +1450,7 @@ body.merge-open {
   padding: 16px 14px 10px;
   border-top: 1px solid var(--line);
   background: linear-gradient(180deg, var(--surface-muted) 0%, var(--surface) 100%);
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 
 .table-pager--compact {
