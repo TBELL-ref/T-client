@@ -481,10 +481,18 @@
     if (!companyId || !post?.url) return false;
     const entry = getEntry(companyId);
     const extraPosts = entry.extraPosts ?? [];
-    if (extraPosts.some((p) => p.url === post.url)) return false;
+    const match = (p) =>
+      window.TPostUrl?.urlsMatch?.(p.url, post.url) ||
+      `${p.url ?? ""}`.trim().toLowerCase() === `${post.url ?? ""}`.trim().toLowerCase();
+    if (extraPosts.some(match)) return false;
+
+    const hidden = (entry.hiddenPosts ?? []).filter((u) => match({ url: u }));
     const patch = {
-      extraPosts: [...extraPosts, post]
+      extraPosts: [...extraPosts, { ...post, url: window.TPostUrl?.normalizeInput(post.url) || post.url }]
     };
+    if (hidden.length) {
+      patch.hiddenPosts = (entry.hiddenPosts ?? []).filter((u) => !match({ url: u }));
+    }
     if (profilePatch && Object.keys(profilePatch).length) {
       patch.profile = { ...(entry.profile ?? {}), ...profilePatch };
     }
@@ -543,7 +551,11 @@
   function hidePost(companyId, postUrl) {
     if (!companyId || !postUrl) return false;
     const entry = getEntry(companyId);
-    const list = Array.from(new Set([...(entry.hiddenPosts ?? []), postUrl]));
+    const key = window.TPostUrl?.postUrlKey(postUrl) ?? `${postUrl}`.toLowerCase();
+    const list = [...(entry.hiddenPosts ?? [])];
+    if (!list.some((u) => (window.TPostUrl?.postUrlKey(u) ?? `${u}`.toLowerCase()) === key)) {
+      list.push(window.TPostUrl?.normalizeInput(postUrl) || postUrl);
+    }
     if (list.length === (entry.hiddenPosts ?? []).length) return false;
     setEntry(companyId, { hiddenPosts: list });
     return true;
@@ -1083,12 +1095,19 @@
       next.excluded = false;
     }
 
-    const hiddenPostUrls = new Set(entry.hiddenPosts ?? []);
+    const hiddenPostUrls = new Set(
+      (entry.hiddenPosts ?? []).map((u) => window.TPostUrl?.postUrlKey(u) ?? `${u}`.toLowerCase())
+    );
 
-    const basePosts = (row.posts ?? []).filter((p) => p?.url && !hiddenPostUrls.has(p.url));
+    const isHidden = (postUrl) => {
+      const key = window.TPostUrl?.postUrlKey(postUrl) ?? `${postUrl}`.toLowerCase();
+      return hiddenPostUrls.has(key);
+    };
+
+    const basePosts = (row.posts ?? []).filter((p) => p?.url && !isHidden(p.url));
 
     const extraPosts = (entry.extraPosts ?? [])
-      .filter((p) => p?.url && !hiddenPostUrls.has(p.url))
+      .filter((p) => p?.url && !isHidden(p.url))
       .map((p, i) => ({
         id: p.id || `manual_${i}`,
         title: p.title || "QA 공고",

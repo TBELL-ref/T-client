@@ -658,10 +658,12 @@ function isRecruitingPortalHost(host) {
 }
 
 function normalizePostUrlInput(value) {
-  const raw = `${value ?? ""}`.trim();
-  if (!raw) return "";
-  if (!/^https?:\/\//i.test(raw)) return `https://${raw}`;
-  return raw;
+  return window.TPostUrl?.normalizeInput(value) ?? `${value ?? ""}`.trim();
+}
+
+function postUrlsMatch(a, b) {
+  if (window.TPostUrl?.urlsMatch) return window.TPostUrl.urlsMatch(a, b);
+  return `${a ?? ""}`.trim().toLowerCase() === `${b ?? ""}`.trim().toLowerCase();
 }
 
 function normalizeBizNoDigits(bizNo) {
@@ -763,11 +765,35 @@ function findCompanyByPostUrl(url) {
   }
 }
 
+function findPostConflict(url) {
+  for (const row of state.rows ?? []) {
+    for (const post of row.posts ?? []) {
+      if (postUrlsMatch(post.url, url)) {
+        return { row, post, hidden: false, storedUrl: post.url };
+      }
+    }
+    const entry = window.TClientAdmin?.getEntry?.(row.companyId) ?? {};
+    for (const hiddenUrl of entry.hiddenPosts ?? []) {
+      if (postUrlsMatch(hiddenUrl, url)) {
+        return { row, post: { url: hiddenUrl }, hidden: true, storedUrl: hiddenUrl };
+      }
+    }
+  }
+
+  for (const row of state.snapshotRows ?? []) {
+    for (const post of row.posts ?? []) {
+      if (postUrlsMatch(post.url, url)) {
+        const live = state.rows.find((r) => r.companyId === row.companyId) ?? row;
+        return { row: live, post, hidden: false, storedUrl: post.url, source: "snapshot" };
+      }
+    }
+  }
+
+  return null;
+}
+
 function postUrlExists(url) {
-  const norm = url.toLowerCase();
-  return state.rows.some((row) =>
-    (row.posts ?? []).some((p) => `${p.url ?? ""}`.toLowerCase() === norm)
-  );
+  return Boolean(findPostConflict(url));
 }
 
 function attachBizNoToCompany(companyId, bizNo, enrichProfile = null) {
@@ -1041,22 +1067,32 @@ function sortRows(rows) {
   const list = [...rows];
 
   list.sort((a, b) => {
-    const stageOrder = { confirmed: 3, recommended: 2, basic: 1, "": 0 };
-    const sa = stageOrder[a.userFavoriteStage] ?? 0;
-    const sb = stageOrder[b.userFavoriteStage] ?? 0;
-    if (sa !== sb) return sb - sa;
-    if (a.excluded !== b.excluded) return a.excluded ? 1 : -1;
+    if (mode === "priority") {
+      const stageOrder = { confirmed: 3, recommended: 2, basic: 1, "": 0 };
+      const sa = stageOrder[a.userFavoriteStage] ?? 0;
+      const sb = stageOrder[b.userFavoriteStage] ?? 0;
+      if (sa !== sb) return sb - sa;
+      if (a.excluded !== b.excluded) return a.excluded ? 1 : -1;
+      const byScore = priorityValue(b) - priorityValue(a);
+      if (byScore !== 0) return byScore;
+      return displayName(a).localeCompare(displayName(b), "ko");
+    }
 
-    if (mode === "name") {
-      const byName = displayName(a).localeCompare(displayName(b), "ko");
-      if (byName !== 0) return byName;
-    } else if (mode === "recent") {
+    if (mode === "recent") {
       const byRecent = new Date(b.lastCollectedAt || 0) - new Date(a.lastCollectedAt || 0);
       if (byRecent !== 0) return byRecent;
-    } else if (mode === "grade") {
+      return displayName(a).localeCompare(displayName(b), "ko");
+    }
+
+    if (mode === "grade") {
       const gradeOrder = { A: 3, B: 2, C: 1 };
       const diff = (gradeOrder[b.leadGrade] ?? 0) - (gradeOrder[a.leadGrade] ?? 0);
       if (diff !== 0) return diff;
+      return priorityValue(b) - priorityValue(a);
+    }
+
+    if (mode === "name") {
+      return displayName(a).localeCompare(displayName(b), "ko");
     }
 
     return priorityValue(b) - priorityValue(a);
@@ -1682,8 +1718,28 @@ async function submitAddPostAsync() {
     showToast("올바른 URL을 입력하세요.", "error");
     return;
   }
-  if (postUrlExists(url)) {
-    showToast("이미 등록된 공고 URL입니다.", "error");
+  const conflict = findPostConflict(url);
+  if (conflict) {
+    if (conflict.hidden && window.TClientAdmin?.isUnlocked?.()) {
+      const entry = window.TClientAdmin.getEntry(conflict.row.companyId);
+      const key = window.TPostUrl?.postUrlKey(url) ?? url.toLowerCase();
+      const nextHidden = (entry.hiddenPosts ?? []).filter(
+        (u) => (window.TPostUrl?.postUrlKey(u) ?? `${u}`.toLowerCase()) !== key
+      );
+      window.TClientAdmin.setEntry(conflict.row.companyId, { hiddenPosts: nextHidden });
+      reloadRowsWithAdmin();
+      refreshViews();
+      closeAddPostModal();
+      showToast(`숨김 처리됐던 공고를 복원했습니다: ${displayName(conflict.row)}`);
+      openDetail(conflict.row, false);
+      return;
+    }
+    const name = displayName(conflict.row);
+    const stored = conflict.storedUrl ?? url;
+    const hint =
+      stored.toLowerCase() !== url.toLowerCase() ? " (동일 공고 — URL 형식만 다름)" : "";
+    showToast(`이미 등록된 공고입니다: ${name}${hint}`, "error");
+    openDetail(conflict.row, false);
     return;
   }
 
