@@ -42,6 +42,20 @@
     if (!allowed) throw new Error("허용되지 않은 이메일입니다. 관리자에게 등록을 요청하세요.");
   }
 
+  function mapAuthError(message) {
+    const m = `${message ?? ""}`.toLowerCase();
+    if (m.includes("rate limit")) {
+      return "메일 발송 한도를 초과했습니다. 1시간 후 다시 시도하거나, 관리자에게 비밀번호 직접 설정을 요청하세요.";
+    }
+    if (m.includes("only request this after") || m.includes("security purposes")) {
+      return "보안상 잠시 후에만 재발송할 수 있습니다. 1~2분 뒤 다시 시도해 주세요.";
+    }
+    if (m.includes("email address not authorized") || m.includes("invalid email")) {
+      return "이메일 형식이 올바르지 않거나 발송 설정(SMTP)을 확인해야 합니다.";
+    }
+    return message;
+  }
+
   async function signInWithPassword(email, password) {
     const addr = normalizeEmail(email);
     const pwd = `${password ?? ""}`;
@@ -55,14 +69,14 @@
     });
     if (error) {
       if (/invalid login credentials/i.test(error.message)) {
-        throw new Error("이메일 또는 비밀번호가 올바르지 않습니다. 처음이면 아래에서 비밀번호 설정 메일을 받으세요.");
+        throw new Error("이메일 또는 비밀번호가 올바르지 않습니다. 처음이면 관리자에게 비밀번호 설정을 요청하세요.");
       }
-      throw new Error(error.message);
+      throw new Error(mapAuthError(error.message));
     }
     return true;
   }
 
-  /** One-time (or forgot-password) setup email — not used for daily login. */
+  /** One-time (or forgot-password) setup email — Supabase Auth SMTP required for Gmail delivery. */
   async function sendPasswordSetupEmail(email) {
     const addr = normalizeEmail(email);
     await assertAllowedEmail(addr);
@@ -70,7 +84,7 @@
     const { error } = await getClient().auth.resetPasswordForEmail(addr, {
       redirectTo: redirectBase()
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(mapAuthError(error.message));
     return true;
   }
 
