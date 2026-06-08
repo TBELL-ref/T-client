@@ -1441,6 +1441,40 @@ body.merge-open {
   letter-spacing: 0.03em;
 }
 
+.table-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 8px 6px;
+  flex-wrap: wrap;
+}
+
+.pager-btn {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pager-btn:hover:not(:disabled) {
+  border-color: var(--accent-muted);
+  background: var(--accent-soft);
+}
+
+.pager-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pager-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
 tbody tr.row-new-crawl {
   background: #f6fffb;
 }

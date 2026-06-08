@@ -15,8 +15,12 @@ const state = {
   detailEdit: false,
   mergeSourceRow: null,
   filtersOpen: false,
-  tableSort: { column: "priorityScore", direction: "desc" }
+  tableSort: { column: "priorityScore", direction: "desc" },
+  leadsPage: 1,
+  postsPage: 1
 };
+
+const PAGE_SIZE = 10;
 
 const PRESETS = [
   { id: "grade-a", label: "A등급", apply: () => setFilters({ grade: "A", exclude: "active" }, { keepPreset: true }) },
@@ -1004,6 +1008,8 @@ function setFilters(values, { keepPreset = false } = {}) {
     if (el) el.value = value;
   });
   if (!keepPreset) state.activePreset = "";
+  state.leadsPage = 1;
+  state.postsPage = 1;
   syncCustomSelects();
   refreshViews();
 }
@@ -1042,9 +1048,76 @@ function resetFilters() {
   const sortEl = byId("sort");
   if (sortEl) sortEl.value = "priority";
   state.activePreset = "";
+  state.leadsPage = 1;
+  state.postsPage = 1;
   syncCustomSelects();
   renderPresets();
   refreshViews();
+}
+
+/** 목록·집계 공통: 숨김(병합) 제외 + 공고 1건 이상 */
+function isListableLead(row) {
+  if (row.userHidden) return false;
+  return (row.posts?.length ?? 0) > 0;
+}
+
+/** KPI·배너·등급 분포: 활성(제외 아님) 리드만 */
+function isActiveLead(row) {
+  return isListableLead(row) && !row.excluded;
+}
+
+function listableLeadRows() {
+  return state.rows.filter(isListableLead);
+}
+
+function activeLeadRows() {
+  return state.rows.filter(isActiveLead);
+}
+
+function paginate(items, page) {
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * PAGE_SIZE;
+  return {
+    items: items.slice(start, start + PAGE_SIZE),
+    page: safePage,
+    totalPages,
+    total
+  };
+}
+
+function renderPagerHtml(page, totalPages, total, unit = "건") {
+  if (totalPages <= 1) return "";
+  return `
+    <nav class="table-pager" aria-label="페이지">
+      <button type="button" class="pager-btn" data-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>이전</button>
+      <span class="pager-meta">${page} / ${totalPages} 페이지 · 총 ${total}${unit}</span>
+      <button type="button" class="pager-btn" data-page="${page + 1}" ${page >= totalPages ? "disabled" : ""}>다음</button>
+    </nav>`;
+}
+
+function bindPager(root, { page, totalPages, onPage }) {
+  if (!root) return;
+  root.querySelectorAll(".pager-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const next = Number.parseInt(btn.dataset.page ?? "", 10);
+      if (!Number.isFinite(next) || next < 1 || next > totalPages || next === page) return;
+      onPage(next);
+    });
+  });
+}
+
+function computeActiveKpi(rows) {
+  let proposal = 0;
+  let profile = 0;
+  let inquiry = 0;
+  for (const r of rows) {
+    if (["추천", "진행"].includes(r.actions?.proposal?.status)) proposal += 1;
+    if (r.profileComplete) profile += 1;
+    if (["추천", "진행"].includes(r.actions?.inquiry?.status)) inquiry += 1;
+  }
+  return { proposal, profile, inquiry };
 }
 
 function passesFilters(row) {
@@ -1068,10 +1141,9 @@ function passesFilters(row) {
   if (tierFilter === "startup" && !["startup", "unknown"].includes(row.companyTier)) return false;
   if (tierFilter === "enterprise" && row.companyTier !== "enterprise") return false;
   if (tierFilter === "mid" && row.companyTier !== "mid") return false;
-  if (row.userHidden && !window.TClientAdmin?.isUnlocked()) return false;
+  if (!isListableLead(row)) return false;
   const favFilter = byId("favorite")?.value;
   if (favFilter && row.userFavoriteStage !== favFilter) return false;
-  if (!row.posts?.length) return false;
   return true;
 }
 
@@ -1127,9 +1199,8 @@ function sortRows(rows) {
 }
 
 function computeGradeCounts() {
-  const active = state.rows.filter((r) => !r.excluded && !r.userHidden);
   const counts = { A: 0, B: 0, C: 0 };
-  for (const r of active) {
+  for (const r of activeLeadRows()) {
     if (counts[r.leadGrade] !== undefined) counts[r.leadGrade]++;
   }
   return counts;
@@ -1177,22 +1248,20 @@ function renderGradeDonut(counts) {
 }
 
 function renderDashboard() {
-  const s = state.gradeSummary;
   const gradeCounts = computeGradeCounts();
-  // KPI/Donut와 동일한 정의(활성 리드만): excluded 제외 + userHidden 제외
-  const activeRows = state.rows.filter((r) => !r.excluded && !r.userHidden);
+  const activeRows = activeLeadRows();
   const totalCompanies = activeRows.length;
   const totalPosts = activeRows.reduce((n, r) => n + (r.posts?.length || 0), 0);
-  const proposal = s.proposalRecommend ?? s.reportRequired ?? 0;
-  const profile = s.profileComplete ?? 0;
+  const kpi = computeActiveKpi(activeRows);
+  const excludedCount = listableLeadRows().filter((r) => r.excluded).length;
 
   const stats = [
     { icon: "building", value: totalCompanies, label: "수집 회사" },
     { icon: "briefcase", value: totalPosts, label: "QA 공고" },
-    { icon: "target", value: proposal, label: "적합 추천" },
-    { icon: "fileText", value: profile, label: "프로필 확보" },
-    { icon: "mail", value: s.inquiryRecommend ?? 0, label: "제안 추천" },
-    { icon: "ban", value: s.excluded ?? state.rows.filter((r) => r.excluded).length, label: "제외" }
+    { icon: "target", value: kpi.proposal, label: "적합 추천" },
+    { icon: "fileText", value: kpi.profile, label: "프로필 확보" },
+    { icon: "mail", value: kpi.inquiry, label: "제안 추천" },
+    { icon: "ban", value: excludedCount, label: "제외" }
   ];
 
   byId("dashboard").innerHTML = `
@@ -1237,19 +1306,22 @@ function updateResultCount() {
     byId("resultCount").textContent = `${n}건 후보`;
     return;
   }
-  const filtered = state.rows.filter(passesFilters);
+  const pool = listableLeadRows();
+  const filtered = pool.filter(passesFilters);
   if (state.activeTab === "posts") {
     let n = 0;
     for (const r of filtered) n += r.posts?.length || 0;
     byId("resultCount").textContent = `${n}건 공고 / 회사 ${filtered.length}건`;
   } else {
-    byId("resultCount").textContent = `${filtered.length}건 / 전체 ${state.rows.length}건`;
+    byId("resultCount").textContent = `${filtered.length}건 / 전체 ${pool.length}건`;
   }
 }
 
 function renderLeadsTable() {
   if (state.activeTab !== "leads") return;
-  const filtered = sortRows(state.rows.filter(passesFilters));
+  const filtered = sortRows(listableLeadRows().filter(passesFilters));
+  const paged = paginate(filtered, state.leadsPage);
+  state.leadsPage = paged.page;
   updateResultCount();
 
   if (!filtered.length) {
@@ -1273,10 +1345,10 @@ function renderLeadsTable() {
           </tr>
         </thead>
         <tbody>
-          ${filtered
+          ${paged.items
             .map(
-              (row, idx) => `
-            <tr class="${row.excluded ? "row-excluded" : ""}${row.userHidden ? " row-hidden-admin" : ""}${hasFailedPosts(row) ? " row-failure" : ""}${row.isManual ? " row-manual" : ""}${row.isNewFromLastCrawl ? " row-new-crawl" : ""}${rowTierClass(row)}">
+              (row) => `
+            <tr class="${row.excluded ? "row-excluded" : ""}${hasFailedPosts(row) ? " row-failure" : ""}${row.isManual ? " row-manual" : ""}${row.isNewFromLastCrawl ? " row-new-crawl" : ""}${rowTierClass(row)}">
               <td class="cell-company">
                 <div class="company-line">
                   ${favoriteStageBadge(row, true)}
@@ -1295,17 +1367,31 @@ function renderLeadsTable() {
               <td class="cell-actions">${renderActionBadges(row.actions, true)}</td>
               <td><span class="badge">${contactDisplay(row)}</span></td>
               <td title="${row.isNewFromLastCrawl ? "직전 크롤 신규 · " : ""}최근 공고 갱신: ${escapeAttr(formatDate(row.lastCollectedAt) || "-")}">${formatDate(displayCollectedAt(row))}${row.isNewFromLastCrawl ? ' <span class="muted">· New</span>' : ""}</td>
-              <td><button type="button" class="btn-detail" data-detail="${idx}">상세</button></td>
+              <td><button type="button" class="btn-detail" data-company="${escapeAttr(row.companyId)}">상세</button></td>
             </tr>`
             )
             .join("")}
         </tbody>
       </table>
-    </div>`;
+    </div>
+    ${renderPagerHtml(paged.page, paged.totalPages, paged.total, "건")}`;
 
-  filtered.forEach((row, idx) => {
-    byId("leads").querySelector(`[data-detail="${idx}"]`)?.addEventListener("click", () => openDetail(row));
-    byId("leads").querySelector(`[data-fav="${row.companyId}"]`)?.addEventListener("click", (e) => {
+  const panel = byId("leads");
+  bindPager(panel, {
+    page: paged.page,
+    totalPages: paged.totalPages,
+    onPage: (next) => {
+      state.leadsPage = next;
+      renderLeadsTable();
+    }
+  });
+
+  panel.querySelectorAll(".btn-detail[data-company]").forEach((btn) => {
+    const row = state.rows.find((r) => r.companyId === btn.dataset.company);
+    if (row) btn.addEventListener("click", () => openDetail(row));
+  });
+  paged.items.forEach((row) => {
+    panel.querySelector(`[data-fav="${row.companyId}"]`)?.addEventListener("click", (e) => {
       e.stopPropagation();
       toggleFavoriteStage(row.companyId);
     });
@@ -2114,7 +2200,7 @@ function bindModal() {
 }
 
 function collectAllPosts() {
-  const rows = sortRows(state.rows.filter(passesFilters));
+  const rows = sortRows(listableLeadRows().filter(passesFilters));
   const out = [];
   for (const row of rows) {
     for (const post of row.posts ?? []) {
@@ -2127,6 +2213,9 @@ function collectAllPosts() {
 function renderAllPosts() {
   if (state.activeTab !== "posts") return;
   const items = collectAllPosts();
+  const paged = paginate(items, state.postsPage);
+  state.postsPage = paged.page;
+  updateResultCount();
 
   if (!items.length) {
     byId("posts").innerHTML = '<div class="empty-state">조건에 맞는 공고가 없습니다.</div>';
@@ -2147,7 +2236,7 @@ function renderAllPosts() {
           </tr>
         </thead>
         <tbody>
-          ${items
+          ${paged.items
             .map(
               ({ post, row }) => `
             <tr class="${post.failureReason ? "row-failure" : ""}${rowTierClass(row)}">
@@ -2166,9 +2255,20 @@ function renderAllPosts() {
             .join("")}
         </tbody>
       </table>
-    </div>`;
+    </div>
+    ${renderPagerHtml(paged.page, paged.totalPages, paged.total, "건")}`;
 
-  byId("posts").querySelectorAll("[data-company]").forEach((btn) => {
+  const panel = byId("posts");
+  bindPager(panel, {
+    page: paged.page,
+    totalPages: paged.totalPages,
+    onPage: (next) => {
+      state.postsPage = next;
+      renderAllPosts();
+    }
+  });
+
+  panel.querySelectorAll("[data-company]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const row = state.rows.find((r) => r.companyId === btn.dataset.company);
       if (row) openDetail(row);
@@ -2197,9 +2297,9 @@ function formatDate(value) {
 function paintMetaBanner() {
   const meta = byId("meta");
   if (!meta) return;
-  const visible = state.rows.filter((r) => !r.userHidden && !r.excluded);
-  const companies = visible.filter((r) => (r.posts?.length ?? 0) > 0).length;
-  const posts = visible.reduce((n, r) => n + (r.posts?.length ?? 0), 0);
+  const activeRows = activeLeadRows();
+  const companies = activeRows.length;
+  const posts = activeRows.reduce((n, r) => n + (r.posts?.length ?? 0), 0);
   const generatedAt =
     state.snapshotGeneratedAt ||
     state.userOverridesAppliedAt ||
@@ -2213,6 +2313,8 @@ function bindTabs() {
       document.querySelectorAll(".tabs .tab").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       state.activeTab = btn.dataset.tab;
+      state.leadsPage = 1;
+      state.postsPage = 1;
       ["leads", "candidates", "posts"].forEach((id) => byId(id).classList.add("hidden"));
       byId(btn.dataset.tab).classList.remove("hidden");
       const toolbar = document.querySelector(".toolbar");
@@ -2509,6 +2611,8 @@ async function boot() {
       if (!el) return;
       el.addEventListener("input", () => {
         state.activePreset = "";
+        state.leadsPage = 1;
+        state.postsPage = 1;
         renderPresets();
         refreshViews();
       });
