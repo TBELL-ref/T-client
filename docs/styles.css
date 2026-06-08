@@ -769,6 +769,7 @@ tbody tr.row-hidden-admin {
 /* Company cell */
 .cell-company {
   vertical-align: top;
+  align-content: center;
   min-width: 200px;
 }
 
@@ -908,6 +909,93 @@ tbody tr.row-hidden-admin {
   color: var(--muted);
   background: var(--surface-muted);
   border: 1px solid var(--line);
+}
+
+/* Pipeline stage / status */
+.pipeline-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.pipeline-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pipeline-stage-candidate {
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+}
+
+.pipeline-stage-test_run {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.pipeline-stage-result_report {
+  color: #7c3aed;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+}
+
+.pipeline-stage-proposal {
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+}
+
+.pipeline-stage-contract_won {
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+}
+
+.pipeline-stage-contract_failed {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.pipeline-status-active {
+  color: var(--ok);
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+}
+
+.pipeline-status-on_hold {
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+}
+
+.pipeline-status-closed {
+  color: var(--muted);
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+}
+
+.pipeline-detail-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pipeline-stage-at {
+  margin: 0;
+  font-size: 12px;
+}
+
+#detailModal .detail-header-chips .pipeline-badge {
+  font-size: 11px;
 }
 
 /* Buttons */

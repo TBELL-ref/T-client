@@ -51,8 +51,8 @@
 
   const TIER_LABEL = { enterprise: "대", mid: "중", startup: "소", unknown: "-" };
   const TIER_PENALTY = { enterprise: 22, mid: 8, startup: 0, unknown: 0 };
-  const FAVORITE_STAGES = ["basic", "recommended", "confirmed"];
-  const FAVORITE_STAGE_LABEL = { basic: "기본", recommended: "추천", confirmed: "확정" };
+
+  const P = () => window.TPipeline;
 
   const SCORE_LABELS = {
     "domain:+15": "회사 도메인 확인",
@@ -484,7 +484,6 @@
       ...b,
       profile: { ...(a.profile ?? {}), ...(b.profile ?? {}) },
       contact: { ...(a.contact ?? {}), ...(b.contact ?? {}) },
-      actions: { ...(a.actions ?? {}), ...(b.actions ?? {}) },
       extraPosts: [...(a.extraPosts ?? []), ...(b.extraPosts ?? [])].filter(
         (p, i, arr) => arr.findIndex((x) => x.url === p.url) === i
       ),
@@ -493,16 +492,14 @@
     };
   }
 
-  function resolveFavoriteStage(entry) {
-    if (entry.favoriteStage && FAVORITE_STAGES.includes(entry.favoriteStage)) return entry.favoriteStage;
-    if (entry.favorite) return "recommended";
-    return "";
-  }
-
-  function syncFavoritesList(companyId, stage) {
-    const favs = (state.doc.favorites ?? []).filter((id) => id !== companyId);
-    if (stage) favs.push(companyId);
-    state.doc.favorites = [...new Set(favs)];
+  function resolvePipelineFromEntry(entry, row = {}) {
+    const hasStage = entry.pipelineStage !== undefined && `${entry.pipelineStage}`.trim() !== "";
+    const hasStatus = entry.pipelineStatus !== undefined && `${entry.pipelineStatus}`.trim() !== "";
+    return {
+      pipelineStage: P().resolvePipelineStage(hasStage ? entry.pipelineStage : row.pipelineStage),
+      pipelineStatus: P().resolvePipelineStatus(hasStatus ? entry.pipelineStatus : row.pipelineStatus),
+      pipelineStageAt: entry.pipelineStageAt ?? row.pipelineStageAt ?? ""
+    };
   }
 
   async function fetchRemoteOverrides(options = {}) {
@@ -562,6 +559,8 @@
     state.doc.companies[row.companyId] = {
       ...(state.doc.companies[row.companyId] ?? {}),
       companyNameKo: row.companyNameKo || row.companyName,
+      pipelineStage: P().DEFAULT_PIPELINE_STAGE,
+      pipelineStatus: P().DEFAULT_PIPELINE_STATUS,
       manual: true,
       updatedAt: new Date().toISOString()
     };
@@ -656,7 +655,7 @@
 
   function hideCompany(companyId) {
     if (!companyId) return false;
-    setEntry(companyId, { hidden: true, favorite: false, favoriteStage: "" });
+    setEntry(companyId, { hidden: true, pipelineStatus: "closed" });
     return true;
   }
 
@@ -679,11 +678,6 @@
     const mergedContact = { ...(dst.contact ?? {}) };
     for (const [k, v] of Object.entries(src.contact ?? {})) {
       if (mergedContact[k] === undefined || mergedContact[k] === null || mergedContact[k] === "") mergedContact[k] = v;
-    }
-
-    const mergedActions = { ...(dst.actions ?? {}) };
-    for (const key of ["proposal", "meeting", "inquiry"]) {
-      mergedActions[key] = pickDefined(mergedActions[key], src.actions?.[key]);
     }
 
     const mergedScoreParts = { ...(dst.scoreParts ?? {}) };
@@ -709,8 +703,9 @@
       excludeReason: pickNonEmpty(dst.excludeReason, src.excludeReason),
       notes: pickNonEmpty(dst.notes, src.notes),
       hidden: dst.hidden ?? src.hidden,
-      favorite: dst.favorite ?? src.favorite,
-      favoriteStage: pickNonEmpty(dst.favoriteStage, src.favoriteStage),
+      pipelineStage: pickNonEmpty(dst.pipelineStage, src.pipelineStage),
+      pipelineStatus: pickNonEmpty(dst.pipelineStatus, src.pipelineStatus),
+      pipelineStageAt: pickNonEmpty(dst.pipelineStageAt, src.pipelineStageAt),
       isCandidate: dst.isCandidate || src.isCandidate,
       candidateSince: pickNonEmpty(dst.candidateSince, src.candidateSince),
       candidateRank: pickCandidate(dst.candidateRank, src.candidateRank),
@@ -722,7 +717,6 @@
       recommendScore: pickCandidate(dst.recommendScore, src.recommendScore),
       profile: mergedProfile,
       contact: mergedContact,
-      actions: mergedActions,
       extraPosts: mergedExtraPosts,
       hiddenPosts: mergedHiddenPosts,
       scoreParts: mergedScoreParts,
@@ -732,22 +726,13 @@
     // Apply to target
     state.doc.companies[targetCompanyId] = merged;
 
-    // Favorites
-    const favs = new Set([...(state.doc.favorites ?? [])]);
-    favs.delete(sourceCompanyId);
-    const srcStage = resolveFavoriteStage(src);
-    const dstStage = resolveFavoriteStage(merged);
-    if (srcStage || dstStage) favs.add(targetCompanyId);
-    state.doc.favorites = [...favs];
-
     if (isCustomCompany(sourceCompanyId)) {
       state.doc.customCompanies = (state.doc.customCompanies ?? []).filter((r) => r.companyId !== sourceCompanyId);
       delete state.doc.companies[sourceCompanyId];
     } else {
       state.doc.companies[sourceCompanyId] = {
         hidden: true,
-        favorite: false,
-        favoriteStage: "",
+        pipelineStatus: "closed",
         updatedAt: new Date().toISOString()
       };
     }
@@ -769,61 +754,18 @@
       merged.candidateSince = "";
     }
 
-    if (patch.favoriteStage !== undefined) {
-      merged.favoriteStage = patch.favoriteStage || "";
-      merged.favorite = Boolean(merged.favoriteStage);
-      syncFavoritesList(companyId, merged.favoriteStage);
-    } else if (patch.favorite === true && !merged.favoriteStage) {
-      merged.favoriteStage = "basic";
-      syncFavoritesList(companyId, "basic");
-    } else if (patch.favorite === false) {
-      merged.favoriteStage = "";
-      syncFavoritesList(companyId, "");
+    if (patch.pipelineStage !== undefined) {
+      merged.pipelineStage = P().resolvePipelineStage(patch.pipelineStage);
+      if (patch.pipelineStage !== prev.pipelineStage) {
+        merged.pipelineStageAt = merged.updatedAt;
+      }
+    }
+    if (patch.pipelineStatus !== undefined) {
+      merged.pipelineStatus = P().resolvePipelineStatus(patch.pipelineStatus);
     }
 
     state.doc.companies[companyId] = merged;
-    if (patch.favorite === true && !state.doc.favorites.includes(companyId)) {
-      state.doc.favorites.push(companyId);
-    }
-    if (patch.favorite === false) {
-      state.doc.favorites = state.doc.favorites.filter((id) => id !== companyId);
-    }
     saveLocal(state.doc);
-  }
-
-  function cycleFavoriteStage(companyId) {
-    const entry = getEntry(companyId);
-    const order = ["", ...FAVORITE_STAGES];
-    const current = resolveFavoriteStage(entry);
-    const idx = order.indexOf(current);
-    const next = order[(idx + 1) % order.length];
-    setEntry(companyId, { favoriteStage: next, favorite: Boolean(next) });
-    return next;
-  }
-
-  function actionSummaryFrom(actions) {
-    const labels = [];
-    for (const key of ["proposal", "meeting", "inquiry"]) {
-      const a = actions[key];
-      if (a && (a.status === "추천" || a.status === "진행")) labels.push(a.label);
-    }
-    return labels.join(" · ") || "보류";
-  }
-
-  function buildActions(row, entry) {
-    const base = row.actions ?? {
-      proposal: { label: "적합", status: "보류" },
-      meeting: { label: "진행", status: "보류" },
-      inquiry: { label: "제안", status: "보류" }
-    };
-    const o = entry.actions ?? {};
-    const labels = { proposal: "적합", meeting: "진행", inquiry: "제안" };
-    const actions = {};
-    for (const key of ["proposal", "meeting", "inquiry"]) {
-      const status = o[key] || base[key]?.status || "보류";
-      actions[key] = { label: labels[key], status };
-    }
-    return actions;
   }
 
   function parseScoreReason(reason) {
@@ -1122,12 +1064,10 @@
 
   function applyToRow(row) {
     const entry = getEntry(row.companyId);
-    const favoriteStage = resolveFavoriteStage(entry);
-    const fav = Boolean(favoriteStage) || state.doc.favorites.includes(row.companyId);
+    const pipeline = resolvePipelineFromEntry(entry, row);
     const next = {
       ...row,
-      userFavorite: fav,
-      userFavoriteStage: favoriteStage,
+      ...pipeline,
       userHidden: Boolean(entry.hidden),
       isManual: Boolean(row.isManual) || isCustomCompany(row.companyId)
     };
@@ -1214,9 +1154,6 @@
       }));
 
     next.posts = [...basePosts, ...extraPosts];
-
-    next.actions = buildActions(row, entry);
-    next.actionSummary = actionSummaryFrom(next.actions);
 
     const baseScore = entry.priorityScore ?? row.priorityScore;
     const effectiveTier = entry.companyTier || row.companyTier;
@@ -1336,9 +1273,6 @@
     removeKeywordDraft,
     isDirty: () => state.dirty,
     getDoc: () => state.doc,
-    cycleFavoriteStage,
-    FAVORITE_STAGES,
-    FAVORITE_STAGE_LABEL,
     SCORE_LABELS,
     TIER_LABEL
   };
