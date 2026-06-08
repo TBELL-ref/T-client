@@ -1129,37 +1129,35 @@ function renderPagerHtml(page, totalPages, total, unit = "건", pagerKey = "main
 
   return `
     <nav class="table-pager" aria-label="페이지" data-pager="${escapeAttr(pagerKey)}">
-      <div class="pager-summary">총 <strong>${total}</strong>${unit} · <strong>${totalPages}</strong>페이지</div>
-      <div class="pager-controls">
-        <button type="button" class="pager-btn pager-btn-icon" data-page="1" ${page <= 1 ? "disabled" : ""} title="처음" aria-label="처음 페이지">
-          <span aria-hidden="true">«</span>
-        </button>
-        <button type="button" class="pager-btn pager-btn-icon pager-btn-prev" data-page="${page - 1}" ${page <= 1 ? "disabled" : ""} title="이전" aria-label="이전 페이지">
-          ${iconSvg("chevron", 16)}
-        </button>
-        <div class="pager-nums" role="group" aria-label="페이지 번호">${pageBtns}</div>
-        <button type="button" class="pager-btn pager-btn-icon pager-btn-next" data-page="${page + 1}" ${page >= totalPages ? "disabled" : ""} title="다음" aria-label="다음 페이지">
-          ${iconSvg("chevron", 16)}
-        </button>
-        <button type="button" class="pager-btn pager-btn-icon" data-page="${totalPages}" ${page >= totalPages ? "disabled" : ""} title="마지막" aria-label="마지막 페이지">
-          <span aria-hidden="true">»</span>
-        </button>
-      </div>
-      <form class="pager-jump" data-pager-jump="${escapeAttr(pagerKey)}">
-        <label class="pager-jump-label" for="pager-input-${escapeAttr(pagerKey)}">이동</label>
+      <div class="pager-summary">
+        총 <strong>${total}</strong>${unit} ·
         <input
           id="pager-input-${escapeAttr(pagerKey)}"
-          class="pager-input"
+          class="pager-input-inline"
           type="number"
           min="1"
           max="${totalPages}"
           value="${page}"
           inputmode="numeric"
-          aria-label="이동할 페이지 번호"
+          aria-label="현재 페이지 (Enter로 이동)"
         />
-        <span class="pager-jump-of">/ ${totalPages}</span>
-        <button type="submit" class="pager-btn pager-btn-go">GO</button>
-      </form>
+        / ${totalPages}페이지
+      </div>
+      <div class="pager-controls">
+        <button type="button" class="pager-btn pager-btn-icon" data-page="1" ${page <= 1 ? "disabled" : ""} title="처음" aria-label="처음 페이지">
+          <span aria-hidden="true">«</span>
+        </button>
+        <button type="button" class="pager-btn pager-btn-icon pager-btn-prev" data-page="${page - 1}" ${page <= 1 ? "disabled" : ""} title="이전" aria-label="이전 페이지">
+          ${iconSvg("chevron", 14)}
+        </button>
+        <div class="pager-nums" role="group" aria-label="페이지 번호">${pageBtns}</div>
+        <button type="button" class="pager-btn pager-btn-icon pager-btn-next" data-page="${page + 1}" ${page >= totalPages ? "disabled" : ""} title="다음" aria-label="다음 페이지">
+          ${iconSvg("chevron", 14)}
+        </button>
+        <button type="button" class="pager-btn pager-btn-icon" data-page="${totalPages}" ${page >= totalPages ? "disabled" : ""} title="마지막" aria-label="마지막 페이지">
+          <span aria-hidden="true">»</span>
+        </button>
+      </div>
     </nav>`;
 }
 
@@ -1178,16 +1176,18 @@ function bindPager(root, { page, totalPages, onPage, pagerKey = "main" }) {
     btn.addEventListener("click", () => go(btn.dataset.page));
   });
 
-  const form = nav.querySelector("form.pager-jump");
-  const input = nav.querySelector(".pager-input");
-  form?.addEventListener("submit", (e) => {
+  const input = nav.querySelector(".pager-input-inline");
+  input?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
     e.preventDefault();
-    go(input?.value);
+    go(input.value);
   });
   input?.addEventListener("blur", () => {
     const n = Number.parseInt(`${input.value ?? ""}`, 10);
     if (Number.isFinite(n)) {
       input.value = String(Math.min(Math.max(1, n), totalPages));
+    } else {
+      input.value = String(page);
     }
   });
 }
