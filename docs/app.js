@@ -39,6 +39,9 @@ const PRESETS = [
 
 const GRADE_COLORS = { A: "#00c471", B: "#3b82f6", C: "#94a3b8" };
 
+const RECOMMEND_DIST_COLORS = ["#cbd5e1", "#94a3b8", "#60a5fa", "#34d399", "#00c471"];
+const PILOT_DIST_COLORS = ["#00c471", "#fbbf24", "#f87171"];
+
 const byId = (id) => document.getElementById(id);
 
 function iconSvg(name, size = 14) {
@@ -1244,89 +1247,210 @@ function sortRows(rows) {
   return list;
 }
 
-function computeGradeCounts() {
-  const counts = { A: 0, B: 0, C: 0 };
-  for (const r of activeLeadRows()) {
-    if (counts[r.leadGrade] !== undefined) counts[r.leadGrade]++;
-  }
-  return counts;
+function starGlyphs(filled, total = 5) {
+  const n = Math.max(0, Math.min(total, filled));
+  return `${"★".repeat(n)}${"☆".repeat(total - n)}`;
 }
 
-function renderGradeDonut(counts) {
-  const total = (counts.A || 0) + (counts.B || 0) + (counts.C || 0);
-  if (!total) {
-    return `<p class="muted">표시할 리드가 없습니다.</p>`;
-  }
-  const pctA = ((counts.A / total) * 100).toFixed(1);
-  const pctB = ((counts.B / total) * 100).toFixed(1);
-  const pctC = ((counts.C / total) * 100).toFixed(1);
-  const endA = (counts.A / total) * 100;
-  const endB = endA + (counts.B / total) * 100;
-  const gradient = `conic-gradient(
-    ${GRADE_COLORS.A} 0 ${endA}%,
-    ${GRADE_COLORS.B} ${endA}% ${endB}%,
-    ${GRADE_COLORS.C} ${endB}% 100%
-  )`;
+function qualityPoolRows() {
+  const candidates = state.rows.filter((r) => r.isCandidate && !r.userHidden && !r.excluded);
+  return candidates.length ? candidates : activeLeadRows();
+}
 
-  const legend = ["A", "B", "C"]
-    .map((g) => {
-      const n = counts[g] || 0;
-      const pct = total ? ((n / total) * 100).toFixed(1) : "0.0";
-      return `<li>
-        <span class="legend-dot" style="background:${GRADE_COLORS[g]}"></span>
-        <span class="legend-grade grade-${g}">${g}</span>
-        <span class="legend-count">${n}건</span>
+function parseRecommendScore(row) {
+  const n = Number.parseInt(`${row.recommendScore ?? 0}`, 10);
+  return Number.isFinite(n) && n >= 1 && n <= 5 ? n : 0;
+}
+
+function parsePilotDifficulty(row) {
+  const n = Number.parseInt(`${row.pilotDifficulty ?? 0}`, 10);
+  return Number.isFinite(n) && n >= 1 && n <= 3 ? n : 0;
+}
+
+function computeDistribution(rows, parser, maxLevel) {
+  const counts = Array.from({ length: maxLevel }, () => 0);
+  let scored = 0;
+  for (const row of rows) {
+    const v = parser(row);
+    if (!v) continue;
+    counts[v - 1] += 1;
+    scored += 1;
+  }
+  return { counts, scored, total: rows.length };
+}
+
+function renderDistributionDonut({ counts, scored, colors, maxLevel, centerLabel, legendLabelFn }) {
+  if (!scored) {
+    return `<p class="muted dash-empty-hint">평가된 후보가 없습니다.<br />상세 → 수정에서 추천 점수·파일럿 난이도를 입력하세요.</p>`;
+  }
+  const total = counts.reduce((a, b) => a + b, 0);
+  let cursor = 0;
+  const segments = counts
+    .map((n, i) => {
+      if (!n) return "";
+      const pct = (n / total) * 100;
+      const start = cursor;
+      cursor += pct;
+      return `${colors[i]} ${start}% ${cursor}%`;
+    })
+    .filter(Boolean)
+    .join(", ");
+  const gradient = `conic-gradient(${segments})`;
+  const legend = Array.from({ length: maxLevel }, (_, i) => {
+    const n = counts[i] || 0;
+    const pct = total ? ((n / total) * 100).toFixed(1) : "0.0";
+    return `<li>
+        <span class="legend-dot" style="background:${colors[i]}"></span>
+        <span class="legend-star">${escapeHtml(legendLabelFn(i + 1))}</span>
+        <span class="legend-count">${n}개</span>
         <span class="legend-pct">${pct}%</span>
       </li>`;
-    })
-    .join("");
+  }).join("");
 
   return `
-    <div class="donut-panel">
-      <div class="donut-ring" style="background:${gradient}" title="A ${pctA}% · B ${pctB}% · C ${pctC}%">
+    <div class="donut-panel donut-panel-compact">
+      <div class="donut-ring" style="background:${gradient}">
         <div class="donut-hole">
-          <span class="donut-total">${total}</span>
-          <span class="donut-label">활성 리드</span>
+          <span class="donut-total">${scored}</span>
+          <span class="donut-label">${escapeHtml(centerLabel)}</span>
         </div>
       </div>
       <ul class="donut-legend">${legend}</ul>
     </div>`;
 }
 
-function renderDashboard() {
-  const gradeCounts = computeGradeCounts();
-  const activeRows = activeLeadRows();
-  const totalCompanies = activeRows.length;
-  const totalPosts = activeRows.reduce((n, r) => n + (r.posts?.length || 0), 0);
-  const pipelineKpi = computePipelineKpi(activeRows);
-  const excludedCount = listableLeadRows().filter((r) => r.excluded).length;
+function computeQualitySummary(rows) {
+  let scoreSum = 0;
+  let scoreCount = 0;
+  let pilotSum = 0;
+  let pilotCount = 0;
+  let highRecommend = 0;
+  let easyPilot = 0;
 
-  const stats = [
-    { icon: "building", value: totalCompanies, label: "수집 회사" },
-    { icon: "briefcase", value: totalPosts, label: "QA 공고" },
-    { icon: "target", value: pipelineKpi.candidate, label: "후보군" },
-    { icon: "fileText", value: pipelineKpi.test_run, label: "테스트 수행" },
-    { icon: "mail", value: pipelineKpi.proposal, label: "제안" },
-    { icon: "star", value: pipelineKpi.contract_won, label: "계약성공" },
-    { icon: "ban", value: excludedCount, label: "제외" }
+  for (const row of rows) {
+    const s = parseRecommendScore(row);
+    const p = parsePilotDifficulty(row);
+    if (s) {
+      scoreSum += s;
+      scoreCount += 1;
+      if (s >= 4) highRecommend += 1;
+    }
+    if (p) {
+      pilotSum += p;
+      pilotCount += 1;
+      if (p <= 2) easyPilot += 1;
+    }
+  }
+
+  return {
+    avgRecommend: scoreCount ? scoreSum / scoreCount : 0,
+    avgPilot: pilotCount ? pilotSum / pilotCount : 0,
+    highRecommend,
+    easyPilot,
+    scoredRecommend: scoreCount,
+    scoredPilot: pilotCount
+  };
+}
+
+function renderQualityKpi(summary) {
+  const avgRecStars = summary.scoredRecommend ? renderStarRating(Math.round(summary.avgRecommend), 5) : '<span class="muted">—</span>';
+  const avgPilotStars = summary.scoredPilot ? renderStarRating(Math.round(summary.avgPilot), 3) : '<span class="muted">—</span>';
+
+  return `<div class="quality-kpi-grid">
+    <div class="quality-kpi">
+      <span class="quality-kpi-label">평균 추천점수</span>
+      <span class="quality-kpi-value">${avgRecStars}</span>
+    </div>
+    <div class="quality-kpi">
+      <span class="quality-kpi-label">평균 난이도</span>
+      <span class="quality-kpi-value">${avgPilotStars}</span>
+    </div>
+    <div class="quality-kpi">
+      <span class="quality-kpi-label">추천도 높은 기업</span>
+      <span class="quality-kpi-value"><strong>${summary.highRecommend}</strong><span class="quality-kpi-unit">4점+</span></span>
+    </div>
+    <div class="quality-kpi">
+      <span class="quality-kpi-label">진입 쉬운 기업</span>
+      <span class="quality-kpi-value"><strong>${summary.easyPilot}</strong><span class="quality-kpi-unit">난이도 2↓</span></span>
+    </div>
+  </div>`;
+}
+
+function computeActionKpi() {
+  const active = activeLeadRows();
+  const pipeline = computePipelineKpi(active);
+  return {
+    total: active.length,
+    recommended: pipeline.candidate ?? 0,
+    confirmed: (pipeline.test_run ?? 0) + (pipeline.result_report ?? 0),
+    inProgress: pipeline.proposal ?? 0,
+    contractWon: pipeline.contract_won ?? 0,
+    excluded: listableLeadRows().filter((r) => r.excluded).length
+  };
+}
+
+function renderActionKpiCards(kpi) {
+  const cards = [
+    { id: "total", icon: "building", value: kpi.total, label: "전체 후보", tone: "muted" },
+    { id: "recommended", icon: "target", value: kpi.recommended, label: "추천", tone: "muted" },
+    { id: "confirmed", icon: "star", value: kpi.confirmed, label: "확정", tone: "emphasis-3" },
+    { id: "inProgress", icon: "fileText", value: kpi.inProgress, label: "진행중", tone: "emphasis-2" },
+    { id: "contractWon", icon: "briefcase", value: kpi.contractWon, label: "계약성공", tone: "emphasis-1" },
+    { id: "excluded", icon: "ban", value: kpi.excluded, label: "제외", tone: "muted" }
   ];
 
+  return `<div class="action-kpi-grid">${cards
+    .map(
+      (c) => `
+    <div class="kpi-card kpi-card-${c.tone}">
+      <span class="kpi-card-icon" aria-hidden="true">${iconSvg(c.icon, 20)}</span>
+      <span class="kpi-card-value">${c.value}</span>
+      <span class="kpi-card-label">${escapeHtml(c.label)}</span>
+    </div>`
+    )
+    .join("")}</div>`;
+}
+
+function renderDashboard() {
+  const qualityRows = qualityPoolRows();
+  const recommendDist = computeDistribution(qualityRows, parseRecommendScore, 5);
+  const pilotDist = computeDistribution(qualityRows, parsePilotDifficulty, 3);
+  const qualitySummary = computeQualitySummary(qualityRows);
+  const actionKpi = computeActionKpi();
+
   byId("dashboard").innerHTML = `
-    <article class="dash-card dash-chart">
-      <h2 class="dash-card-title">${iconSvg("chart", 16)} 등급 분포</h2>
-      ${renderGradeDonut(gradeCounts)}
+    <article class="dash-card dash-quality">
+      <h2 class="dash-card-title">${iconSvg("chart", 16)} 후보 품질 분석</h2>
+      <div class="quality-charts">
+        <section class="quality-chart-block">
+          <h3 class="quality-chart-title">추천 점수 분포</h3>
+          ${renderDistributionDonut({
+            ...recommendDist,
+            colors: RECOMMEND_DIST_COLORS,
+            maxLevel: 5,
+            centerLabel: "평가",
+            legendLabelFn: (n) => starGlyphs(n, 5)
+          })}
+        </section>
+        <section class="quality-chart-block">
+          <h3 class="quality-chart-title">파일럿 난이도 분포</h3>
+          ${renderDistributionDonut({
+            ...pilotDist,
+            colors: PILOT_DIST_COLORS,
+            maxLevel: 3,
+            centerLabel: "평가",
+            legendLabelFn: (n) => starGlyphs(n, 3)
+          })}
+        </section>
+      </div>
+      ${renderQualityKpi(qualitySummary)}
     </article>
-    <div class="stat-strip">
-      ${stats
-        .map(
-          (item) => `
-        <div class="stat-item">
-          <span class="stat-icon-wrap" aria-hidden="true">${iconSvg(item.icon, 18)}</span>
-          <span class="stat-text"><strong>${item.value}</strong> ${escapeHtml(item.label)}</span>
-        </div>`
-        )
-        .join("")}
-    </div>`;
+    <article class="dash-card dash-actions">
+      <h2 class="dash-card-title">${iconSvg("layers", 16)} 액션 현황</h2>
+      ${renderActionKpiCards(actionKpi)}
+    </article>`;
+
+  hydrateIcons(byId("dashboard"));
 }
 
 function renderKpi() {
@@ -1347,29 +1471,11 @@ function renderPresets() {
   });
 }
 
-function updateResultCount() {
-  if (state.activeTab === "candidates") {
-    const n = getCandidateRows().length;
-    byId("resultCount").textContent = `${n}건 후보`;
-    return;
-  }
-  const pool = listableLeadRows();
-  const filtered = pool.filter(passesFilters);
-  if (state.activeTab === "posts") {
-    let n = 0;
-    for (const r of filtered) n += r.posts?.length || 0;
-    byId("resultCount").textContent = `${n}건 공고 / 회사 ${filtered.length}건`;
-  } else {
-    byId("resultCount").textContent = `${filtered.length}건 / 전체 ${pool.length}건`;
-  }
-}
-
 function renderLeadsTable() {
   if (state.activeTab !== "leads") return;
   const filtered = sortRows(listableLeadRows().filter(passesFilters));
   const paged = paginate(filtered, state.leadsPage);
   state.leadsPage = paged.page;
-  updateResultCount();
 
   if (!filtered.length) {
     byId("leads").innerHTML = '<div class="empty-state">조건에 맞는 회사가 없습니다.</div>';
@@ -1445,7 +1551,6 @@ function renderCandidatesTable() {
   if (state.activeTab !== "candidates") return;
 
   const rows = sortCandidateRows(getCandidateRows());
-  updateResultCount();
 
   if (!rows.length) {
     byId("candidates").innerHTML =
@@ -2242,7 +2347,6 @@ function renderAllPosts() {
   const items = collectAllPosts();
   const paged = paginate(items, state.postsPage);
   state.postsPage = paged.page;
-  updateResultCount();
 
   if (!items.length) {
     byId("posts").innerHTML = '<div class="empty-state">조건에 맞는 공고가 없습니다.</div>';
