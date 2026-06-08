@@ -1433,6 +1433,18 @@ body.merge-open {
   background: #f5f3ff;
 }
 
+.badge-new {
+  color: #00a85e;
+  border-color: #b8efd4;
+  background: #e8faf1;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+tbody tr.row-new-crawl {
+  background: #f6fffb;
+}
+
 tbody tr.row-manual {
   background: #faf8ff;
 }

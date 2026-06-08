@@ -1,6 +1,7 @@
 const state = {
   snapshotGeneratedAt: null,
   snapshotRows: [],
+  newCompanyIds: new Set(),
   userOverridesAppliedAt: null,
   rawRows: [],
   rows: [],
@@ -110,6 +111,15 @@ function sortCandidateRows(rows) {
 function manualBadge(row) {
   if (!row.isManual) return "";
   return `<span class="badge badge-manual" title="수동 등록">수동</span>`;
+}
+
+function newBadge(row) {
+  if (!row.isNewFromLastCrawl) return "";
+  return `<span class="badge badge-new" title="직전 크롤에서 새로 추가됨">New</span>`;
+}
+
+function displayCollectedAt(row) {
+  return row.firstCollectedAt || row.lastCollectedAt || "";
 }
 
 function tierBadge(row) {
@@ -609,7 +619,10 @@ function refreshManualScores(rows) {
 function reloadRowsWithAdmin() {
   state.rawRows = mergeBaseRows(state.snapshotRows);
   state.rows = state.rawRows.map((row) => {
-    const enriched = enrichRow(row);
+    const enriched = enrichRow({
+      ...row,
+      isNewFromLastCrawl: state.newCompanyIds.has(row.companyId)
+    });
     return window.TClientAdmin ? window.TClientAdmin.applyToRow(enriched) : enriched;
   });
   state.rows = refreshManualScores(state.rows);
@@ -1062,6 +1075,10 @@ function passesFilters(row) {
   return true;
 }
 
+function rowIsNew(row) {
+  return Boolean(row?.isNewFromLastCrawl);
+}
+
 function sortRows(rows) {
   const mode = byId("sort")?.value || "priority";
   const list = [...rows];
@@ -1079,8 +1096,17 @@ function sortRows(rows) {
     }
 
     if (mode === "recent") {
-      const byRecent = new Date(b.lastCollectedAt || 0) - new Date(a.lastCollectedAt || 0);
+      const byRecent = new Date(displayCollectedAt(b) || 0) - new Date(displayCollectedAt(a) || 0);
       if (byRecent !== 0) return byRecent;
+      return displayName(a).localeCompare(displayName(b), "ko");
+    }
+
+    if (mode === "new") {
+      const aNew = rowIsNew(a) ? 1 : 0;
+      const bNew = rowIsNew(b) ? 1 : 0;
+      if (aNew !== bNew) return bNew - aNew;
+      const byFirst = new Date(displayCollectedAt(b) || 0) - new Date(displayCollectedAt(a) || 0);
+      if (byFirst !== 0) return byFirst;
       return displayName(a).localeCompare(displayName(b), "ko");
     }
 
@@ -1240,7 +1266,7 @@ function renderLeadsTable() {
             <th>등급</th>
             <th>다음 액션</th>
             <th>담당자</th>
-            <th>수집일</th>
+            <th>등록일</th>
             <th></th>
           </tr>
         </thead>
@@ -1248,11 +1274,12 @@ function renderLeadsTable() {
           ${filtered
             .map(
               (row, idx) => `
-            <tr class="${row.excluded ? "row-excluded" : ""}${row.userHidden ? " row-hidden-admin" : ""}${hasFailedPosts(row) ? " row-failure" : ""}${row.isManual ? " row-manual" : ""}${rowTierClass(row)}">
+            <tr class="${row.excluded ? "row-excluded" : ""}${row.userHidden ? " row-hidden-admin" : ""}${hasFailedPosts(row) ? " row-failure" : ""}${row.isManual ? " row-manual" : ""}${row.isNewFromLastCrawl ? " row-new-crawl" : ""}${rowTierClass(row)}">
               <td class="cell-company">
                 <div class="company-line">
                   ${favoriteStageBadge(row, true)}
                   <strong>${escapeHtml(displayName(row))}</strong>
+                  ${newBadge(row)}
                   ${manualBadge(row)}
                   ${tierBadge(row)}
                   ${scaleBadge(row)}
@@ -1265,7 +1292,7 @@ function renderLeadsTable() {
               <td><span class="badge grade-${row.leadGrade}">${row.leadGrade}</span></td>
               <td class="cell-actions">${renderActionBadges(row.actions, true)}</td>
               <td><span class="badge">${contactDisplay(row)}</span></td>
-              <td>${formatDate(row.lastCollectedAt)}</td>
+              <td title="${row.isNewFromLastCrawl ? "직전 크롤 신규 · " : ""}최근 공고 갱신: ${escapeAttr(formatDate(row.lastCollectedAt) || "-")}">${formatDate(displayCollectedAt(row))}${row.isNewFromLastCrawl ? ' <span class="muted">· New</span>' : ""}</td>
               <td><button type="button" class="btn-detail" data-detail="${idx}">상세</button></td>
             </tr>`
             )
@@ -1322,6 +1349,7 @@ function renderCandidatesTable() {
               <td class="cell-company">
                 <div class="company-line">
                   <strong>${escapeHtml(displayName(row))}</strong>
+                  ${newBadge(row)}
                   ${manualBadge(row)}
                   ${tierBadge(row)}
                 </div>
@@ -2112,7 +2140,7 @@ function renderAllPosts() {
             <th>등급</th>
             <th>공고</th>
             <th>출처</th>
-            <th>수집일</th>
+            <th>등록일</th>
             <th></th>
           </tr>
         </thead>
@@ -2123,12 +2151,13 @@ function renderAllPosts() {
             <tr class="${post.failureReason ? "row-failure" : ""}${rowTierClass(row)}">
               <td class="cell-company">
                 <button type="button" class="link-btn" data-company="${escapeAttr(row.companyId)}">${escapeHtml(displayName(row))}</button>
+                ${newBadge(row)}
                 ${tierBadge(row)}
               </td>
               <td><span class="badge grade-${row.leadGrade}">${row.leadGrade}</span></td>
               <td>${escapeHtml(post.title)}</td>
               <td>${escapeHtml(post.sourceLabel || post.source)}</td>
-              <td>${formatDate(row.lastCollectedAt)}</td>
+              <td title="${row.isNewFromLastCrawl ? "직전 크롤 신규 · " : ""}최근 공고 갱신: ${escapeAttr(formatDate(row.lastCollectedAt) || "-")}">${formatDate(displayCollectedAt(row))}${row.isNewFromLastCrawl ? ' <span class="muted">· New</span>' : ""}</td>
               <td><a class="link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${iconSvg("external", 14)}</a></td>
             </tr>`
             )
@@ -2464,6 +2493,7 @@ async function boot() {
     if (!snapshot?.rows) throw new Error("스냅샷이 비어 있습니다. Lead Collector를 먼저 실행하세요.");
     state.snapshotGeneratedAt = snapshot.generatedAt ?? null;
     state.snapshotRows = snapshot.rows ?? [];
+    state.newCompanyIds = new Set(snapshot.newCompanyIds ?? []);
     reloadRowsWithAdmin();
     state.dedupeCandidates = snapshot.dedupeCandidates ?? [];
     state.manualReviewQueue = snapshot.manualReviewQueue ?? [];
