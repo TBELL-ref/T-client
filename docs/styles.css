@@ -157,7 +157,7 @@ body {
 
 .portfolio-matrix-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 148px;
+  grid-template-columns: minmax(0, 1fr) 196px;
   gap: 14px;
   align-items: start;
 }
@@ -241,6 +241,106 @@ body {
   font-size: 12px;
 }
 
+.portfolio-legend-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.portfolio-legend-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 2px;
+}
+
+.portfolio-legend-stat {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.portfolio-top-targets {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.portfolio-top-title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.portfolio-top-empty {
+  margin: 0;
+  font-size: 11px;
+}
+
+.portfolio-top-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.portfolio-top-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.portfolio-top-item:hover {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.portfolio-top-rank {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.portfolio-top-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.portfolio-top-main strong {
+  font-size: 12px;
+  line-height: 1.3;
+  word-break: keep-all;
+}
+
+.portfolio-top-meta {
+  font-size: 10px;
+  letter-spacing: -0.02em;
+  color: var(--muted);
+}
+
 .portfolio-svg-wrap {
   position: relative;
 }
@@ -311,7 +411,7 @@ body {
 }
 
 .portfolio-cluster-count {
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 800;
   fill: #fff;
   pointer-events: none;
@@ -408,6 +508,16 @@ body {
   color: #86efac;
   font-weight: 700;
   margin-bottom: 4px;
+}
+
+.portfolio-tooltip-names {
+  margin-top: 4px;
+  line-height: 1.55;
+}
+
+.portfolio-tooltip-sub {
+  margin-top: 4px;
+  font-size: 11px;
 }
 
 .portfolio-tooltip-more {

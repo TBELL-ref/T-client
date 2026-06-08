@@ -1262,8 +1262,8 @@ const PORTFOLIO_QUADRANTS = [
     tone: "emphasis-2"
   },
   {
-    id: "support",
-    label: "보조 후보",
+    id: "quick",
+    label: "빠른 접근",
     color: "#d97706",
     bg: "#fffbeb",
     border: "#fcd34d",
@@ -1280,17 +1280,34 @@ const PORTFOLIO_QUADRANTS = [
 ];
 
 const PORTFOLIO_SCORE_HIGH_MIN = 4;
-const PORTFOLIO_PILOT_EASY_MAX = 2;
+const PORTFOLIO_EASE_HIGH_MIN = 4;
+
+const SALES_BUCKET_LABELS = {
+  recommended: "추천",
+  confirmed: "확정",
+  inProgress: "진행중",
+  candidatePool: "후보군",
+  excluded: "제외"
+};
+
+const SALES_BUCKET_ORDER = ["recommended", "confirmed", "inProgress", "candidatePool", "excluded"];
+
+/** 공략 용이성 1~5 (6 - 파일럿 난이도). 오른쪽일수록 쉬움. */
+function parseApproachEase(row) {
+  const pilot = parsePilotDifficulty(row);
+  if (!pilot) return 0;
+  return 6 - pilot;
+}
 
 function portfolioQuadrant(row) {
   const score = parseRecommendScore(row);
-  const pilot = parsePilotDifficulty(row);
-  if (!score || !pilot) return null;
+  const ease = parseApproachEase(row);
+  if (!score || !ease) return null;
   const highScore = score >= PORTFOLIO_SCORE_HIGH_MIN;
-  const easyPilot = pilot <= PORTFOLIO_PILOT_EASY_MAX;
-  if (highScore && easyPilot) return "priority";
-  if (highScore && !easyPilot) return "strategic";
-  if (!highScore && easyPilot) return "support";
+  const highEase = ease >= PORTFOLIO_EASE_HIGH_MIN;
+  if (highScore && highEase) return "priority";
+  if (highScore && !highEase) return "strategic";
+  if (!highScore && highEase) return "quick";
   return "low";
 }
 
@@ -1298,54 +1315,127 @@ function portfolioQuadrantMeta(id) {
   return PORTFOLIO_QUADRANTS.find((q) => q.id === id) ?? PORTFOLIO_QUADRANTS[0];
 }
 
+function companySalesBucket(row) {
+  if (row.excluded || row.userHidden) return { key: "excluded", label: "제외" };
+  if (row.isRecommended) return { key: "recommended", label: "추천" };
+  const { pipelineStage, pipelineStatus } = resolveRowPipeline(row);
+  if (pipelineStage === "test_run" || pipelineStage === "result_delivery") {
+    return { key: "confirmed", label: "확정" };
+  }
+  if (pipelineStage === "proposal" || (pipelineStage === "contract_negotiation" && pipelineStatus === "active")) {
+    return { key: "inProgress", label: "진행중" };
+  }
+  return { key: "candidatePool", label: "후보군" };
+}
+
+function computeQuadrantBreakdowns(rows) {
+  const out = Object.fromEntries(PORTFOLIO_QUADRANTS.map((q) => [q.id, { total: 0, buckets: {} }]));
+  for (const row of rows) {
+    const q = portfolioQuadrant(row);
+    if (!q) continue;
+    out[q].total += 1;
+    const key = companySalesBucket(row).key;
+    out[q].buckets[key] = (out[q].buckets[key] ?? 0) + 1;
+  }
+  return out;
+}
+
+function formatQuadrantBreakdownHtml(buckets) {
+  const parts = SALES_BUCKET_ORDER.filter((k) => buckets[k]).map(
+    (k) => `<span class="portfolio-legend-stat">${SALES_BUCKET_LABELS[k]} ${buckets[k]}</span>`
+  );
+  return parts.length ? `<span class="portfolio-legend-stats">${parts.join("")}</span>` : "";
+}
+
 function clusterPortfolioRows(rows) {
   const map = new Map();
   for (const row of rows) {
     const score = parseRecommendScore(row);
-    const pilot = parsePilotDifficulty(row);
-    const key = `${score}:${pilot}`;
+    const ease = parseApproachEase(row);
+    const key = `${score}:${ease}`;
     if (!map.has(key)) map.set(key, []);
     map.get(key).push(row);
   }
   return [...map.entries()]
     .map(([key, list]) => {
-      const [score, pilot] = key.split(":").map(Number);
-      return { key, score, pilot, rows: list, quadrant: portfolioQuadrant(list[0]) };
+      const [score, ease] = key.split(":").map(Number);
+      return {
+        key,
+        score,
+        ease,
+        pilot: parsePilotDifficulty(list[0]),
+        rows: list,
+        quadrant: portfolioQuadrant(list[0])
+      };
     })
     .filter((c) => c.quadrant);
 }
 
-function computePortfolioQuadrantKpi(rows) {
-  const counts = Object.fromEntries(PORTFOLIO_QUADRANTS.map((q) => [q.id, 0]));
-  for (const row of rows) {
-    const q = portfolioQuadrant(row);
-    if (q) counts[q] += 1;
-  }
-  return counts;
+function getTopTargetRows(rows, limit = 5) {
+  return [...rows]
+    .sort((a, b) => {
+      const ds = parseRecommendScore(b) - parseRecommendScore(a);
+      if (ds !== 0) return ds;
+      return parseApproachEase(b) - parseApproachEase(a);
+    })
+    .slice(0, limit);
 }
 
 function renderPortfolioClusterTooltip(cluster) {
   const meta = portfolioQuadrantMeta(cluster.quadrant);
-  const head =
-    cluster.rows.length === 1
-      ? `<strong>${escapeHtml(displayName(cluster.rows[0]))}</strong>`
-      : `<strong>${escapeHtml(displayName(cluster.rows[0]))}</strong><span class="portfolio-tooltip-more"> 외 ${cluster.rows.length - 1}곳</span>`;
+  const names = cluster.rows.map((r) => escapeHtml(displayName(r))).join("<br />");
   const row = cluster.rows[0];
   return `<div class="portfolio-tooltip">
-    ${head}
     <div class="portfolio-tooltip-zone">${escapeHtml(meta.label)}</div>
-    <div>추천 점수 : ${starGlyphs(cluster.score, 5)}</div>
-    <div>파일럿 난이도 : ${starGlyphs(cluster.pilot, 3)}</div>
+    <div>추천 ${starGlyphs(cluster.score, 5)} · 용이 ${starGlyphs(cluster.ease, 5)}</div>
     ${
       cluster.rows.length > 1
-        ? `<p class="portfolio-tooltip-hint">클릭하여 기업 선택</p><ul class="portfolio-tooltip-list">${cluster.rows
-            .slice(0, 6)
-            .map((r) => `<li>${escapeHtml(displayName(r))}</li>`)
-            .join("")}${cluster.rows.length > 6 ? `<li class="muted">+${cluster.rows.length - 6}곳</li>` : ""}</ul>`
-        : `<div>업종 : ${escapeHtml(candidateIndustryLabel(row))}</div>
-           <div>반복공고 : ${escapeHtml(candidateRepeatLabel(row))}</div>`
+        ? `<p class="portfolio-tooltip-hint">클릭하여 기업 선택</p><div class="portfolio-tooltip-names">${names}</div>`
+        : `<strong>${escapeHtml(displayName(row))}</strong>
+           <div class="portfolio-tooltip-names">${names}</div>
+           <div class="muted portfolio-tooltip-sub">난이도 ${starGlyphs(cluster.pilot, 3)} · ${escapeHtml(candidateIndustryLabel(row))}</div>`
     }
   </div>`;
+}
+
+function renderTopTargetsList(rows) {
+  const top = getTopTargetRows(rows, 5);
+  if (!top.length) {
+    return `<section class="portfolio-top-targets"><h3 class="portfolio-top-title">Top 공략 대상</h3><p class="muted portfolio-top-empty">평가된 기업이 없습니다.</p></section>`;
+  }
+  return `<section class="portfolio-top-targets">
+    <h3 class="portfolio-top-title">Top 공략 대상</h3>
+    <ol class="portfolio-top-list">
+      ${top
+        .map(
+          (row, idx) => `
+        <li>
+          <button type="button" class="portfolio-top-item" data-company="${escapeAttr(row.companyId)}">
+            <span class="portfolio-top-rank">${idx + 1}</span>
+            <span class="portfolio-top-main">
+              <strong>${escapeHtml(displayName(row))}</strong>
+              <span class="portfolio-top-meta">추천 ${starGlyphs(parseRecommendScore(row), 5)} · 난이도 ${starGlyphs(parsePilotDifficulty(row), 3)}</span>
+            </span>
+          </button>
+        </li>`
+        )
+        .join("")}
+    </ol>
+  </section>`;
+}
+
+function renderQuadrantLegend(breakdowns) {
+  return PORTFOLIO_QUADRANTS.map((q) => {
+    const info = breakdowns[q.id] ?? { total: 0, buckets: {} };
+    return `<button type="button" class="portfolio-legend-item${state.portfolioLegendFilter === q.id ? " active" : ""}" data-portfolio-filter="${q.id}">
+      <span class="portfolio-legend-swatch" style="background:${q.bg};border-color:${q.border}"></span>
+      <span class="portfolio-legend-text">
+        <strong>${escapeHtml(q.label)}</strong>
+        <span class="portfolio-legend-count">${info.total}곳</span>
+        ${formatQuadrantBreakdownHtml(info.buckets)}
+      </span>
+    </button>`;
+  }).join("");
 }
 
 function closePortfolioClusterPicker() {
@@ -1370,7 +1460,7 @@ function showPortfolioClusterPicker(ev, cluster) {
   picker.innerHTML = `
     <div class="portfolio-cluster-picker-head">
       <strong>${cluster.rows.length}개 기업</strong>
-      <span class="portfolio-cluster-picker-meta">${escapeHtml(meta.label)} · 추천 ${starGlyphs(cluster.score, 5)} · 난이도 ${starGlyphs(cluster.pilot, 3)}</span>
+      <span class="portfolio-cluster-picker-meta">${escapeHtml(meta.label)} · 추천 ${starGlyphs(cluster.score, 5)} · 용이 ${starGlyphs(cluster.ease, 5)}</span>
     </div>
     <ul class="portfolio-cluster-picker-list">
       ${cluster.rows
@@ -1408,7 +1498,7 @@ function showPortfolioClusterPicker(ev, cluster) {
 
 function renderPortfolioMap() {
   const eligibleRows = activeLeadRows().filter((row) => portfolioQuadrant(row));
-  const counts = computePortfolioQuadrantKpi(eligibleRows);
+  const breakdowns = computeQuadrantBreakdowns(eligibleRows);
   const displayRows = state.portfolioLegendFilter
     ? eligibleRows.filter((row) => portfolioQuadrant(row) === state.portfolioLegendFilter)
     : eligibleRows;
@@ -1420,40 +1510,30 @@ function renderPortfolioMap() {
   const innerW = W - pad.l - pad.r;
   const innerH = H - pad.t - pad.b;
 
-  const xFor = (pilot) => pad.l + ((Math.max(1, Math.min(3, pilot)) - 1) / 2) * innerW;
+  const xFor = (ease) => pad.l + ((Math.max(1, Math.min(5, ease)) - 1) / 4) * innerW;
   const yFor = (score) => pad.t + innerH - ((Math.max(1, Math.min(5, score)) - 1) / 4) * innerH;
-  const xSplit = xFor(2.5);
+  const xSplit = xFor(3.5);
   const ySplit = yFor(3.5);
 
-  const quadrantsSvg = PORTFOLIO_QUADRANTS.map((q) => {
-    let x;
-    let y;
-    let w;
-    let h;
-    if (q.id === "priority") {
-      x = pad.l;
-      y = pad.t;
-      w = xSplit - pad.l;
-      h = ySplit - pad.t;
-    } else if (q.id === "strategic") {
-      x = xSplit;
-      y = pad.t;
-      w = pad.l + innerW - xSplit;
-      h = ySplit - pad.t;
-    } else if (q.id === "support") {
-      x = pad.l;
-      y = ySplit;
-      w = xSplit - pad.l;
-      h = pad.t + innerH - ySplit;
-    } else {
-      x = xSplit;
-      y = ySplit;
-      w = pad.l + innerW - xSplit;
-      h = pad.t + innerH - ySplit;
+  const quadrantRect = (q) => {
+    if (q.id === "strategic") {
+      return { x: pad.l, y: pad.t, w: xSplit - pad.l, h: ySplit - pad.t };
     }
+    if (q.id === "priority") {
+      return { x: xSplit, y: pad.t, w: pad.l + innerW - xSplit, h: ySplit - pad.t };
+    }
+    if (q.id === "low") {
+      return { x: pad.l, y: ySplit, w: xSplit - pad.l, h: pad.t + innerH - ySplit };
+    }
+    return { x: xSplit, y: ySplit, w: pad.l + innerW - xSplit, h: pad.t + innerH - ySplit };
+  };
+
+  const quadrantsSvg = PORTFOLIO_QUADRANTS.map((q) => {
+    const { x, y, w, h } = quadrantRect(q);
     const labelClass = q.id === "priority" ? " portfolio-quadrant-label-priority" : "";
+    const strokeW = q.id === "priority" ? 2 : 1;
     return `<g class="portfolio-quadrant portfolio-quadrant-${q.id}">
-      <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${q.bg}" stroke="${q.border}" stroke-width="1" rx="6"/>
+      <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${q.bg}" stroke="${q.border}" stroke-width="${strokeW}" rx="6"/>
       <text x="${x + w / 2}" y="${y + 16}" text-anchor="middle" class="portfolio-quadrant-label${labelClass}">${escapeHtml(q.label)}</text>
     </g>`;
   }).join("");
@@ -1464,55 +1544,50 @@ function renderPortfolioMap() {
   const points = clusters
     .map((cluster) => {
       const meta = portfolioQuadrantMeta(cluster.quadrant);
-      const cx = xFor(cluster.pilot);
+      const cx = xFor(cluster.ease);
       const cy = yFor(cluster.score);
       const n = cluster.rows.length;
-      const r = n > 1 ? 11 + Math.min(n, 5) : 8;
-      const companyIds = cluster.rows.map((r) => r.companyId).join(",");
+      const r = n > 1 ? 12 + Math.min(n, 4) : 8;
+      const companyIds = cluster.rows.map((row) => row.companyId).join(",");
       return `<g class="portfolio-cluster" data-cluster-key="${escapeAttr(cluster.key)}" data-companies="${escapeAttr(companyIds)}" data-quadrant="${cluster.quadrant}" tabindex="0" role="button" aria-label="${escapeAttr(displayName(cluster.rows[0]))}${n > 1 ? ` 외 ${n - 1}곳` : ""}">
-        <circle class="portfolio-cluster-bg" cx="${cx}" cy="${cy}" r="${r + 3}" fill="${meta.color}" opacity="0.18"/>
+        <circle class="portfolio-cluster-bg" cx="${cx}" cy="${cy}" r="${r + 3}" fill="${meta.color}" opacity="0.2"/>
         <circle class="portfolio-cluster-dot" cx="${cx}" cy="${cy}" r="${r}" fill="${meta.color}" stroke="#fff" stroke-width="2"/>
-        ${n > 1 ? `<text x="${cx}" y="${cy + 4}" text-anchor="middle" class="portfolio-cluster-count">${n}</text>` : ""}
+        ${n > 1 ? `<text x="${cx}" y="${cy + 1}" text-anchor="middle" class="portfolio-cluster-count">${n}개</text>` : ""}
       </g>`;
     })
     .join("");
 
-  const legend = PORTFOLIO_QUADRANTS.map(
-    (q) =>
-      `<button type="button" class="portfolio-legend-item${state.portfolioLegendFilter === q.id ? " active" : ""}" data-portfolio-filter="${q.id}">
-        <span class="portfolio-legend-swatch" style="background:${q.bg};border-color:${q.border}"></span>
-        <span class="portfolio-legend-text"><strong>${escapeHtml(q.label)}</strong><span class="muted">${counts[q.id] ?? 0}곳</span></span>
-      </button>`
-  ).join("");
+  const legend = renderQuadrantLegend(breakdowns);
 
   const chartBody =
-    displayRows.length > 0 || eligibleRows.length > 0
+    eligibleRows.length > 0
       ? `<div class="portfolio-matrix-body">
       <div class="portfolio-chart-col">
         <div class="portfolio-svg-wrap">
-          <svg class="portfolio-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="포트폴리오 매트릭스">
+          <svg class="portfolio-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="공략 우선순위 매트릭스">
             ${quadrantsSvg}
             ${splitLines}
             <rect x="${pad.l}" y="${pad.t}" width="${innerW}" height="${innerH}" fill="none" stroke="#cbd5e1" stroke-width="1.5" rx="8"/>
-            ${[1, 2, 3].map((n) => `<text x="${xFor(n)}" y="${H - 26}" text-anchor="middle" class="portfolio-axis-tick">${n}</text>`).join("")}
+            ${[1, 2, 3, 4, 5].map((n) => `<text x="${xFor(n)}" y="${H - 26}" text-anchor="middle" class="portfolio-axis-tick">${n}</text>`).join("")}
             ${[1, 2, 3, 4, 5].map((n) => `<text x="${pad.l - 8}" y="${yFor(n) + 4}" text-anchor="end" class="portfolio-axis-tick">${n}</text>`).join("")}
             ${points}
           </svg>
           <div id="portfolioTooltip" class="portfolio-tooltip-host hidden"></div>
         </div>
-        <p class="portfolio-axis-caption portfolio-axis-caption-x">파일럿 난이도 <span class="muted">(낮을수록 좋음 ← · → 높을수록 어려움)</span></p>
+        <p class="portfolio-axis-caption portfolio-axis-caption-x">공략 용이성 <span class="muted">(오른쪽일수록 쉬움 →)</span></p>
         <p class="portfolio-axis-caption portfolio-axis-caption-y">추천점수 <span class="muted">(높을수록 좋음 ↑)</span></p>
       </div>
       <aside class="portfolio-legend-col">
-        <p class="portfolio-legend-title">사분면</p>
+        <p class="portfolio-legend-title">사분면 요약</p>
         <div class="portfolio-legend portfolio-legend-vertical">${legend}</div>
+        ${renderTopTargetsList(eligibleRows)}
         <p class="portfolio-legend-hint muted">범례 클릭 · 필터 · 클러스터 클릭 → 기업 선택</p>
       </aside>
     </div>`
       : `<p class="muted dash-empty-hint">표시할 평가 데이터가 없습니다.<br />상세 → 수정에서 추천 점수·파일럿 난이도를 입력하세요.</p>`;
 
   return `<div class="portfolio-map-wrap">
-    <p class="muted portfolio-map-sub">추천점수 × 파일럿 난이도 매트릭스 — 4분면 우선순위</p>
+    <p class="muted portfolio-map-sub">추천점수 × 공략 용이성 — 영업 우선순위 탐색</p>
     ${chartBody}
   </div>`;
 }
@@ -1537,8 +1612,9 @@ function bindPortfolioMap() {
     const rows = ids.map((id) => state.rows.find((r) => r.companyId === id)).filter(Boolean);
     if (!rows.length) return;
     const cluster = {
-      key: g.dataset.clusterKey ?? `${parseRecommendScore(rows[0])}:${parsePilotDifficulty(rows[0])}`,
+      key: g.dataset.clusterKey ?? `${parseRecommendScore(rows[0])}:${parseApproachEase(rows[0])}`,
       score: parseRecommendScore(rows[0]),
+      ease: parseApproachEase(rows[0]),
       pilot: parsePilotDifficulty(rows[0]),
       rows,
       quadrant: portfolioQuadrant(rows[0])
@@ -1581,6 +1657,14 @@ function bindPortfolioMap() {
       }
 
       showPortfolioClusterPicker(ev, cluster);
+    });
+  });
+
+  host.querySelectorAll(".portfolio-top-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const row = state.rows.find((r) => r.companyId === btn.dataset.company);
+      closePortfolioClusterPicker();
+      if (row) openDetail(row);
     });
   });
 }
@@ -1841,7 +1925,7 @@ function renderDashboard() {
 
   byId("dashboard").innerHTML = `
     <article class="dash-card dash-portfolio">
-      <h2 class="dash-card-title">${iconSvg("chart", 16)} 포트폴리오 매트릭스</h2>
+      <h2 class="dash-card-title">${iconSvg("chart", 16)} 공략 우선순위 매트릭스</h2>
       ${renderPortfolioMap()}
     </article>
     <article class="dash-card dash-actions">
