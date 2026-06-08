@@ -1245,121 +1245,233 @@ function computePipelineKpi(rows) {
   return counts;
 }
 
-const PORTFOLIO_CATEGORIES = [
-  { id: "candidatePool", label: "후보군", color: "#94a3b8" },
-  { id: "recommended", label: "추천", color: "#2563eb" },
-  { id: "confirmed", label: "확정", color: "#d97706" },
-  { id: "inProgress", label: "진행중", color: "#7c3aed" },
-  { id: "contractWon", label: "계약성공", color: "#059669" },
-  { id: "excluded", label: "제외", color: "#cbd5e1" }
+const PORTFOLIO_QUADRANTS = [
+  {
+    id: "priority",
+    label: "최우선 공략",
+    color: "#059669",
+    bg: "#ecfdf5",
+    border: "#86efac",
+    tone: "emphasis-1"
+  },
+  {
+    id: "strategic",
+    label: "전략 공략",
+    color: "#2563eb",
+    bg: "#eff6ff",
+    border: "#93c5fd",
+    tone: "emphasis-2"
+  },
+  {
+    id: "support",
+    label: "보조 후보",
+    color: "#d97706",
+    bg: "#fffbeb",
+    border: "#fcd34d",
+    tone: "emphasis-3"
+  },
+  {
+    id: "low",
+    label: "후순위",
+    color: "#94a3b8",
+    bg: "#f1f5f9",
+    border: "#cbd5e1",
+    tone: "muted"
+  }
 ];
 
-function portfolioDisplayCategory(row) {
-  if (row.userHidden || row.excluded) return "excluded";
-  const { pipelineStage, pipelineStatus, closedReason } = resolveRowPipeline(row);
-  if (pipelineStatus === "closed" && closedReason === "contract_won") return "contractWon";
-  if (pipelineStage === "proposal" || (pipelineStage === "contract_negotiation" && pipelineStatus === "active")) {
-    return "inProgress";
-  }
-  if (pipelineStage === "test_run" || pipelineStage === "result_delivery") return "confirmed";
-  if (row.isRecommended) return "recommended";
-  if (pipelineStage === "candidate_pool") return "candidatePool";
-  if (pipelineStatus === "closed") return "excluded";
-  return "candidatePool";
-}
+const PORTFOLIO_SCORE_HIGH_MIN = 4;
+const PORTFOLIO_PILOT_EASY_MAX = 2;
 
-function portfolioCategoryMeta(id) {
-  return PORTFOLIO_CATEGORIES.find((c) => c.id === id) ?? PORTFOLIO_CATEGORIES[0];
-}
-
-function isPriorityTarget(row) {
+function portfolioQuadrant(row) {
   const score = parseRecommendScore(row);
   const pilot = parsePilotDifficulty(row);
-  return score >= 4 && pilot >= 1 && pilot <= 2;
+  if (!score || !pilot) return null;
+  const highScore = score >= PORTFOLIO_SCORE_HIGH_MIN;
+  const easyPilot = pilot <= PORTFOLIO_PILOT_EASY_MAX;
+  if (highScore && easyPilot) return "priority";
+  if (highScore && !easyPilot) return "strategic";
+  if (!highScore && easyPilot) return "support";
+  return "low";
 }
 
-function portfolioMapRows() {
-  return activeLeadRows().filter((row) => {
+function portfolioQuadrantMeta(id) {
+  return PORTFOLIO_QUADRANTS.find((q) => q.id === id) ?? PORTFOLIO_QUADRANTS[0];
+}
+
+function clusterPortfolioRows(rows) {
+  const map = new Map();
+  for (const row of rows) {
     const score = parseRecommendScore(row);
     const pilot = parsePilotDifficulty(row);
-    if (!score && !pilot) return false;
-    if (state.portfolioLegendFilter && portfolioDisplayCategory(row) !== state.portfolioLegendFilter) return false;
-    return true;
-  });
+    const key = `${score}:${pilot}`;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(row);
+  }
+  return [...map.entries()]
+    .map(([key, list]) => {
+      const [score, pilot] = key.split(":").map(Number);
+      return { key, score, pilot, rows: list, quadrant: portfolioQuadrant(list[0]) };
+    })
+    .filter((c) => c.quadrant);
 }
 
-function renderPortfolioTooltip(row) {
-  const { pipelineStage, pipelineStatus } = resolveRowPipeline(row);
-  const stageLabel = pipelineLabels().pipelineStageLabel?.(pipelineStage) ?? pipelineStage;
-  const statusLabel = pipelineLabels().pipelineStatusLabel?.(pipelineStatus) ?? pipelineStatus;
+function computePortfolioQuadrantKpi(rows) {
+  const counts = Object.fromEntries(PORTFOLIO_QUADRANTS.map((q) => [q.id, 0]));
+  for (const row of rows) {
+    const q = portfolioQuadrant(row);
+    if (q) counts[q] += 1;
+  }
+  return counts;
+}
+
+function renderPortfolioClusterTooltip(cluster) {
+  const meta = portfolioQuadrantMeta(cluster.quadrant);
+  const head =
+    cluster.rows.length === 1
+      ? `<strong>${escapeHtml(displayName(cluster.rows[0]))}</strong>`
+      : `<strong>${escapeHtml(displayName(cluster.rows[0]))}</strong><span class="portfolio-tooltip-more"> 외 ${cluster.rows.length - 1}곳</span>`;
+  const row = cluster.rows[0];
   return `<div class="portfolio-tooltip">
-    <strong>${escapeHtml(displayName(row))}</strong>
-    <div>추천 점수 : ${starGlyphs(parseRecommendScore(row), 5)}</div>
-    <div>파일럿 난이도 : ${starGlyphs(parsePilotDifficulty(row), 3)}</div>
-    <div>현재 단계 : ${escapeHtml(stageLabel)} · ${escapeHtml(statusLabel)}</div>
-    <div>업종 : ${escapeHtml(candidateIndustryLabel(row))}</div>
-    <div>반복공고 : ${escapeHtml(candidateRepeatLabel(row))}</div>
+    ${head}
+    <div class="portfolio-tooltip-zone">${escapeHtml(meta.label)}</div>
+    <div>추천 점수 : ${starGlyphs(cluster.score, 5)}</div>
+    <div>파일럿 난이도 : ${starGlyphs(cluster.pilot, 3)}</div>
+    ${
+      cluster.rows.length > 1
+        ? `<ul class="portfolio-tooltip-list">${cluster.rows
+            .slice(0, 6)
+            .map((r) => `<li>${escapeHtml(displayName(r))}</li>`)
+            .join("")}${cluster.rows.length > 6 ? `<li class="muted">+${cluster.rows.length - 6}곳</li>` : ""}</ul>`
+        : `<div>업종 : ${escapeHtml(candidateIndustryLabel(row))}</div>
+           <div>반복공고 : ${escapeHtml(candidateRepeatLabel(row))}</div>`
+    }
   </div>`;
 }
 
+function renderPortfolioMatrixKpi(counts) {
+  return `<div class="portfolio-matrix-kpi">${PORTFOLIO_QUADRANTS.map((q) => {
+    const selected =
+      state.portfolioSelectedCompanyId &&
+      portfolioQuadrant(state.rows.find((r) => r.companyId === state.portfolioSelectedCompanyId)) === q.id;
+    const filtered = state.portfolioLegendFilter === q.id;
+    return `<button type="button" class="portfolio-matrix-kpi-card portfolio-matrix-kpi-${q.tone}${selected || filtered ? " is-highlight" : ""}" data-matrix-kpi="${q.id}">
+      <span class="portfolio-matrix-kpi-value">${counts[q.id] ?? 0}</span>
+      <span class="portfolio-matrix-kpi-label">${escapeHtml(q.label)}</span>
+    </button>`;
+  }).join("")}</div>`;
+}
+
 function renderPortfolioMap() {
-  const rows = portfolioMapRows();
-  const W = 520;
-  const H = 360;
-  const pad = { l: 44, r: 16, t: 16, b: 36 };
+  const eligibleRows = activeLeadRows().filter((row) => portfolioQuadrant(row));
+  const counts = computePortfolioQuadrantKpi(eligibleRows);
+  const displayRows = state.portfolioLegendFilter
+    ? eligibleRows.filter((row) => portfolioQuadrant(row) === state.portfolioLegendFilter)
+    : eligibleRows;
+  const clusters = clusterPortfolioRows(displayRows);
+
+  const W = 440;
+  const H = 340;
+  const pad = { l: 52, r: 12, t: 12, b: 44 };
   const innerW = W - pad.l - pad.r;
   const innerH = H - pad.t - pad.b;
 
   const xFor = (pilot) => pad.l + ((Math.max(1, Math.min(3, pilot)) - 1) / 2) * innerW;
   const yFor = (score) => pad.t + innerH - ((Math.max(1, Math.min(5, score)) - 1) / 4) * innerH;
+  const xSplit = xFor(2.5);
+  const ySplit = yFor(3.5);
 
-  const points = rows
-    .map((row, idx) => {
-      const score = parseRecommendScore(row) || 1;
-      const pilot = parsePilotDifficulty(row) || 2;
-      const cat = portfolioDisplayCategory(row);
-      const meta = portfolioCategoryMeta(cat);
-      const jitter = ((idx % 5) - 2) * 4;
-      const priority = isPriorityTarget(row);
-      const r = priority ? 9 : 7;
-      const selected = state.portfolioSelectedCompanyId === row.companyId;
-      const cx = xFor(pilot) + jitter;
-      const cy = yFor(score) + jitter * 0.5;
-      return `<g class="portfolio-point-group${selected ? " is-selected" : ""}" data-company="${escapeAttr(row.companyId)}" data-cat="${cat}" tabindex="0" role="button" aria-label="${escapeAttr(displayName(row))}">
-            ${priority ? `<circle class="portfolio-glow" cx="${cx}" cy="${cy}" r="${r + 6}" fill="${meta.color}" opacity="0.25"/>` : ""}
-            <circle class="portfolio-point${priority ? " is-priority" : ""}" cx="${cx}" cy="${cy}" r="${r}" fill="${meta.color}" stroke="${selected ? "#111827" : "#fff"}" stroke-width="${selected ? 2.5 : 1.5}"/>
-            <title>${escapeHtml(displayName(row))} · ${escapeHtml(meta.label)}</title>
-          </g>`;
+  const quadrantsSvg = PORTFOLIO_QUADRANTS.map((q) => {
+    let x;
+    let y;
+    let w;
+    let h;
+    if (q.id === "priority") {
+      x = pad.l;
+      y = pad.t;
+      w = xSplit - pad.l;
+      h = ySplit - pad.t;
+    } else if (q.id === "strategic") {
+      x = xSplit;
+      y = pad.t;
+      w = pad.l + innerW - xSplit;
+      h = ySplit - pad.t;
+    } else if (q.id === "support") {
+      x = pad.l;
+      y = ySplit;
+      w = xSplit - pad.l;
+      h = pad.t + innerH - ySplit;
+    } else {
+      x = xSplit;
+      y = ySplit;
+      w = pad.l + innerW - xSplit;
+      h = pad.t + innerH - ySplit;
+    }
+    const labelClass = q.id === "priority" ? " portfolio-quadrant-label-priority" : "";
+    return `<g class="portfolio-quadrant portfolio-quadrant-${q.id}">
+      <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${q.bg}" stroke="${q.border}" stroke-width="1" rx="6"/>
+      <text x="${x + w / 2}" y="${y + 16}" text-anchor="middle" class="portfolio-quadrant-label${labelClass}">${escapeHtml(q.label)}</text>
+    </g>`;
+  }).join("");
+
+  const splitLines = `<line x1="${xSplit}" y1="${pad.t}" x2="${xSplit}" y2="${pad.t + innerH}" class="portfolio-grid-line"/>
+    <line x1="${pad.l}" y1="${ySplit}" x2="${pad.l + innerW}" y2="${ySplit}" class="portfolio-grid-line"/>`;
+
+  const points = clusters
+    .map((cluster) => {
+      const meta = portfolioQuadrantMeta(cluster.quadrant);
+      const cx = xFor(cluster.pilot);
+      const cy = yFor(cluster.score);
+      const n = cluster.rows.length;
+      const r = n > 1 ? 11 + Math.min(n, 5) : 8;
+      const selected = cluster.rows.some((r) => r.companyId === state.portfolioSelectedCompanyId);
+      const companyIds = cluster.rows.map((r) => r.companyId).join(",");
+      return `<g class="portfolio-cluster${selected ? " is-selected" : ""}" data-companies="${escapeAttr(companyIds)}" data-quadrant="${cluster.quadrant}" tabindex="0" role="button" aria-label="${escapeAttr(displayName(cluster.rows[0]))}${n > 1 ? ` 외 ${n - 1}곳` : ""}">
+        <circle class="portfolio-cluster-bg" cx="${cx}" cy="${cy}" r="${r + 3}" fill="${meta.color}" opacity="0.18"/>
+        <circle class="portfolio-cluster-dot" cx="${cx}" cy="${cy}" r="${r}" fill="${meta.color}" stroke="${selected ? "#111827" : "#fff"}" stroke-width="${selected ? 2.5 : 2}"/>
+        ${n > 1 ? `<text x="${cx}" y="${cy + 4}" text-anchor="middle" class="portfolio-cluster-count">${n}</text>` : ""}
+      </g>`;
     })
     .join("");
 
-  const legend = PORTFOLIO_CATEGORIES.map(
-    (c) =>
-      `<button type="button" class="portfolio-legend-item${state.portfolioLegendFilter === c.id ? " active" : ""}" data-portfolio-filter="${c.id}">
-        <span class="portfolio-legend-dot" style="background:${c.color}"></span>${escapeHtml(c.label)}
+  const legend = PORTFOLIO_QUADRANTS.map(
+    (q) =>
+      `<button type="button" class="portfolio-legend-item${state.portfolioLegendFilter === q.id ? " active" : ""}" data-portfolio-filter="${q.id}">
+        <span class="portfolio-legend-swatch" style="background:${q.bg};border-color:${q.border}"></span>
+        <span class="portfolio-legend-text"><strong>${escapeHtml(q.label)}</strong><span class="muted">${counts[q.id] ?? 0}곳</span></span>
       </button>`
   ).join("");
 
-  return `<div class="portfolio-map-wrap">
-    <div class="portfolio-map-head">
-      <p class="muted portfolio-map-sub">추천점수 × 파일럿 난이도 · 색상 = 영업 단계</p>
-      <div class="portfolio-legend">${legend}</div>
-    </div>
-    ${
-      rows.length
-        ? `<div class="portfolio-svg-wrap">
-      <svg class="portfolio-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="포트폴리오 맵">
-        <rect x="${pad.l}" y="${pad.t}" width="${innerW}" height="${innerH}" fill="#f8fafc" stroke="#e2e8f0" rx="8"/>
-        ${[1, 2, 3].map((n, i) => `<text x="${xFor(n)}" y="${H - 8}" text-anchor="middle" class="portfolio-axis-label">${n}</text>`).join("")}
-        ${[1, 2, 3, 4, 5].map((n) => `<text x="8" y="${yFor(n) + 4}" class="portfolio-axis-label">${n}</text>`).join("")}
-        <text x="${W / 2}" y="${H - 2}" text-anchor="middle" class="portfolio-axis-title">파일럿 난이도 →</text>
-        <text x="12" y="${H / 2}" transform="rotate(-90 12 ${H / 2})" text-anchor="middle" class="portfolio-axis-title">추천 점수 ↑</text>
-        ${points}
-      </svg>
-      <div id="portfolioTooltip" class="portfolio-tooltip-host hidden"></div>
+  const chartBody =
+    displayRows.length > 0 || eligibleRows.length > 0
+      ? `<div class="portfolio-matrix-body">
+      <div class="portfolio-chart-col">
+        <div class="portfolio-svg-wrap">
+          <svg class="portfolio-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="포트폴리오 매트릭스">
+            ${quadrantsSvg}
+            ${splitLines}
+            <rect x="${pad.l}" y="${pad.t}" width="${innerW}" height="${innerH}" fill="none" stroke="#cbd5e1" stroke-width="1.5" rx="8"/>
+            ${[1, 2, 3].map((n) => `<text x="${xFor(n)}" y="${H - 26}" text-anchor="middle" class="portfolio-axis-tick">${n}</text>`).join("")}
+            ${[1, 2, 3, 4, 5].map((n) => `<text x="${pad.l - 8}" y="${yFor(n) + 4}" text-anchor="end" class="portfolio-axis-tick">${n}</text>`).join("")}
+            ${points}
+          </svg>
+          <div id="portfolioTooltip" class="portfolio-tooltip-host hidden"></div>
+        </div>
+        <p class="portfolio-axis-caption portfolio-axis-caption-x">파일럿 난이도 <span class="muted">(낮을수록 좋음 ← · → 높을수록 어려움)</span></p>
+        <p class="portfolio-axis-caption portfolio-axis-caption-y">추천점수 <span class="muted">(높을수록 좋음 ↑)</span></p>
+        ${renderPortfolioMatrixKpi(counts)}
+      </div>
+      <aside class="portfolio-legend-col">
+        <p class="portfolio-legend-title">사분면</p>
+        <div class="portfolio-legend portfolio-legend-vertical">${legend}</div>
+        <p class="portfolio-legend-hint muted">클릭하여 필터 · 점/숫자 클릭 시 상세</p>
+      </aside>
     </div>`
-        : `<p class="muted dash-empty-hint">표시할 평가 데이터가 없습니다.<br />상세 → 수정에서 추천 점수·파일럿 난이도를 입력하세요.</p>`
-    }
+      : `<p class="muted dash-empty-hint">표시할 평가 데이터가 없습니다.<br />상세 → 수정에서 추천 점수·파일럿 난이도를 입력하세요.</p>`;
+
+  return `<div class="portfolio-map-wrap">
+    <p class="muted portfolio-map-sub">추천점수 × 파일럿 난이도 매트릭스 — 4분면 우선순위</p>
+    ${chartBody}
   </div>`;
 }
 
@@ -1375,16 +1487,31 @@ function bindPortfolioMap() {
     });
   });
 
-  host.querySelectorAll(".portfolio-point-group").forEach((g) => {
-    const companyId = g.dataset.company;
-    const row = state.rows.find((r) => r.companyId === companyId);
-    if (!row) return;
+  host.querySelectorAll("[data-matrix-kpi]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.matrixKpi;
+      state.portfolioLegendFilter = state.portfolioLegendFilter === id ? null : id;
+      renderDashboard();
+    });
+  });
+
+  host.querySelectorAll(".portfolio-cluster").forEach((g) => {
+    const ids = `${g.dataset.companies ?? ""}`.split(",").filter(Boolean);
+    const rows = ids.map((id) => state.rows.find((r) => r.companyId === id)).filter(Boolean);
+    if (!rows.length) return;
+    const cluster = {
+      key: "",
+      score: parseRecommendScore(rows[0]),
+      pilot: parsePilotDifficulty(rows[0]),
+      rows,
+      quadrant: portfolioQuadrant(rows[0])
+    };
 
     g.addEventListener("mouseenter", (ev) => {
       const tip = byId("portfolioTooltip");
       if (!tip) return;
       tip.classList.remove("hidden");
-      tip.innerHTML = renderPortfolioTooltip(row);
+      tip.innerHTML = renderPortfolioClusterTooltip(cluster);
       tip.style.left = `${ev.clientX + 12}px`;
       tip.style.top = `${ev.clientY + 12}px`;
     });
@@ -1397,30 +1524,15 @@ function bindPortfolioMap() {
     g.addEventListener("mouseleave", () => byId("portfolioTooltip")?.classList.add("hidden"));
 
     g.addEventListener("click", () => {
-      state.portfolioSelectedCompanyId = companyId;
+      state.portfolioSelectedCompanyId = rows[0].companyId;
       renderDashboard();
-      openDetail(row);
+      openDetail(rows[0]);
     });
   });
 }
 
 function highlightActionKpiCards() {
-  const selected = state.portfolioSelectedCompanyId
-    ? state.rows.find((r) => r.companyId === state.portfolioSelectedCompanyId)
-    : null;
-  const cat = selected ? portfolioDisplayCategory(selected) : null;
-  const map = {
-    candidatePool: "recommended",
-    recommended: "recommended",
-    confirmed: "confirmed",
-    inProgress: "inProgress",
-    contractWon: "contractWon",
-    excluded: "excluded"
-  };
-  const cardId = cat ? map[cat] : null;
-  byId("dashboard")?.querySelectorAll(".kpi-card").forEach((el) => {
-    el.classList.toggle("is-highlight", Boolean(cardId && el.dataset.kpiId === cardId));
-  });
+  /* portfolio matrix uses bottom quadrant KPI highlight via is-highlight class in render */
 }
 
 function passesFilters(row) {
@@ -1675,7 +1787,7 @@ function renderDashboard() {
 
   byId("dashboard").innerHTML = `
     <article class="dash-card dash-portfolio">
-      <h2 class="dash-card-title">${iconSvg("chart", 16)} 포트폴리오 맵</h2>
+      <h2 class="dash-card-title">${iconSvg("chart", 16)} 포트폴리오 매트릭스</h2>
       ${renderPortfolioMap()}
     </article>
     <article class="dash-card dash-actions">

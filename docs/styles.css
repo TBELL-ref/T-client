@@ -150,18 +150,48 @@ body {
   min-height: 0;
 }
 
-.portfolio-map-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
+.portfolio-map-sub {
+  margin: 0 0 10px;
+  font-size: 12px;
 }
 
-.portfolio-map-sub {
+.portfolio-matrix-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 148px;
+  gap: 14px;
+  align-items: start;
+}
+
+.portfolio-chart-col {
+  position: relative;
+  min-width: 0;
+}
+
+.portfolio-legend-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0 0;
+}
+
+.portfolio-legend-title {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.portfolio-legend-hint {
+  margin: 4px 0 0;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.portfolio-legend-vertical {
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .portfolio-legend {
@@ -171,30 +201,44 @@ body {
 }
 
 .portfolio-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 10px;
   background: #fff;
   font-size: 11px;
   font-weight: 600;
   color: var(--text);
   cursor: pointer;
+  text-align: left;
 }
 
 .portfolio-legend-item.active {
   border-color: var(--accent);
   background: #ecfdf5;
-  color: #047857;
 }
 
-.portfolio-legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.portfolio-legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid;
   flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.portfolio-legend-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.portfolio-legend-text strong {
+  font-size: 12px;
 }
 
 .portfolio-svg-wrap {
@@ -204,37 +248,137 @@ body {
 .portfolio-svg {
   width: 100%;
   height: auto;
-  max-height: 380px;
+  max-height: 360px;
   display: block;
 }
 
-.portfolio-axis-label,
-.portfolio-axis-title {
+.portfolio-quadrant-label {
+  font-size: 10px;
+  font-weight: 700;
+  fill: #64748b;
+  pointer-events: none;
+}
+
+.portfolio-quadrant-label-priority {
+  fill: #047857;
+  font-size: 11px;
+}
+
+.portfolio-grid-line {
+  stroke: #cbd5e1;
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+
+.portfolio-axis-tick {
   font-size: 10px;
   fill: #64748b;
 }
 
-.portfolio-point-group {
+.portfolio-axis-caption {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.portfolio-axis-caption-x {
+  text-align: center;
+  padding-left: 52px;
+}
+
+.portfolio-axis-caption-y {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+  transform-origin: center;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.portfolio-cluster {
   cursor: pointer;
 }
 
-.portfolio-point {
+.portfolio-cluster-dot {
   transition: r 0.15s ease, stroke-width 0.15s ease;
 }
 
-.portfolio-point-group:hover .portfolio-point {
+.portfolio-cluster:hover .portfolio-cluster-dot {
   stroke-width: 2.5;
 }
 
-.portfolio-glow {
+.portfolio-cluster-count {
+  font-size: 11px;
+  font-weight: 800;
+  fill: #fff;
   pointer-events: none;
+}
+
+.portfolio-matrix-kpi {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.portfolio-matrix-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-muted);
+  cursor: pointer;
+  text-align: center;
+}
+
+.portfolio-matrix-kpi-card.is-highlight {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.portfolio-matrix-kpi-emphasis-1 {
+  background: #ecfdf5;
+  border-color: #86efac;
+}
+
+.portfolio-matrix-kpi-emphasis-2 {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.portfolio-matrix-kpi-emphasis-3 {
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
+
+.portfolio-matrix-kpi-muted {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.portfolio-matrix-kpi-value {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+}
+
+.portfolio-matrix-kpi-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
 }
 
 .portfolio-tooltip-host {
   position: fixed;
   z-index: 1200;
   pointer-events: none;
-  max-width: 260px;
+  max-width: 280px;
 }
 
 .portfolio-tooltip {
@@ -249,8 +393,28 @@ body {
 
 .portfolio-tooltip strong {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   font-size: 13px;
+}
+
+.portfolio-tooltip-zone {
+  color: #86efac;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.portfolio-tooltip-more {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.portfolio-tooltip-list {
+  margin: 6px 0 0;
+  padding-left: 16px;
+}
+
+.portfolio-tooltip-list li {
+  margin: 2px 0;
 }
 
 .kpi-card.is-highlight {
@@ -3445,6 +3609,18 @@ tbody tr.row-manual {
   }
 
   .action-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .portfolio-matrix-body {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-legend-col {
+    order: -1;
+  }
+
+  .portfolio-matrix-kpi {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
