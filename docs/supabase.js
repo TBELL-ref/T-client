@@ -46,11 +46,14 @@
   window.TSupabase = {
     getPublishedSnapshot: () => rpc("get_published_snapshot"),
     getOverridesDoc: () => rpc("get_overrides_doc"),
+    getSalesManagementAll: () => rpc("get_sales_management_all"),
     getKeywordsDoc: () => rpc("get_keywords_doc"),
     checkEmailAllowed: (email) => rpc("check_email_allowed", { addr: email }),
     getCrawlStatus: () => rpc("get_crawl_status"),
     requestCrawl: () => rpc("request_crawl", {}, { auth: true }),
     saveOverrides: (doc) => rpc("save_overrides_doc", { doc }, { auth: true }),
+    upsertSalesManagement: (companyId, patch) =>
+      rpc("upsert_sales_management", { p_company_id: companyId, p_patch: patch }, { auth: true }),
     saveKeywords: (doc) => rpc("save_keywords_doc", { doc }, { auth: true })
   };
 })();

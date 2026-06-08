@@ -540,6 +540,7 @@
     state.doc = mergeDocs(local, remote);
     saveLocal(state.doc, { scheduleRemote: false });
     await initKeywords();
+    if (window.TSalesManagement?.loadAll) await window.TSalesManagement.loadAll(true);
     return state.doc;
   }
 
@@ -703,6 +704,8 @@
       excludeReason: pickNonEmpty(dst.excludeReason, src.excludeReason),
       notes: pickNonEmpty(dst.notes, src.notes),
       hidden: dst.hidden ?? src.hidden,
+      isRecommended: dst.isRecommended || src.isRecommended,
+      recommendedSince: pickNonEmpty(dst.recommendedSince, src.recommendedSince),
       pipelineStage: pickNonEmpty(dst.pipelineStage, src.pipelineStage),
       pipelineStatus: pickNonEmpty(dst.pipelineStatus, src.pipelineStatus),
       pipelineStageAt: pickNonEmpty(dst.pipelineStageAt, src.pipelineStageAt),
@@ -742,16 +745,46 @@
     return true;
   }
 
+  function resolvePoolFlags(entry = {}) {
+    if (entry.hidden) {
+      return { isRecommended: false, isCandidate: false, userHidden: true };
+    }
+    if (entry.isRecommended !== undefined) {
+      return {
+        isRecommended: Boolean(entry.isRecommended),
+        isCandidate: Boolean(entry.isCandidate),
+        userHidden: false
+      };
+    }
+    if (entry.isCandidate) {
+      return { isRecommended: true, isCandidate: false, userHidden: false };
+    }
+    return { isRecommended: false, isCandidate: false, userHidden: false };
+  }
+
   function setEntry(companyId, patch) {
     const prev = getEntry(companyId);
     const merged = mergeEntry(prev, patch);
     merged.updatedAt = new Date().toISOString();
 
+    if (patch.hidden === true) {
+      merged.isRecommended = false;
+      merged.isCandidate = false;
+    }
+
+    if (patch.isRecommended === true) {
+      if (patch.recommendedSince) merged.recommendedSince = patch.recommendedSince;
+      else if (!prev.recommendedSince && !merged.recommendedSince) merged.recommendedSince = merged.updatedAt;
+    }
+    if (patch.isRecommended === false) {
+      merged.recommendedSince = patch.recommendedSince !== undefined ? patch.recommendedSince : "";
+    }
+
     if (patch.isCandidate === true && !prev.candidateSince && !merged.candidateSince) {
       merged.candidateSince = merged.updatedAt;
     }
     if (patch.isCandidate === false) {
-      merged.candidateSince = "";
+      merged.candidateSince = patch.candidateSince !== undefined ? patch.candidateSince : "";
     }
 
     if (patch.pipelineStage !== undefined) {
@@ -1064,24 +1097,10 @@
 
   function applyToRow(row) {
     const entry = getEntry(row.companyId);
-    const pipeline = resolvePipelineFromEntry(entry, row);
     const next = {
       ...row,
-      ...pipeline,
-      userHidden: Boolean(entry.hidden),
       isManual: Boolean(row.isManual) || isCustomCompany(row.companyId)
     };
-
-    const cand = entry.candidate ?? {};
-    next.isCandidate = Boolean(entry.isCandidate);
-    next.candidateSince = entry.candidateSince ?? "";
-    next.candidateRank = entry.candidateRank ?? cand.rank ?? 0;
-    next.candidateIndustry = entry.candidateIndustry ?? cand.industry ?? "";
-    next.candidateRepeatPosts = entry.candidateRepeatPosts ?? cand.repeatPosts ?? "";
-    next.pilotDifficulty = entry.pilotDifficulty ?? cand.pilotDifficulty ?? 0;
-    next.candidatePros = entry.candidatePros ?? cand.pros ?? "";
-    next.candidateCons = entry.candidateCons ?? cand.cons ?? "";
-    next.recommendScore = entry.recommendScore ?? cand.recommendScore ?? 0;
 
     if (entry.companyNameKo) next.companyNameKo = entry.companyNameKo;
     if (entry.domain) {
@@ -1178,7 +1197,7 @@
       return { part: p, label, pts, override };
     });
 
-    return next;
+    return window.TSalesManagement?.applyToRow(next) ?? next;
   }
 
   async function saveToGitHub() {

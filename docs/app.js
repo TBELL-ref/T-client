@@ -17,17 +17,19 @@ const state = {
   filtersOpen: false,
   tableSort: { column: "priorityScore", direction: "desc" },
   leadsPage: 1,
-  postsPage: 1
+  postsPage: 1,
+  portfolioLegendFilter: null,
+  portfolioSelectedCompanyId: null
 };
 
 const PAGE_SIZE = 10;
 
 const PRESETS = [
   { id: "grade-a", label: "A등급", apply: () => setFilters({ grade: "A", exclude: "active" }, { keepPreset: true }) },
-  { id: "stage-candidate", label: "후보군", apply: () => setFilters({ pipelineStage: "candidate", exclude: "active" }, { keepPreset: true }) },
+  { id: "stage-candidate", label: "후보군", apply: () => setFilters({ pipelineStage: "candidate_pool", exclude: "active" }, { keepPreset: true }) },
   { id: "stage-test", label: "테스트 수행", apply: () => setFilters({ pipelineStage: "test_run", exclude: "active" }, { keepPreset: true }) },
   { id: "stage-proposal", label: "제안", apply: () => setFilters({ pipelineStage: "proposal", exclude: "active" }, { keepPreset: true }) },
-  { id: "contract-won", label: "계약성공", apply: () => setFilters({ pipelineStage: "contract_won", exclude: "active" }, { keepPreset: true }) },
+  { id: "contract-won", label: "계약성공", apply: () => setFilters({ pipelineStatus: "closed", exclude: "active" }, { keepPreset: true }) },
   { id: "contact", label: "담당자 확보", apply: () => setFilters({ contact: "yes", exclude: "active" }, { keepPreset: true }) },
   { id: "startup", label: "스타트업·미확인", apply: () => setFilters({ tier: "startup", exclude: "active" }, { keepPreset: true }) },
   {
@@ -69,9 +71,11 @@ function pipelineLabels() {
 
 function resolveRowPipeline(row) {
   const P = pipelineLabels();
+  const normalized = P.normalizePipelineRecord?.(row) ?? row;
   return {
-    pipelineStage: P.resolvePipelineStage?.(row.pipelineStage) ?? row.pipelineStage ?? "candidate",
-    pipelineStatus: P.resolvePipelineStatus?.(row.pipelineStatus) ?? row.pipelineStatus ?? "active"
+    pipelineStage: P.resolvePipelineStage?.(normalized.pipelineStage) ?? normalized.pipelineStage ?? "candidate_pool",
+    pipelineStatus: P.resolvePipelineStatus?.(normalized.pipelineStatus) ?? normalized.pipelineStatus ?? "active",
+    closedReason: P.resolveClosedReason?.(normalized.closedReason) ?? normalized.closedReason ?? ""
   };
 }
 
@@ -116,10 +120,45 @@ function candidateIndustryLabel(row) {
   return p.bizItem || p.bizType || p.industrySummary?.split("·")[0]?.trim() || "-";
 }
 
-function getCandidateRows() {
+function resolvePoolFlags(entry = {}) {
+  if (entry.hidden) {
+    return { isRecommended: false, isCandidate: false, userHidden: true };
+  }
+  if (entry.isRecommended !== undefined) {
+    return {
+      isRecommended: Boolean(entry.isRecommended),
+      isCandidate: Boolean(entry.isCandidate),
+      userHidden: false
+    };
+  }
+  if (entry.isCandidate) {
+    return { isRecommended: true, isCandidate: false, userHidden: false };
+  }
+  return { isRecommended: false, isCandidate: false, userHidden: false };
+}
+
+function poolClassOf(row) {
+  if (row.userHidden) return "hidden";
+  if (row.isRecommended) return "recommended";
+  if (row.isCandidate) return "candidate";
+  return "normal";
+}
+
+function poolClassLabel(cls) {
+  return { recommended: "추천", candidate: "후보", hidden: "숨김", normal: "일반" }[cls] ?? cls;
+}
+
+function poolClassBadge(row) {
+  const cls = poolClassOf(row);
+  if (cls === "normal") return "";
+  const tone = cls === "recommended" ? "tag-green" : cls === "candidate" ? "tag-amber" : "tag-muted";
+  return `<span class="detail-tag ${tone}">${escapeHtml(poolClassLabel(cls))}</span>`;
+}
+
+function getRecommendedRows() {
   const q = byId("search")?.value.toLowerCase().trim() ?? "";
   return state.rows
-    .filter((row) => row.isCandidate && !row.userHidden)
+    .filter((row) => row.isRecommended && !row.userHidden)
     .filter((row) => {
       if (!q) return true;
       const hay = `${displayName(row)} ${candidateIndustryLabel(row)} ${row.candidatePros ?? ""} ${row.candidateCons ?? ""}`.toLowerCase();
@@ -127,7 +166,7 @@ function getCandidateRows() {
     });
 }
 
-function sortCandidateRows(rows) {
+function sortRecommendedRows(rows) {
   return [...rows].sort((a, b) => {
     const ra = Number.parseInt(`${a.candidateRank ?? 999}`, 10) || 999;
     const rb = Number.parseInt(`${b.candidateRank ?? 999}`, 10) || 999;
@@ -312,13 +351,24 @@ function renderProfileSection(row, edit = false, p = {}, domain = "", admin = fa
 }
 
 function pipelineStageSelect(id, value) {
-  const resolved = pipelineLabels().resolvePipelineStage?.(value) ?? value ?? "candidate";
+  const resolved = pipelineLabels().resolvePipelineStage?.(value) ?? value ?? "candidate_pool";
   return `<select id="${escapeAttr(id)}" class="inline-field">${pipelineSelectOptions("stage", resolved)}</select>`;
 }
 
 function pipelineStatusSelect(id, value) {
   const resolved = pipelineLabels().resolvePipelineStatus?.(value) ?? value ?? "active";
   return `<select id="${escapeAttr(id)}" class="inline-field">${pipelineSelectOptions("status", resolved)}</select>`;
+}
+
+function closedReasonSelect(id, value) {
+  const P = pipelineLabels();
+  const list = P.CLOSED_REASONS ?? [];
+  const labels = P.CLOSED_REASON_LABEL ?? {};
+  const resolved = P.resolveClosedReason?.(value) ?? "";
+  const opts = [['', '(없음)'], ...list.map((r) => [r, labels[r] ?? r])];
+  return `<select id="${escapeAttr(id)}" class="inline-field">${opts
+    .map(([v, l]) => `<option value="${escapeAttr(v)}"${resolved === v ? " selected" : ""}>${escapeHtml(l)}</option>`)
+    .join("")}</select>`;
 }
 
 function renderScoreSection(row, edit, admin = false) {
@@ -541,7 +591,7 @@ function bindDetailEdits(row) {
 
   byId("btn-enrich-bizno")?.addEventListener("click", () => runEnrichBizNo(row));
 
-  byId("detail-save-all")?.addEventListener("click", () => {
+  byId("detail-save-all")?.addEventListener("click", async () => {
     const parts = {};
     document.querySelectorAll(".score-part-input").forEach((inp) => {
       const v = inp.value.trim();
@@ -550,23 +600,33 @@ function bindDetailEdits(row) {
     const total = byId("edit-score-total")?.value.trim() ?? "";
     if (total !== "") parts._total = total;
 
-    const patch = {
-      companyNameKo: byId("edit-name-ko")?.value.trim(),
-      companyTier: byId("edit-tier")?.value,
-      leadGrade: byId("edit-grade")?.value,
-      hidden: byId("edit-hidden")?.checked,
+    const pool = document.querySelector('input[name="edit-pool-class"]:checked')?.value ?? "normal";
+    const prevSm = window.TSalesManagement?.get(cid) ?? {};
+    const sinceFromInput = () => {
+      const d = byId("edit-cand-since")?.value;
+      if (!d) return "";
+      try {
+        return new Date(`${d}T12:00:00`).toISOString();
+      } catch {
+        return "";
+      }
+    };
+
+    const salesPatch = {
+      isHidden: pool === "hidden",
+      isRecommended: pool === "recommended",
+      isCandidate: pool === "candidate",
+      recommendedSince:
+        pool === "recommended"
+          ? sinceFromInput() || prevSm.recommendedSince || prevSm.candidateSince || new Date().toISOString()
+          : "",
+      candidateSince:
+        pool === "candidate"
+          ? sinceFromInput() || prevSm.candidateSince || new Date().toISOString()
+          : "",
       pipelineStage: byId("edit-pipeline-stage")?.value ?? "",
       pipelineStatus: byId("edit-pipeline-status")?.value ?? "",
-      isCandidate: byId("edit-is-candidate")?.checked,
-      candidateSince: (() => {
-        const d = byId("edit-cand-since")?.value;
-        if (!d) return byId("edit-is-candidate")?.checked ? window.TClientAdmin.getEntry(cid).candidateSince : "";
-        try {
-          return new Date(`${d}T12:00:00`).toISOString();
-        } catch {
-          return "";
-        }
-      })(),
+      closedReason: byId("edit-closed-reason")?.value ?? "",
       candidateRank: byId("edit-cand-rank")?.value,
       candidateIndustry: byId("edit-cand-industry")?.value.trim(),
       candidateRepeatPosts: byId("edit-cand-repeat")?.value.trim(),
@@ -574,8 +634,14 @@ function bindDetailEdits(row) {
       candidatePros: byId("edit-cand-pros")?.value.trim(),
       candidateCons: byId("edit-cand-cons")?.value.trim(),
       recommendScore: parseStarSelect(byId("edit-cand-score")?.value),
+      memo: byId("edit-notes")?.value.trim()
+    };
+
+    const overridePatch = {
+      companyNameKo: byId("edit-name-ko")?.value.trim(),
+      companyTier: byId("edit-tier")?.value,
+      leadGrade: byId("edit-grade")?.value,
       excludeReason: byId("edit-exclude")?.value.trim(),
-      notes: byId("edit-notes")?.value.trim(),
       contact: {
         name: byId("edit-contact-name")?.value.trim(),
         email: byId("edit-contact-email")?.value.trim(),
@@ -599,7 +665,7 @@ function bindDetailEdits(row) {
 
     const postUrl = byId("edit-post-url")?.value.trim();
     if (postUrl) {
-      patch.extraPosts = [
+      overridePatch.extraPosts = [
         ...(window.TClientAdmin.getEntry(cid).extraPosts ?? []),
         {
           title: byId("edit-post-title")?.value.trim() || "QA 공고",
@@ -610,8 +676,15 @@ function bindDetailEdits(row) {
       ];
     }
 
-    window.TClientAdmin.setEntry(cid, patch);
-    finishDetailSave(cid, { exitEdit: true, toastMessage: "정상 저장되었습니다." });
+    try {
+      if (window.TClientAdmin.isUnlocked()) {
+        await window.TSalesManagement.upsert(cid, salesPatch);
+      }
+      window.TClientAdmin.setEntry(cid, overridePatch);
+      finishDetailSave(cid, { exitEdit: true, toastMessage: "정상 저장되었습니다." });
+    } catch (err) {
+      showToast(err.message || "저장 실패", "error");
+    }
   });
 }
 
@@ -1158,18 +1231,196 @@ function bindPager(root, { page, totalPages, onPage, pagerKey = "main" }) {
 
 function computePipelineKpi(rows) {
   const counts = {
-    candidate: 0,
+    candidate_pool: 0,
     test_run: 0,
-    result_report: 0,
+    result_delivery: 0,
     proposal: 0,
-    contract_won: 0,
-    contract_failed: 0
+    contract_negotiation: 0
   };
   for (const r of rows) {
     const { pipelineStage } = resolveRowPipeline(r);
-    if (counts[pipelineStage] !== undefined) counts[pipelineStage] += 1;
+    const stage = pipelineLabels().resolvePipelineStage?.(pipelineStage) ?? pipelineStage;
+    if (counts[stage] !== undefined) counts[stage] += 1;
   }
   return counts;
+}
+
+const PORTFOLIO_CATEGORIES = [
+  { id: "candidatePool", label: "후보군", color: "#94a3b8" },
+  { id: "recommended", label: "추천", color: "#2563eb" },
+  { id: "confirmed", label: "확정", color: "#d97706" },
+  { id: "inProgress", label: "진행중", color: "#7c3aed" },
+  { id: "contractWon", label: "계약성공", color: "#059669" },
+  { id: "excluded", label: "제외", color: "#cbd5e1" }
+];
+
+function portfolioDisplayCategory(row) {
+  if (row.userHidden || row.excluded) return "excluded";
+  const { pipelineStage, pipelineStatus, closedReason } = resolveRowPipeline(row);
+  if (pipelineStatus === "closed" && closedReason === "contract_won") return "contractWon";
+  if (pipelineStage === "proposal" || (pipelineStage === "contract_negotiation" && pipelineStatus === "active")) {
+    return "inProgress";
+  }
+  if (pipelineStage === "test_run" || pipelineStage === "result_delivery") return "confirmed";
+  if (row.isRecommended) return "recommended";
+  if (pipelineStage === "candidate_pool") return "candidatePool";
+  if (pipelineStatus === "closed") return "excluded";
+  return "candidatePool";
+}
+
+function portfolioCategoryMeta(id) {
+  return PORTFOLIO_CATEGORIES.find((c) => c.id === id) ?? PORTFOLIO_CATEGORIES[0];
+}
+
+function isPriorityTarget(row) {
+  const score = parseRecommendScore(row);
+  const pilot = parsePilotDifficulty(row);
+  return score >= 4 && pilot >= 1 && pilot <= 2;
+}
+
+function portfolioMapRows() {
+  return activeLeadRows().filter((row) => {
+    const score = parseRecommendScore(row);
+    const pilot = parsePilotDifficulty(row);
+    if (!score && !pilot) return false;
+    if (state.portfolioLegendFilter && portfolioDisplayCategory(row) !== state.portfolioLegendFilter) return false;
+    return true;
+  });
+}
+
+function renderPortfolioTooltip(row) {
+  const { pipelineStage, pipelineStatus } = resolveRowPipeline(row);
+  const stageLabel = pipelineLabels().pipelineStageLabel?.(pipelineStage) ?? pipelineStage;
+  const statusLabel = pipelineLabels().pipelineStatusLabel?.(pipelineStatus) ?? pipelineStatus;
+  return `<div class="portfolio-tooltip">
+    <strong>${escapeHtml(displayName(row))}</strong>
+    <div>추천 점수 : ${starGlyphs(parseRecommendScore(row), 5)}</div>
+    <div>파일럿 난이도 : ${starGlyphs(parsePilotDifficulty(row), 3)}</div>
+    <div>현재 단계 : ${escapeHtml(stageLabel)} · ${escapeHtml(statusLabel)}</div>
+    <div>업종 : ${escapeHtml(candidateIndustryLabel(row))}</div>
+    <div>반복공고 : ${escapeHtml(candidateRepeatLabel(row))}</div>
+  </div>`;
+}
+
+function renderPortfolioMap() {
+  const rows = portfolioMapRows();
+  const W = 520;
+  const H = 360;
+  const pad = { l: 44, r: 16, t: 16, b: 36 };
+  const innerW = W - pad.l - pad.r;
+  const innerH = H - pad.t - pad.b;
+
+  const xFor = (pilot) => pad.l + ((Math.max(1, Math.min(3, pilot)) - 1) / 2) * innerW;
+  const yFor = (score) => pad.t + innerH - ((Math.max(1, Math.min(5, score)) - 1) / 4) * innerH;
+
+  const points = rows
+    .map((row, idx) => {
+      const score = parseRecommendScore(row) || 1;
+      const pilot = parsePilotDifficulty(row) || 2;
+      const cat = portfolioDisplayCategory(row);
+      const meta = portfolioCategoryMeta(cat);
+      const jitter = ((idx % 5) - 2) * 4;
+      const priority = isPriorityTarget(row);
+      const r = priority ? 9 : 7;
+      const selected = state.portfolioSelectedCompanyId === row.companyId;
+      const cx = xFor(pilot) + jitter;
+      const cy = yFor(score) + jitter * 0.5;
+      return `<g class="portfolio-point-group${selected ? " is-selected" : ""}" data-company="${escapeAttr(row.companyId)}" data-cat="${cat}" tabindex="0" role="button" aria-label="${escapeAttr(displayName(row))}">
+            ${priority ? `<circle class="portfolio-glow" cx="${cx}" cy="${cy}" r="${r + 6}" fill="${meta.color}" opacity="0.25"/>` : ""}
+            <circle class="portfolio-point${priority ? " is-priority" : ""}" cx="${cx}" cy="${cy}" r="${r}" fill="${meta.color}" stroke="${selected ? "#111827" : "#fff"}" stroke-width="${selected ? 2.5 : 1.5}"/>
+            <title>${escapeHtml(displayName(row))} · ${escapeHtml(meta.label)}</title>
+          </g>`;
+    })
+    .join("");
+
+  const legend = PORTFOLIO_CATEGORIES.map(
+    (c) =>
+      `<button type="button" class="portfolio-legend-item${state.portfolioLegendFilter === c.id ? " active" : ""}" data-portfolio-filter="${c.id}">
+        <span class="portfolio-legend-dot" style="background:${c.color}"></span>${escapeHtml(c.label)}
+      </button>`
+  ).join("");
+
+  return `<div class="portfolio-map-wrap">
+    <div class="portfolio-map-head">
+      <p class="muted portfolio-map-sub">추천점수 × 파일럿 난이도 · 색상 = 영업 단계</p>
+      <div class="portfolio-legend">${legend}</div>
+    </div>
+    ${
+      rows.length
+        ? `<div class="portfolio-svg-wrap">
+      <svg class="portfolio-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="포트폴리오 맵">
+        <rect x="${pad.l}" y="${pad.t}" width="${innerW}" height="${innerH}" fill="#f8fafc" stroke="#e2e8f0" rx="8"/>
+        ${[1, 2, 3].map((n, i) => `<text x="${xFor(n)}" y="${H - 8}" text-anchor="middle" class="portfolio-axis-label">${n}</text>`).join("")}
+        ${[1, 2, 3, 4, 5].map((n) => `<text x="8" y="${yFor(n) + 4}" class="portfolio-axis-label">${n}</text>`).join("")}
+        <text x="${W / 2}" y="${H - 2}" text-anchor="middle" class="portfolio-axis-title">파일럿 난이도 →</text>
+        <text x="12" y="${H / 2}" transform="rotate(-90 12 ${H / 2})" text-anchor="middle" class="portfolio-axis-title">추천 점수 ↑</text>
+        ${points}
+      </svg>
+      <div id="portfolioTooltip" class="portfolio-tooltip-host hidden"></div>
+    </div>`
+        : `<p class="muted dash-empty-hint">표시할 평가 데이터가 없습니다.<br />상세 → 수정에서 추천 점수·파일럿 난이도를 입력하세요.</p>`
+    }
+  </div>`;
+}
+
+function bindPortfolioMap() {
+  const host = byId("dashboard");
+  if (!host) return;
+
+  host.querySelectorAll("[data-portfolio-filter]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.portfolioFilter;
+      state.portfolioLegendFilter = state.portfolioLegendFilter === id ? null : id;
+      renderDashboard();
+    });
+  });
+
+  host.querySelectorAll(".portfolio-point-group").forEach((g) => {
+    const companyId = g.dataset.company;
+    const row = state.rows.find((r) => r.companyId === companyId);
+    if (!row) return;
+
+    g.addEventListener("mouseenter", (ev) => {
+      const tip = byId("portfolioTooltip");
+      if (!tip) return;
+      tip.classList.remove("hidden");
+      tip.innerHTML = renderPortfolioTooltip(row);
+      tip.style.left = `${ev.clientX + 12}px`;
+      tip.style.top = `${ev.clientY + 12}px`;
+    });
+    g.addEventListener("mousemove", (ev) => {
+      const tip = byId("portfolioTooltip");
+      if (!tip) return;
+      tip.style.left = `${ev.clientX + 12}px`;
+      tip.style.top = `${ev.clientY + 12}px`;
+    });
+    g.addEventListener("mouseleave", () => byId("portfolioTooltip")?.classList.add("hidden"));
+
+    g.addEventListener("click", () => {
+      state.portfolioSelectedCompanyId = companyId;
+      renderDashboard();
+      openDetail(row);
+    });
+  });
+}
+
+function highlightActionKpiCards() {
+  const selected = state.portfolioSelectedCompanyId
+    ? state.rows.find((r) => r.companyId === state.portfolioSelectedCompanyId)
+    : null;
+  const cat = selected ? portfolioDisplayCategory(selected) : null;
+  const map = {
+    candidatePool: "recommended",
+    recommended: "recommended",
+    confirmed: "confirmed",
+    inProgress: "inProgress",
+    contractWon: "contractWon",
+    excluded: "excluded"
+  };
+  const cardId = cat ? map[cat] : null;
+  byId("dashboard")?.querySelectorAll(".kpi-card").forEach((el) => {
+    el.classList.toggle("is-highlight", Boolean(cardId && el.dataset.kpiId === cardId));
+  });
 }
 
 function passesFilters(row) {
@@ -1253,8 +1504,8 @@ function starGlyphs(filled, total = 5) {
 }
 
 function qualityPoolRows() {
-  const candidates = state.rows.filter((r) => r.isCandidate && !r.userHidden && !r.excluded);
-  return candidates.length ? candidates : activeLeadRows();
+  const recommended = state.rows.filter((r) => r.isRecommended && !r.userHidden && !r.excluded);
+  return recommended.length ? recommended : activeLeadRows();
 }
 
 function parseRecommendScore(row) {
@@ -1281,7 +1532,7 @@ function computeDistribution(rows, parser, maxLevel) {
 
 function renderDistributionDonut({ counts, scored, colors, maxLevel, centerLabel, legendLabelFn }) {
   if (!scored) {
-    return `<p class="muted dash-empty-hint">평가된 후보가 없습니다.<br />상세 → 수정에서 추천 점수·파일럿 난이도를 입력하세요.</p>`;
+    return `<p class="muted dash-empty-hint">평가된 추천 기업이 없습니다.<br />상세 → 수정에서 추천 점수·파일럿 난이도를 입력하세요.</p>`;
   }
   const total = counts.reduce((a, b) => a + b, 0);
   let cursor = 0;
@@ -1378,14 +1629,22 @@ function renderQualityKpi(summary) {
 
 function computeActionKpi() {
   const active = activeLeadRows();
-  const pipeline = computePipelineKpi(active);
   return {
     total: active.length,
-    recommended: pipeline.candidate ?? 0,
-    confirmed: (pipeline.test_run ?? 0) + (pipeline.result_report ?? 0),
-    inProgress: pipeline.proposal ?? 0,
-    contractWon: pipeline.contract_won ?? 0,
-    excluded: listableLeadRows().filter((r) => r.excluded).length
+    recommended: active.filter((r) => r.isRecommended).length,
+    confirmed: active.filter((r) => {
+      const { pipelineStage } = resolveRowPipeline(r);
+      return pipelineStage === "test_run" || pipelineStage === "result_delivery";
+    }).length,
+    inProgress: active.filter((r) => {
+      const { pipelineStage, pipelineStatus } = resolveRowPipeline(r);
+      return pipelineStage === "proposal" || (pipelineStage === "contract_negotiation" && pipelineStatus === "active");
+    }).length,
+    contractWon: active.filter((r) => {
+      const { pipelineStatus, closedReason } = resolveRowPipeline(r);
+      return pipelineStatus === "closed" && closedReason === "contract_won";
+    }).length,
+    excluded: listableLeadRows().filter((r) => r.excluded || r.userHidden).length
   };
 }
 
@@ -1402,7 +1661,7 @@ function renderActionKpiCards(kpi) {
   return `<div class="action-kpi-grid">${cards
     .map(
       (c) => `
-    <div class="kpi-card kpi-card-${c.tone}">
+    <div class="kpi-card kpi-card-${c.tone}" data-kpi-id="${c.id}">
       <span class="kpi-card-icon" aria-hidden="true">${iconSvg(c.icon, 20)}</span>
       <span class="kpi-card-value">${c.value}</span>
       <span class="kpi-card-label">${escapeHtml(c.label)}</span>
@@ -1412,38 +1671,12 @@ function renderActionKpiCards(kpi) {
 }
 
 function renderDashboard() {
-  const qualityRows = qualityPoolRows();
-  const recommendDist = computeDistribution(qualityRows, parseRecommendScore, 5);
-  const pilotDist = computeDistribution(qualityRows, parsePilotDifficulty, 3);
-  const qualitySummary = computeQualitySummary(qualityRows);
   const actionKpi = computeActionKpi();
 
   byId("dashboard").innerHTML = `
-    <article class="dash-card dash-quality">
-      <h2 class="dash-card-title">${iconSvg("chart", 16)} 후보 품질 분석</h2>
-      <div class="quality-charts">
-        <section class="quality-chart-block">
-          <h3 class="quality-chart-title">추천 점수 분포</h3>
-          ${renderDistributionDonut({
-            ...recommendDist,
-            colors: RECOMMEND_DIST_COLORS,
-            maxLevel: 5,
-            centerLabel: "평가",
-            legendLabelFn: (n) => starGlyphs(n, 5)
-          })}
-        </section>
-        <section class="quality-chart-block">
-          <h3 class="quality-chart-title">파일럿 난이도 분포</h3>
-          ${renderDistributionDonut({
-            ...pilotDist,
-            colors: PILOT_DIST_COLORS,
-            maxLevel: 3,
-            centerLabel: "평가",
-            legendLabelFn: (n) => starGlyphs(n, 3)
-          })}
-        </section>
-      </div>
-      ${renderQualityKpi(qualitySummary)}
+    <article class="dash-card dash-portfolio">
+      <h2 class="dash-card-title">${iconSvg("chart", 16)} 포트폴리오 맵</h2>
+      ${renderPortfolioMap()}
     </article>
     <article class="dash-card dash-actions">
       <h2 class="dash-card-title">${iconSvg("layers", 16)} 액션 현황</h2>
@@ -1451,6 +1684,8 @@ function renderDashboard() {
     </article>`;
 
   hydrateIcons(byId("dashboard"));
+  bindPortfolioMap();
+  highlightActionKpiCards();
 }
 
 function renderKpi() {
@@ -1508,6 +1743,7 @@ function renderLeadsTable() {
                   <strong>${escapeHtml(displayName(row))}</strong>
                   ${newBadge(row)}
                   ${manualBadge(row)}
+                  ${poolClassBadge(row)}
                   ${tierBadge(row)}
                   ${scaleBadge(row)}
                   ${bizStatusBadge(row)}
@@ -1550,11 +1786,11 @@ function renderLeadsTable() {
 function renderCandidatesTable() {
   if (state.activeTab !== "candidates") return;
 
-  const rows = sortCandidateRows(getCandidateRows());
+  const rows = sortRecommendedRows(getRecommendedRows());
 
   if (!rows.length) {
     byId("candidates").innerHTML =
-      '<div class="empty-state">등록된 후보가 없습니다.<br /><span class="muted">회사 상세 → 수정 → 「후보 등록」으로 추가하세요.</span></div>';
+      '<div class="empty-state">등록된 추천 기업이 없습니다.<br /><span class="muted">회사 상세 → 수정 → 분류 「추천」으로 등록하세요.</span></div>';
     return;
   }
 
@@ -1573,7 +1809,7 @@ function renderCandidatesTable() {
             <th>추천 점수</th>
             <th>단계</th>
             <th>상태</th>
-            <th>후보 등록</th>
+            <th>추천 등록</th>
             <th></th>
           </tr>
         </thead>
@@ -1599,7 +1835,7 @@ function renderCandidatesTable() {
               <td>${renderStarRating(row.recommendScore, 5)}</td>
               <td>${pipelineStageBadge(row)}</td>
               <td>${pipelineStatusBadge(row)}</td>
-              <td>${formatDate(row.candidateSince)}</td>
+              <td>${formatDate(row.recommendedSince || row.candidateSince)}</td>
               <td><button type="button" class="btn-detail" data-cand-detail="${idx}">상세</button></td>
             </tr>`
             )
@@ -1622,14 +1858,16 @@ function paintDetailHeader(row) {
   const sub = byId("detailHeaderSub");
   if (sub) {
     const parts = [companySubline(row)];
-    if (row.isCandidate) parts.push(`후보 · ${formatDate(row.candidateSince)}`);
+    if (row.isRecommended) parts.push(`추천 · ${formatDate(row.recommendedSince || row.candidateSince)}`);
+    else if (row.isCandidate) parts.push(`후보 · ${formatDate(row.candidateSince)}`);
     sub.textContent = parts.filter(Boolean).join(" · ");
   }
   const chips = byId("detailHeaderChips");
   if (!chips) return;
   const items = [];
   if (row.isManual) items.push('<span class="detail-tag tag-purple">수동</span>');
-  if (row.isCandidate) items.push('<span class="detail-tag tag-amber">후보</span>');
+  const poolBadge = poolClassBadge(row);
+  if (poolBadge) items.push(poolBadge);
   items.push(pipelineStageBadge(row));
   items.push(pipelineStatusBadge(row));
   if (row.leadGrade) items.push(`<span class="detail-tag tag-grade tag-grade-${row.leadGrade}">${row.leadGrade}</span>`);
@@ -1654,6 +1892,8 @@ function renderDetailBody(row, edit, admin = false) {
         ${detailMetric("담당자", row.contactSecured === "yes" ? "확보" : "미확보", row.contactSecured === "yes" ? "metric-ok" : "metric-muted")}
       </div>`;
 
+  const pool = poolClassOf(row);
+
   const classifyBlock = edit
     ? `<div class="detail-form-grid">
         <div class="inline-row"><span class="inline-label">회사명</span>${inlineInput("edit-name-ko", e.companyNameKo || row.companyNameKo)}</div>
@@ -1671,10 +1911,12 @@ function renderDetailBody(row, edit, admin = false) {
           ["C", "C"]
         ])}</div>
         <div class="inline-row span-2">
-          <span class="inline-label">옵션</span>
-          <div class="inline-checks-group">
-            <label><input type="checkbox" id="edit-is-candidate" ${row.isCandidate ? "checked" : ""} /> 후보</label>
-            <label><input type="checkbox" id="edit-hidden" ${e.hidden ? "checked" : ""} /> 숨김</label>
+          <span class="inline-label">분류</span>
+          <div class="pool-class-options">
+            <label><input type="radio" name="edit-pool-class" value="normal" ${pool === "normal" ? "checked" : ""} /> 일반</label>
+            <label><input type="radio" name="edit-pool-class" value="recommended" ${pool === "recommended" ? "checked" : ""} /> 추천</label>
+            <label><input type="radio" name="edit-pool-class" value="candidate" ${pool === "candidate" ? "checked" : ""} /> 후보</label>
+            <label><input type="radio" name="edit-pool-class" value="hidden" ${pool === "hidden" ? "checked" : ""} /> 숨김</label>
           </div>
         </div>
         <div class="inline-row"><span class="inline-label">제외</span>${inlineInput("edit-exclude", e.excludeReason ?? row.excludeReason ?? "")}</div>
@@ -1686,8 +1928,13 @@ function renderDetailBody(row, edit, admin = false) {
     ? `<div class="detail-form-grid cols-2">
         <div class="inline-row"><span class="inline-label">단계</span>${pipelineStageSelect("edit-pipeline-stage", e.pipelineStage || pipeline.pipelineStage)}</div>
         <div class="inline-row"><span class="inline-label">상태</span>${pipelineStatusSelect("edit-pipeline-status", e.pipelineStatus || pipeline.pipelineStatus)}</div>
+        <div class="inline-row span-2"><span class="inline-label">종결 사유</span>${closedReasonSelect("edit-closed-reason", row.closedReason ?? "")}</div>
       </div>`
-    : `<div class="pipeline-detail-summary">${renderPipelineSummary(row)}${row.pipelineStageAt ? `<p class="muted pipeline-stage-at">단계 변경: ${escapeHtml(formatDate(row.pipelineStageAt))}</p>` : ""}</div>`;
+    : `<div class="pipeline-detail-summary">${renderPipelineSummary(row)}${
+        row.closedReason
+          ? `<p class="muted pipeline-closed-reason">종결 사유: ${escapeHtml(pipelineLabels().closedReasonLabel?.(row.closedReason) ?? row.closedReason)}</p>`
+          : ""
+      }${row.pipelineStageAt ? `<p class="muted pipeline-stage-at">단계 변경: ${escapeHtml(formatDate(row.pipelineStageAt))}</p>` : ""}</div>`;
 
   const contactBlock = edit
     ? `<div class="detail-form-grid">
@@ -1704,7 +1951,7 @@ function renderDetailBody(row, edit, admin = false) {
   const candidateBlock = edit
     ? `<div class="detail-form-grid cols-2">
         <div class="inline-row"><span class="inline-label">순위</span>${inlineInput("edit-cand-rank", row.candidateRank || "", "number", "1")}</div>
-        <div class="inline-row"><span class="inline-label">등록일</span>${inlineInput("edit-cand-since", row.candidateSince ? row.candidateSince.slice(0, 10) : "", "date")}</div>
+        <div class="inline-row"><span class="inline-label">등록일</span>${inlineInput("edit-cand-since", (row.recommendedSince || row.candidateSince || "").slice(0, 10), "date")}</div>
         <div class="inline-row"><span class="inline-label">업종</span>${inlineInput("edit-cand-industry", row.candidateIndustry || candidateIndustryLabel(row))}</div>
         <div class="inline-row"><span class="inline-label">반복공고</span>${inlineInput("edit-cand-repeat", row.candidateRepeatPosts || candidateRepeatLabel(row), "text", "7회+")}</div>
         <div class="inline-row"><span class="inline-label">파일럿</span>${inlineSelect("edit-cand-pilot", scoreSelectValue(row.pilotDifficulty), [
@@ -1724,7 +1971,7 @@ function renderDetailBody(row, edit, admin = false) {
         <div class="inline-row span-2"><span class="inline-label">장점</span>${inlineInput("edit-cand-pros", row.candidatePros ?? "")}</div>
         <div class="inline-row span-2"><span class="inline-label">단점</span>${inlineInput("edit-cand-cons", row.candidateCons ?? "")}</div>
       </div>`
-    : row.isCandidate
+    : row.isRecommended || row.isCandidate
       ? `<div class="detail-candidate-panel">
           <div class="detail-candidate-top">
             <div class="detail-score-box">
@@ -1744,7 +1991,9 @@ function renderDetailBody(row, edit, admin = false) {
             ["단점", `<span class="detail-prose">${escapeHtml(row.candidateCons || "-")}</span>`]
           ])}
         </div>`
-      : `<p class="muted detail-empty-hint">후보로 등록되지 않았습니다. 수정 모드에서 「후보」를 켜세요.</p>`;
+      : `<p class="muted detail-empty-hint">추천·후보로 등록되지 않았습니다. 수정 모드에서 분류를 선택하세요.</p>`;
+
+  const evalTitle = row.isRecommended ? "추천 평가" : row.isCandidate ? "후보 평가" : "추천·후보 평가";
 
   const postsBlock = edit
     ? `<div class="detail-table-wrap">
@@ -1812,7 +2061,7 @@ function renderDetailBody(row, edit, admin = false) {
       : `<div class="detail-split">${detailCard("담당자", contactBlock)}${detailCard("영업 파이프라인", pipelineBlock)}</div>`
   );
   sections.push(detailCard("회사 프로필", renderProfileSection(row, edit, p, e.domain || row.domain || "", admin)));
-  sections.push(detailCard("영업 후보", candidateBlock, row.isCandidate ? "detail-block-warm" : ""));
+  sections.push(detailCard(evalTitle, candidateBlock, row.isRecommended || row.isCandidate ? "detail-block-warm" : ""));
   sections.push(detailCard(`QA 채용 공고 · ${row.posts.length}건`, postsBlock));
   sections.push(detailCard("점수 근거", renderScoreSection(row, edit, admin), "detail-block-muted"));
 
@@ -2436,7 +2685,7 @@ function paintMetaBanner() {
     state.snapshotGeneratedAt ||
     state.userOverridesAppliedAt ||
     null;
-  meta.innerHTML = `<strong>T-client</strong><span>${formatDate(generatedAt)} 갱신</span><span>회사 ${companies} · 공고 ${posts} · 후보 ${state.rows.filter((r) => r.isCandidate && !r.userHidden).length}</span>`;
+  meta.innerHTML = `<strong>T-client</strong><span>${formatDate(generatedAt)} 갱신</span><span>회사 ${companies} · 공고 ${posts} · 추천 ${state.rows.filter((r) => r.isRecommended && !r.userHidden).length}</span>`;
 }
 
 function bindTabs() {
@@ -2829,6 +3078,7 @@ function bindAdmin() {
 async function boot() {
   try {
     await window.TClientAdmin.initDoc();
+    if (window.TSalesManagement?.loadAll) await window.TSalesManagement.loadAll(true);
     const snapshot = await window.TSupabase.getPublishedSnapshot();
     if (!snapshot?.rows) throw new Error("스냅샷이 비어 있습니다. Lead Collector를 먼저 실행하세요.");
     state.snapshotGeneratedAt = snapshot.generatedAt ?? null;
@@ -2869,11 +3119,11 @@ async function boot() {
       if (!window.TClientAdmin?.isUnlocked?.()) return;
       if (window.TClientAdmin.isDirty?.()) return;
       try {
+        await window.TSalesManagement?.loadAll?.(true);
         const changed = await window.TClientAdmin.mergeRemoteOverrides();
-        if (!changed) return;
         reloadRowsWithAdmin();
         refreshViews();
-        if (state.detailRow) paintDetailModal();
+        if (changed && state.detailRow) paintDetailModal();
       } catch {
         /* ignore poll errors */
       }

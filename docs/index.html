@@ -19,6 +19,7 @@
     <script defer src="./post-url.js"></script>
     <script defer src="./ui-select.js"></script>
     <script defer src="./pipeline.js"></script>
+    <script defer src="./sales-management.js"></script>
     <script defer src="./admin.js"></script>
     <script defer src="./app.js"></script>
   </head>
@@ -107,18 +108,17 @@
           </select>
           <select id="pipelineStage" class="select-pill" aria-label="단계">
             <option value="">단계 전체</option>
-            <option value="candidate">후보군</option>
+            <option value="candidate_pool">후보군</option>
             <option value="test_run">테스트 수행</option>
-            <option value="result_report">결과 보고</option>
+            <option value="result_delivery">결과 전달</option>
             <option value="proposal">제안</option>
-            <option value="contract_won">계약성공</option>
-            <option value="contract_failed">계약실패</option>
+            <option value="contract_negotiation">계약 협의</option>
           </select>
           <select id="pipelineStatus" class="select-pill" aria-label="상태">
             <option value="">상태 전체</option>
             <option value="active">진행중</option>
             <option value="on_hold">보류</option>
-            <option value="closed">종료</option>
+            <option value="closed">종결</option>
           </select>
           <select id="contact" class="select-pill" aria-label="담당자">
             <option value="">담당자 전체</option>
@@ -145,7 +145,7 @@
 
       <div class="tabs-bar">
         <nav class="tabs" aria-label="보기 전환">
-          <button type="button" data-tab="candidates" class="tab active">후보</button>
+          <button type="button" data-tab="candidates" class="tab active">추천</button>
           <button type="button" data-tab="leads" class="tab">회사</button>
           <button type="button" data-tab="posts" class="tab">전체 공고</button>
         </nav>
