@@ -83,9 +83,19 @@
       "contact": {},
       "extraPosts": [],
       "favorite": true,
+      "favoriteStage": "recommended",
+      "isCandidate": true,
+      "candidateSince": "2026-06-05T00:00:00.000Z",
+      "candidateRank": 4,
+      "candidateIndustry": "헬스케어 SW",
+      "candidateRepeatPosts": "1회",
+      "pilotDifficulty": 2,
+      "candidatePros": "스타트업, 적극 접촉 후보, 건강 앱 UX 테스트 적합",
+      "candidateCons": "규모가 작아 예산 제한 가능",
+      "recommendScore": 4,
       "profile": {},
       "scoreParts": {},
-      "updatedAt": "2026-06-01T22:59:09.550Z"
+      "updatedAt": "2026-06-05T00:00:00.000Z"
     },
     "cmp_3a09ae6008": {
       "actions": {
@@ -144,12 +154,22 @@
       "excludeReason": "",
       "extraPosts": [],
       "favorite": true,
+      "favoriteStage": "basic",
+      "isCandidate": true,
+      "candidateSince": "2026-06-05T00:00:00.000Z",
+      "candidateRank": 6,
+      "candidateIndustry": "리셀/패션 이커머스",
+      "candidateRepeatPosts": "1회",
+      "pilotDifficulty": 2,
+      "candidatePros": "대규모 사용자 기반, 트렌디한 UX",
+      "candidateCons": "대기업으로 의사결정 속도 느림",
+      "recommendScore": 3,
       "hidden": false,
       "leadGrade": "",
       "notes": "",
       "profile": {},
       "scoreParts": {},
-      "updatedAt": "2026-06-01T23:03:36.628Z"
+      "updatedAt": "2026-06-05T00:00:00.000Z"
     },
     "cmp_644132655e": {
       "actions": {
@@ -238,6 +258,16 @@
       "excludeReason": "",
       "extraPosts": [],
       "favorite": true,
+      "favoriteStage": "basic",
+      "isCandidate": true,
+      "candidateSince": "2026-06-05T00:00:00.000Z",
+      "candidateRank": 5,
+      "candidateIndustry": "IT 플랫폼",
+      "candidateRepeatPosts": "2회",
+      "pilotDifficulty": 2,
+      "candidatePros": "Lead QA Manager 공고 진행 중",
+      "candidateCons": "도메인 정보 부족",
+      "recommendScore": 3,
       "hidden": false,
       "leadGrade": "",
       "notes": "",
@@ -394,6 +424,16 @@
         }
       ],
       "favorite": true,
+      "favoriteStage": "recommended",
+      "isCandidate": true,
+      "candidateSince": "2026-06-05T00:00:00.000Z",
+      "candidateRank": 2,
+      "candidateIndustry": "홈페이지 제작",
+      "candidateRepeatPosts": "1회",
+      "pilotDifficulty": 2,
+      "candidatePros": "사용성 테스트가 핵심 가치, B2B/B2C 모두 테스트 가능",
+      "candidateCons": "QA 체계가 어느 정도 갖춰짐",
+      "recommendScore": 4,
       "hidden": false,
       "leadGrade": "B",
       "manual": true,
@@ -489,6 +529,16 @@
         }
       ],
       "favorite": true,
+      "favoriteStage": "confirmed",
+      "isCandidate": true,
+      "candidateSince": "2026-06-05T00:00:00.000Z",
+      "candidateRank": 1,
+      "candidateIndustry": "중고거래 플랫폼",
+      "candidateRepeatPosts": "7회+",
+      "pilotDifficulty": 1,
+      "candidatePros": "사용자 수 매우 많음, 실제 UX 결함 풍부, 모든 기능 무료 테스트 가능",
+      "candidateCons": "QA팀 규모가 클 가능성",
+      "recommendScore": 5,
       "hidden": false,
       "leadGrade": "B",
       "manual": true,
@@ -534,6 +584,20 @@
       },
       "scoreParts": {},
       "updatedAt": "2026-06-01T23:47:42.141Z"
+    },
+    "cmp_052a9ef558": {
+      "isCandidate": true,
+      "candidateSince": "2026-06-05T00:00:00.000Z",
+      "candidateRank": 3,
+      "candidateIndustry": "디자인/인쇄 이커머스",
+      "candidateRepeatPosts": "1회",
+      "pilotDifficulty": 2,
+      "candidatePros": "UI/UX 중요도 높음, CS팀 공략 가능",
+      "candidateCons": "시각/디자인 전문 테스트 필요",
+      "recommendScore": 4,
+      "favoriteStage": "recommended",
+      "favorite": true,
+      "updatedAt": "2026-06-05T00:00:00.000Z"
     }
   },
   "customCompanies": [
@@ -792,14 +856,15 @@
     }
   ],
   "favorites": [
+    "cmp_m_fadf711e",
+    "cmp_m_89c58fb9",
+    "cmp_052a9ef558",
     "cmp_393ab6130c",
     "cmp_90fe138f0f",
     "cmp_50ac179198",
-    "cmp_m_fadf711e",
-    "cmp_m_89c58fb9",
     "cmp_m_07ab4042",
     "cmp_m_42eb5ccf"
   ],
   "updatedAt": "2026-06-05T06:38:25.537Z",
-  "version": 2
+  "version": 3
 }

@@ -43,7 +43,7 @@
                   <button type="button" id="adminLoginBtn" class="btn-primary btn-sm">입장</button>
                 </div>
                 <div id="adminTools" class="admin-popover-section hidden">
-                  <p class="admin-popover-hint">즐겨찾기·상세 수정 · 로컬 자동 저장</p>
+                  <p class="admin-popover-hint">분류(기본·추천·확정)·후보·상세 수정 · 로컬 자동 저장</p>
                   <div class="admin-keyword-block">
                     <p class="admin-popover-title">크롤링 키워드</p>
                     <p class="admin-popover-hint">검색어 · 「저장 반영」 시 시트·overrides 동기화</p>
@@ -83,9 +83,9 @@
           </select>
           <select id="action" class="select-pill" aria-label="액션">
             <option value="">액션 전체</option>
-            <option value="proposal">제안 추천</option>
-            <option value="meeting">미팅 추천</option>
-            <option value="inquiry">문의 추천</option>
+            <option value="proposal">적합 추천</option>
+            <option value="meeting">진행 추천</option>
+            <option value="inquiry">제안 추천</option>
           </select>
           <select id="contact" class="select-pill" aria-label="담당자">
             <option value="">담당자 전체</option>
@@ -104,8 +104,10 @@
             <option value="enterprise">대기업</option>
           </select>
           <select id="favorite" class="select-pill admin-only hidden" aria-label="즐겨찾기">
-            <option value="">즐겨찾기 전체</option>
-            <option value="yes">즐겨찾기만</option>
+            <option value="">분류 전체</option>
+            <option value="basic">기본</option>
+            <option value="recommended">추천</option>
+            <option value="confirmed">확정</option>
           </select>
         </div>
         <div class="toolbar-row">
@@ -124,7 +126,8 @@
 
       <div class="tabs-bar">
         <nav class="tabs" aria-label="보기 전환">
-          <button type="button" data-tab="leads" class="tab active">리드</button>
+          <button type="button" data-tab="leads" class="tab active">회사</button>
+          <button type="button" data-tab="candidates" class="tab">후보</button>
           <button type="button" data-tab="posts" class="tab">전체 공고</button>
         </nav>
         <div class="tabs-bar-actions admin-only hidden">
@@ -135,6 +138,7 @@
 
       <main class="main-panels">
         <div id="leads" class="panel"></div>
+        <div id="candidates" class="panel hidden"></div>
         <div id="posts" class="panel hidden"></div>
       </main>
     </div>
@@ -195,7 +199,10 @@
             <button type="button" id="detailEditBtn" class="btn-icon-edit hidden" aria-label="수정" title="수정">
               <span data-icon="pencil"></span>
             </button>
-            <button type="button" id="detailDeleteBtn" class="btn-icon-delete hidden" aria-label="삭제" title="수동 등록 삭제">
+            <button type="button" id="detailMergeBtn" class="btn-icon-edit btn-icon-merge hidden" aria-label="병합" title="회사 병합">
+              <span data-icon="layers"></span>
+            </button>
+            <button type="button" id="detailDeleteBtn" class="btn-icon-delete hidden" aria-label="삭제" title="회사 삭제">
               <span data-icon="trash"></span>
             </button>
             <button type="button" class="modal-close" data-close="1" aria-label="닫기">

@@ -16,6 +16,8 @@
 
   const TIER_LABEL = { enterprise: "대", mid: "중", startup: "소", unknown: "-" };
   const TIER_PENALTY = { enterprise: 22, mid: 8, startup: 0, unknown: 0 };
+  const FAVORITE_STAGES = ["basic", "recommended", "confirmed"];
+  const FAVORITE_STAGE_LABEL = { basic: "기본", recommended: "추천", confirmed: "확정" };
 
   const SCORE_LABELS = {
     "domain:+15": "회사 도메인 확인",
@@ -232,7 +234,7 @@
   }
 
   function emptyDoc() {
-    return { version: 2, updatedAt: null, favorites: [], companies: {}, customCompanies: [] };
+    return { version: 3, updatedAt: null, favorites: [], companies: {}, customCompanies: [] };
   }
 
   function loadLocal() {
@@ -246,7 +248,7 @@
   }
 
   function saveLocal(doc) {
-    doc.version = 2;
+    doc.version = 3;
     doc.updatedAt = new Date().toISOString();
     localStorage.setItem(LS_KEY, JSON.stringify(doc));
     state.doc = doc;
@@ -285,8 +287,21 @@
       extraPosts: [...(a.extraPosts ?? []), ...(b.extraPosts ?? [])].filter(
         (p, i, arr) => arr.findIndex((x) => x.url === p.url) === i
       ),
-      scoreParts: { ...(a.scoreParts ?? {}), ...(b.scoreParts ?? {}) }
+      scoreParts: { ...(a.scoreParts ?? {}), ...(b.scoreParts ?? {}) },
+      candidate: { ...(a.candidate ?? {}), ...(b.candidate ?? {}) }
     };
+  }
+
+  function resolveFavoriteStage(entry) {
+    if (entry.favoriteStage && FAVORITE_STAGES.includes(entry.favoriteStage)) return entry.favoriteStage;
+    if (entry.favorite) return "recommended";
+    return "";
+  }
+
+  function syncFavoritesList(companyId, stage) {
+    const favs = (state.doc.favorites ?? []).filter((id) => id !== companyId);
+    if (stage) favs.push(companyId);
+    state.doc.favorites = [...new Set(favs)];
   }
 
   async function fetchRemoteOverrides() {
@@ -390,10 +405,152 @@
     return true;
   }
 
+  function removeManualPost(companyId, postUrl) {
+    if (!companyId || !postUrl) return false;
+    const entry = getEntry(companyId);
+    const extraPosts = entry.extraPosts ?? [];
+    const next = extraPosts.filter((p) => p?.url !== postUrl);
+    if (next.length === extraPosts.length) return false;
+
+    state.doc.companies[companyId] = {
+      ...(state.doc.companies[companyId] ?? {}),
+      extraPosts: next,
+      hiddenPosts: (state.doc.companies[companyId]?.hiddenPosts ?? entry.hiddenPosts ?? []).filter((u) => u !== postUrl),
+      updatedAt: new Date().toISOString()
+    };
+    state.dirty = true;
+    saveLocal(state.doc);
+    return true;
+  }
+
+  function hidePost(companyId, postUrl) {
+    if (!companyId || !postUrl) return false;
+    const entry = getEntry(companyId);
+    const list = Array.from(new Set([...(entry.hiddenPosts ?? []), postUrl]));
+    if (list.length === (entry.hiddenPosts ?? []).length) return false;
+    setEntry(companyId, { hiddenPosts: list });
+    return true;
+  }
+
+  function hideCompany(companyId) {
+    if (!companyId) return false;
+    setEntry(companyId, { hidden: true, favorite: false, favoriteStage: "" });
+    return true;
+  }
+
+  function mergeCompanies(sourceCompanyId, targetCompanyId) {
+    if (!sourceCompanyId || !targetCompanyId) return false;
+    if (sourceCompanyId === targetCompanyId) return false;
+    if (!isCustomCompany(sourceCompanyId)) return false;
+
+    const src = getEntry(sourceCompanyId);
+    const dst = getEntry(targetCompanyId);
+    if (!src || !dst) return false;
+
+    const pickNonEmpty = (a, b) => (a === undefined || a === null || a === "" ? b : a);
+    const pickDefined = (a, b) => (a === undefined ? b : a);
+    const pickDefinedWithObject = (a, b) => (a === undefined || a === null ? b : a);
+
+    const mergedProfile = { ...(dst.profile ?? {}) };
+    for (const [k, v] of Object.entries(src.profile ?? {})) {
+      if (mergedProfile[k] === undefined || mergedProfile[k] === null || mergedProfile[k] === "") mergedProfile[k] = v;
+    }
+
+    const mergedContact = { ...(dst.contact ?? {}) };
+    for (const [k, v] of Object.entries(src.contact ?? {})) {
+      if (mergedContact[k] === undefined || mergedContact[k] === null || mergedContact[k] === "") mergedContact[k] = v;
+    }
+
+    const mergedActions = { ...(dst.actions ?? {}) };
+    for (const key of ["proposal", "meeting", "inquiry"]) {
+      mergedActions[key] = pickDefined(mergedActions[key], src.actions?.[key]);
+    }
+
+    const mergedScoreParts = { ...(dst.scoreParts ?? {}) };
+    for (const [k, v] of Object.entries(src.scoreParts ?? {})) {
+      if (mergedScoreParts[k] === undefined) mergedScoreParts[k] = v;
+    }
+
+    const mergedExtraPosts = [...(dst.extraPosts ?? []), ...(src.extraPosts ?? [])].filter(
+      (p, i, arr) => p?.url && arr.findIndex((x) => x?.url === p.url) === i
+    );
+    const mergedHiddenPosts = Array.from(new Set([...(dst.hiddenPosts ?? []), ...(src.hiddenPosts ?? [])]));
+
+    const pickCandidate = (a, b) => (a === undefined || a === null || a === "" ? b : a);
+
+    const merged = {
+      ...dst,
+      companyNameKo: pickNonEmpty(dst.companyNameKo, src.companyNameKo),
+      companyName: pickNonEmpty(dst.companyName, src.companyName),
+      domain: pickNonEmpty(dst.domain, src.domain),
+      domainVerified: pickDefinedWithObject(dst.domainVerified, src.domainVerified),
+      companyTier: pickNonEmpty(dst.companyTier, src.companyTier),
+      leadGrade: pickNonEmpty(dst.leadGrade, src.leadGrade),
+      excludeReason: pickNonEmpty(dst.excludeReason, src.excludeReason),
+      notes: pickNonEmpty(dst.notes, src.notes),
+      hidden: dst.hidden ?? src.hidden,
+      favorite: dst.favorite ?? src.favorite,
+      favoriteStage: pickNonEmpty(dst.favoriteStage, src.favoriteStage),
+      isCandidate: dst.isCandidate || src.isCandidate,
+      candidateSince: pickNonEmpty(dst.candidateSince, src.candidateSince),
+      candidateRank: pickCandidate(dst.candidateRank, src.candidateRank),
+      candidateIndustry: pickNonEmpty(dst.candidateIndustry, src.candidateIndustry),
+      candidateRepeatPosts: pickNonEmpty(dst.candidateRepeatPosts, src.candidateRepeatPosts),
+      pilotDifficulty: pickCandidate(dst.pilotDifficulty, src.pilotDifficulty),
+      candidatePros: pickNonEmpty(dst.candidatePros, src.candidatePros),
+      candidateCons: pickNonEmpty(dst.candidateCons, src.candidateCons),
+      recommendScore: pickCandidate(dst.recommendScore, src.recommendScore),
+      profile: mergedProfile,
+      contact: mergedContact,
+      actions: mergedActions,
+      extraPosts: mergedExtraPosts,
+      hiddenPosts: mergedHiddenPosts,
+      scoreParts: mergedScoreParts,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Apply to target
+    state.doc.companies[targetCompanyId] = merged;
+
+    // Favorites
+    const favs = new Set([...(state.doc.favorites ?? [])]);
+    favs.delete(sourceCompanyId);
+    if (src.favorite && !dst.favorite) favs.add(targetCompanyId);
+    state.doc.favorites = [...favs];
+
+    // Remove source custom company
+    state.doc.customCompanies = (state.doc.customCompanies ?? []).filter((r) => r.companyId !== sourceCompanyId);
+    delete state.doc.companies[sourceCompanyId];
+
+    state.dirty = true;
+    saveLocal(state.doc);
+    return true;
+  }
+
   function setEntry(companyId, patch) {
     const prev = getEntry(companyId);
     const merged = mergeEntry(prev, patch);
     merged.updatedAt = new Date().toISOString();
+
+    if (patch.isCandidate === true && !prev.candidateSince && !merged.candidateSince) {
+      merged.candidateSince = merged.updatedAt;
+    }
+    if (patch.isCandidate === false) {
+      merged.candidateSince = "";
+    }
+
+    if (patch.favoriteStage !== undefined) {
+      merged.favoriteStage = patch.favoriteStage || "";
+      merged.favorite = Boolean(merged.favoriteStage);
+      syncFavoritesList(companyId, merged.favoriteStage);
+    } else if (patch.favorite === true && !merged.favoriteStage) {
+      merged.favoriteStage = "basic";
+      syncFavoritesList(companyId, "basic");
+    } else if (patch.favorite === false) {
+      merged.favoriteStage = "";
+      syncFavoritesList(companyId, "");
+    }
+
     state.doc.companies[companyId] = merged;
     if (patch.favorite === true && !state.doc.favorites.includes(companyId)) {
       state.doc.favorites.push(companyId);
@@ -403,6 +560,16 @@
     }
     state.dirty = true;
     saveLocal(state.doc);
+  }
+
+  function cycleFavoriteStage(companyId) {
+    const entry = getEntry(companyId);
+    const order = ["", ...FAVORITE_STAGES];
+    const current = resolveFavoriteStage(entry);
+    const idx = order.indexOf(current);
+    const next = order[(idx + 1) % order.length];
+    setEntry(companyId, { favoriteStage: next, favorite: Boolean(next) });
+    return next;
   }
 
   function actionSummaryFrom(actions) {
@@ -416,12 +583,12 @@
 
   function buildActions(row, entry) {
     const base = row.actions ?? {
-      proposal: { label: "제안", status: "보류" },
-      meeting: { label: "미팅", status: "보류" },
-      inquiry: { label: "문의", status: "보류" }
+      proposal: { label: "적합", status: "보류" },
+      meeting: { label: "진행", status: "보류" },
+      inquiry: { label: "제안", status: "보류" }
     };
     const o = entry.actions ?? {};
-    const labels = { proposal: "제안", meeting: "미팅", inquiry: "문의" };
+    const labels = { proposal: "적합", meeting: "진행", inquiry: "제안" };
     const actions = {};
     for (const key of ["proposal", "meeting", "inquiry"]) {
       const status = o[key] || base[key]?.status || "보류";
@@ -703,8 +870,26 @@
 
   function applyToRow(row) {
     const entry = getEntry(row.companyId);
-    const fav = state.doc.favorites.includes(row.companyId) || entry.favorite;
-    const next = { ...row, userFavorite: fav, userHidden: Boolean(entry.hidden), isManual: Boolean(row.isManual) || isCustomCompany(row.companyId) };
+    const favoriteStage = resolveFavoriteStage(entry);
+    const fav = Boolean(favoriteStage) || state.doc.favorites.includes(row.companyId);
+    const next = {
+      ...row,
+      userFavorite: fav,
+      userFavoriteStage: favoriteStage,
+      userHidden: Boolean(entry.hidden),
+      isManual: Boolean(row.isManual) || isCustomCompany(row.companyId)
+    };
+
+    const cand = entry.candidate ?? {};
+    next.isCandidate = Boolean(entry.isCandidate);
+    next.candidateSince = entry.candidateSince ?? "";
+    next.candidateRank = entry.candidateRank ?? cand.rank ?? 0;
+    next.candidateIndustry = entry.candidateIndustry ?? cand.industry ?? "";
+    next.candidateRepeatPosts = entry.candidateRepeatPosts ?? cand.repeatPosts ?? "";
+    next.pilotDifficulty = entry.pilotDifficulty ?? cand.pilotDifficulty ?? 0;
+    next.candidatePros = entry.candidatePros ?? cand.pros ?? "";
+    next.candidateCons = entry.candidateCons ?? cand.cons ?? "";
+    next.recommendScore = entry.recommendScore ?? cand.recommendScore ?? 0;
 
     if (entry.companyNameKo) next.companyNameKo = entry.companyNameKo;
     if (entry.domain) {
@@ -751,17 +936,25 @@
       next.excluded = false;
     }
 
-    const extraPosts = (entry.extraPosts ?? []).map((p, i) => ({
-      id: p.id || `manual_${i}`,
-      title: p.title || "QA 공고",
-      url: p.url,
-      source: p.source || "manual",
-      sourceLabel: p.sourceLabel || "수동",
-      status: "new",
-      failureReason: "",
-      failureCategory: ""
-    }));
-    if (extraPosts.length) next.posts = [...row.posts, ...extraPosts];
+    const hiddenPostUrls = new Set(entry.hiddenPosts ?? []);
+
+    const basePosts = (row.posts ?? []).filter((p) => p?.url && !hiddenPostUrls.has(p.url));
+
+    const extraPosts = (entry.extraPosts ?? [])
+      .filter((p) => p?.url && !hiddenPostUrls.has(p.url))
+      .map((p, i) => ({
+        id: p.id || `manual_${i}`,
+        title: p.title || "QA 공고",
+        url: p.url,
+        source: p.source || "manual",
+        sourceLabel: p.sourceLabel || "수동",
+        status: "new",
+        failureReason: "",
+        failureCategory: "",
+        isManualPost: true
+      }));
+
+    next.posts = [...basePosts, ...extraPosts];
 
     next.actions = buildActions(row, entry);
     next.actionSummary = actionSummaryFrom(next.actions);
@@ -837,6 +1030,10 @@
     isCustomCompany,
     updateCustomCompany,
     removeCustomCompany,
+    hideCompany,
+    hidePost,
+    removeManualPost,
+    mergeCompanies,
     isUnlocked,
     unlock,
     lock,
@@ -852,6 +1049,9 @@
     removeKeywordDraft,
     isDirty: () => state.dirty,
     getDoc: () => state.doc,
+    cycleFavoriteStage,
+    FAVORITE_STAGES,
+    FAVORITE_STAGE_LABEL,
     SCORE_LABELS,
     TIER_LABEL
   };

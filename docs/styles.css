@@ -1342,6 +1342,17 @@ tbody tr.row-manual {
   background: #fef2f2;
 }
 
+.btn-icon-merge:hover {
+  border-color: var(--accent-muted);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.post-delete-btn {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 .modal-header h2 {
   margin: 0;
   font-size: 20px;
@@ -1736,4 +1747,92 @@ tbody tr.row-manual {
   .tabs {
     width: 100%;
   }
+}
+
+.toolbar-candidates .filter-chips select:not(#search),
+.toolbar-candidates #presets {
+  display: none;
+}
+
+.fav-stage {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  border: 1px solid var(--line);
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+
+.fav-stage-btn {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.fav-stage-basic {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+  color: #0369a1;
+}
+
+.fav-stage-recommended {
+  background: var(--accent-soft);
+  border-color: var(--accent-muted);
+  color: var(--accent-hover);
+}
+
+.fav-stage-confirmed {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #b45309;
+}
+
+.fav-stage-off {
+  opacity: 0.7;
+}
+
+.star-rating {
+  display: inline-flex;
+  gap: 1px;
+  letter-spacing: -1px;
+}
+
+.star-glyph {
+  color: var(--line-strong);
+  font-size: 14px;
+}
+
+.star-glyph.filled {
+  color: #fbbf24;
+}
+
+.candidate-table-wrap {
+  overflow-x: auto;
+}
+
+.candidate-table th,
+.candidate-table td {
+  font-size: 13px;
+}
+
+.candidate-table .col-rank {
+  width: 48px;
+  text-align: center;
+}
+
+.candidate-table .cell-prose {
+  max-width: 220px;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.candidate-read-table th {
+  width: 88px;
+}
+
+.inline-row.full-width {
+  grid-column: 1 / -1;
 }
