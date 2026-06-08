@@ -1,11 +1,60 @@
 {
   "companies": {
+    "cmp_052a9ef558": {
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "보류"
+      },
+      "candidate": {},
+      "candidateCons": "시각/디자인 전문 테스트 필요",
+      "candidateIndustry": "디자인/인쇄 이커머스",
+      "candidatePros": "UI/UX 중요도 높음, CS팀 공략 가능",
+      "candidateRank": 3,
+      "candidateRepeatPosts": "1회",
+      "candidateSince": "2026-06-05T00:00:00.000Z",
+      "companyNameKo": "마플코퍼레이션",
+      "companyTier": "unknown",
+      "contact": {
+        "email": "",
+        "name": "",
+        "phone": ""
+      },
+      "domain": "",
+      "excludeReason": "",
+      "extraPosts": [],
+      "favorite": true,
+      "favoriteStage": "recommended",
+      "hidden": false,
+      "isCandidate": true,
+      "leadGrade": "C",
+      "notes": "",
+      "pilotDifficulty": 2,
+      "profile": {
+        "bizItem": "섬유프린트",
+        "bizNo": "105-88-13322",
+        "bizStatus": "계속사업자",
+        "bizType": "제조",
+        "companyNameLegal": "(주) 마플코퍼레이션",
+        "companyScale": "중견기업",
+        "employeeCount": "150",
+        "foundedDate": "2015-01-05",
+        "homepage": "https://marpple.com",
+        "industrySummary": "대분류 : 제조업 · 중분류 : 섬유제품 제조업; 의복 제외 · 소분류 : 직물 직조 및 직물제품 제조업 · 세분류 : 직물제품 제조업 · 세세분류 : 기타 직물제품 제조업"
+      },
+      "recommendScore": 4,
+      "scoreParts": {
+        "_total": "35"
+      },
+      "updatedAt": "2026-06-05T00:00:00.000Z"
+    },
     "cmp_1d5e8ca632": {
       "actions": {
         "inquiry": "보류",
         "meeting": "보류",
         "proposal": "추천"
       },
+      "candidate": {},
       "companyNameKo": "쿠팡",
       "companyTier": "enterprise",
       "contact": {
@@ -46,6 +95,7 @@
         "meeting": "보류",
         "proposal": "보류"
       },
+      "candidate": {},
       "companyNameKo": "휴넷",
       "companyTier": "unknown",
       "contact": {
@@ -79,13 +129,52 @@
       "updatedAt": "2026-06-01T23:49:20.777Z"
     },
     "cmp_393ab6130c": {
-      "actions": {},
-      "contact": {},
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "보류"
+      },
+      "candidate": {},
+      "candidateCons": "규모가 작아 예산 제한 가능",
+      "candidateIndustry": "헬스케어 SW",
+      "candidatePros": "스타트업, 적극 접촉 후보, 건강 앱 UX 테스트 적합",
+      "candidateRank": 4,
+      "candidateRepeatPosts": "1회",
+      "candidateSince": "2026-06-05T00:00:00.000Z",
+      "companyNameKo": "레몬헬스케어",
+      "companyTier": "startup",
+      "contact": {
+        "email": "",
+        "name": "",
+        "phone": ""
+      },
+      "domain": "",
+      "excludeReason": "",
       "extraPosts": [],
       "favorite": true,
-      "profile": {},
-      "scoreParts": {},
-      "updatedAt": "2026-06-01T22:59:09.550Z"
+      "favoriteStage": "recommended",
+      "hidden": false,
+      "isCandidate": true,
+      "leadGrade": "C",
+      "notes": "",
+      "pilotDifficulty": 2,
+      "profile": {
+        "bizItem": "응용 소프트웨어 개발 및 공급업",
+        "bizNo": "761-86-00598",
+        "bizStatus": "계속사업자",
+        "bizType": "정보통신업",
+        "companyNameLegal": "주식회사 레몬헬스케어",
+        "companyScale": "중소기업",
+        "employeeCount": "89",
+        "foundedDate": "2017-06-01",
+        "homepage": "http://www.lemonhc.com",
+        "industrySummary": "대분류 : 정보통신업 · 중분류 : 출판업 · 소분류 : 소프트웨어 개발 및 공급업 · 세분류 : 시스템ㆍ응용 소프트웨어 개발 및 공급업 · 세세분류 : 응용 소프트웨어 개발 및 공급업"
+      },
+      "recommendScore": 4,
+      "scoreParts": {
+        "_total": "35"
+      },
+      "updatedAt": "2026-06-05T00:00:00.000Z"
     },
     "cmp_3a09ae6008": {
       "actions": {
@@ -93,6 +182,7 @@
         "meeting": "보류",
         "proposal": "보류"
       },
+      "candidate": {},
       "companyNameKo": "드림에이지",
       "companyTier": "startup",
       "contact": {
@@ -129,6 +219,7 @@
     },
     "cmp_490eb16eb7": {
       "actions": {},
+      "candidate": {},
       "contact": {},
       "extraPosts": [],
       "favorite": false,
@@ -137,19 +228,53 @@
       "updatedAt": "2026-06-02T06:39:18.473Z"
     },
     "cmp_50ac179198": {
-      "actions": {},
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "보류"
+      },
+      "candidate": {},
+      "candidateCons": "대기업으로 의사결정 속도 느림",
+      "candidateIndustry": "리셀/패션 이커머스",
+      "candidatePros": "대규모 사용자 기반, 트렌디한 UX",
+      "candidateRank": 6,
+      "candidateRepeatPosts": "1회",
+      "candidateSince": "2026-06-05T00:00:00.000Z",
       "companyNameKo": "크림",
-      "contact": {},
+      "companyTier": "enterprise",
+      "contact": {
+        "email": "",
+        "name": "",
+        "phone": ""
+      },
+      "domain": "",
       "email": "",
       "excludeReason": "",
       "extraPosts": [],
       "favorite": true,
+      "favoriteStage": "basic",
       "hidden": false,
+      "isCandidate": true,
       "leadGrade": "",
       "notes": "",
-      "profile": {},
-      "scoreParts": {},
-      "updatedAt": "2026-06-01T23:03:36.628Z"
+      "pilotDifficulty": 2,
+      "profile": {
+        "bizItem": "응용 소프트웨어 개발 및 공급업",
+        "bizNo": "570-88-01618",
+        "bizStatus": "계속사업자",
+        "bizType": "정보통신업",
+        "companyNameLegal": "크림(주)",
+        "companyScale": "대기업",
+        "employeeCount": "172",
+        "foundedDate": "2021-01-15",
+        "homepage": "https://www.kream.co.kr",
+        "industrySummary": "대분류 : 정보통신업 · 중분류 : 출판업 · 소분류 : 소프트웨어 개발 및 공급업 · 세분류 : 시스템ㆍ응용 소프트웨어 개발 및 공급업 · 세세분류 : 응용 소프트웨어 개발 및 공급업"
+      },
+      "recommendScore": 3,
+      "scoreParts": {
+        "_total": "13"
+      },
+      "updatedAt": "2026-06-05T00:00:00.000Z"
     },
     "cmp_644132655e": {
       "actions": {
@@ -157,6 +282,7 @@
         "meeting": "보류",
         "proposal": "보류"
       },
+      "candidate": {},
       "companyNameKo": "옥서스",
       "companyTier": "unknown",
       "contact": {
@@ -195,6 +321,7 @@
         "meeting": "보류",
         "proposal": "보류"
       },
+      "candidate": {},
       "companyNameKo": "주식회사 에이티센스",
       "companyTier": "unknown",
       "contact": {
@@ -230,25 +357,107 @@
       "scoreReason": "domain:+15|posts_1:+10|qa_title:+15|company_profile:+15|recent:+10",
       "updatedAt": "2026-06-04T02:22:29.749Z"
     },
+    "cmp_8bc2e45789": {
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "보류"
+      },
+      "candidate": {},
+      "companyNameKo": "위펀",
+      "companyTier": "unknown",
+      "contact": {
+        "email": "",
+        "name": "",
+        "phone": ""
+      },
+      "domain": "snack24h.com",
+      "excludeReason": "",
+      "extraPosts": [
+        {
+          "source": "manual",
+          "sourceLabel": "수동",
+          "title": "QA 공고",
+          "url": "https://www.wanted.co.kr/wd/360029"
+        }
+      ],
+      "favorite": true,
+      "hidden": false,
+      "hiddenPosts": [],
+      "leadGrade": "B",
+      "notes": "",
+      "profile": {
+        "bizItem": "가공식품 도매업",
+        "bizNo": "881-87-01258",
+        "bizStatus": "계속사업자",
+        "bizType": "도매업",
+        "companyNameLegal": "주식회사 위펀",
+        "companyScale": "중소기업",
+        "domain": "snack24h.com",
+        "employeeCount": "202",
+        "foundedDate": "2018-12-24",
+        "homepage": "www.snack24h.com",
+        "industrySummary": "대분류 : 도매 및 소매업 · 중분류 : 도매 및 상품 중개업 · 소분류 : 음ㆍ식료품 및 담배 도매업 · 세분류 : 가공식품 도매업 · 세세분류 : 빵류, 과자류, 당류, 초콜릿 도매업"
+      },
+      "scoreParts": {
+        "_total": "65"
+      },
+      "updatedAt": "2026-06-08T00:29:41.066Z"
+    },
     "cmp_90fe138f0f": {
-      "actions": {},
+      "actions": {
+        "inquiry": "보류",
+        "meeting": "보류",
+        "proposal": "보류"
+      },
+      "candidate": {},
+      "candidateCons": "도메인 정보 부족",
+      "candidateIndustry": "IT 플랫폼",
+      "candidatePros": "Lead QA Manager 공고 진행 중",
+      "candidateRank": 5,
+      "candidateRepeatPosts": "2회",
+      "candidateSince": "2026-06-05T00:00:00.000Z",
       "companyNameKo": "티피씨인터넷",
-      "contact": {},
+      "companyTier": "unknown",
+      "contact": {
+        "email": "",
+        "name": "",
+        "phone": ""
+      },
+      "domain": "",
       "email": "",
       "excludeReason": "",
       "extraPosts": [],
       "favorite": true,
+      "favoriteStage": "basic",
       "hidden": false,
+      "isCandidate": true,
       "leadGrade": "",
       "notes": "",
+      "pilotDifficulty": 2,
       "priorityScore": "45",
-      "profile": {},
-      "scoreParts": {},
+      "profile": {
+        "bizItem": "",
+        "bizNo": "",
+        "bizStatus": "",
+        "bizType": "",
+        "companyNameLegal": "",
+        "companyScale": "",
+        "employeeCount": "",
+        "foundedDate": "",
+        "homepage": "",
+        "industrySummary": ""
+      },
+      "recommendScore": 3,
+      "scoreParts": {
+        "_total": "45"
+      },
       "scoreReason": "domain:pending|posts_2plus:+20|qa_title:+15|recent:+10",
       "updatedAt": "2026-06-01T23:00:50.721Z"
     },
     "cmp_c180dc2755": {
       "actions": {},
+      "candidate": {},
       "companyNameKo": "(주)에스엠테크",
       "contact": {},
       "domain": "sm-tech.or.kr",
@@ -273,60 +482,13 @@
       "scoreReason": "domain:+15|posts_1:+10|qa_title:+15|company_profile:+15|recent:+10",
       "updatedAt": "2026-06-03T22:59:43.277Z"
     },
-    "cmp_m_07ab4042": {
-      "actions": {
-        "inquiry": "보류",
-        "meeting": "보류",
-        "proposal": "보류"
-      },
-      "companyNameKo": "위펀",
-      "companyTier": "unknown",
-      "contact": {
-        "email": "",
-        "name": "",
-        "phone": ""
-      },
-      "domain": "snack24h.com",
-      "excludeReason": "",
-      "extraPosts": [
-        {
-          "source": "manual",
-          "sourceLabel": "수동",
-          "title": "QA 공고",
-          "url": "https://www.wanted.co.kr/wd/360029"
-        }
-      ],
-      "favorite": true,
-      "hidden": false,
-      "leadGrade": "B",
-      "manual": true,
-      "notes": "",
-      "priorityScore": "65",
-      "profile": {
-        "bizItem": "가공식품 도매업",
-        "bizNo": "881-87-01258",
-        "bizStatus": "계속사업자",
-        "bizType": "도매업",
-        "companyNameLegal": "주식회사 위펀",
-        "companyScale": "중소기업",
-        "domain": "snack24h.com",
-        "employeeCount": "202",
-        "foundedDate": "2018-12-24",
-        "homepage": "www.snack24h.com",
-        "industrySummary": "대분류 : 도매 및 소매업 · 중분류 : 도매 및 상품 중개업 · 소분류 : 음ㆍ식료품 및 담배 도매업 · 세분류 : 가공식품 도매업 · 세세분류 : 빵류, 과자류, 당류, 초콜릿 도매업"
-      },
-      "scoreParts": {
-        "_total": "65"
-      },
-      "scoreReason": "domain:+15|posts_1:+10|qa_title:+15|company_profile:+15|recent:+10",
-      "updatedAt": "2026-06-05T06:36:01.650Z"
-    },
     "cmp_m_42eb5ccf": {
       "actions": {
         "inquiry": "보류",
         "meeting": "보류",
         "proposal": "추천"
       },
+      "candidate": {},
       "companyNameKo": "주식회사 두핸즈",
       "companyTier": "unknown",
       "contact": {
@@ -376,6 +538,13 @@
         "meeting": "보류",
         "proposal": "추천"
       },
+      "candidate": {},
+      "candidateCons": "QA 체계가 어느 정도 갖춰짐",
+      "candidateIndustry": "홈페이지 제작",
+      "candidatePros": "사용성 테스트가 핵심 가치, B2B/B2C 모두 테스트 가능",
+      "candidateRank": 2,
+      "candidateRepeatPosts": "1회",
+      "candidateSince": "2026-06-05T00:00:00.000Z",
       "companyNameKo": "주식회사 아임웹( Imweb Corp.)",
       "companyTier": "unknown",
       "contact": {
@@ -394,10 +563,13 @@
         }
       ],
       "favorite": true,
+      "favoriteStage": "recommended",
       "hidden": false,
+      "isCandidate": true,
       "leadGrade": "B",
       "manual": true,
       "notes": "",
+      "pilotDifficulty": 2,
       "priorityScore": "65",
       "profile": {
         "bizItem": "시스템 소프트웨어 개발 및 공급업",
@@ -411,6 +583,7 @@
         "homepage": "http://cocoa-studio.com",
         "industrySummary": "대분류 : 도매 및 소매업 · 중분류 : 소매업; 자동차 제외 · 소분류 : 무점포 소매업 · 세분류 : 통신 판매업 · 세세분류 : 전자상거래 소매업"
       },
+      "recommendScore": 4,
       "scoreParts": {
         "_total": "65"
       },
@@ -423,6 +596,7 @@
         "meeting": "보류",
         "proposal": "보류"
       },
+      "candidate": {},
       "companyNameKo": "컴즈",
       "companyTier": "unknown",
       "contact": {
@@ -471,6 +645,13 @@
         "meeting": "보류",
         "proposal": "추천"
       },
+      "candidate": {},
+      "candidateCons": "QA팀 규모가 클 가능성",
+      "candidateIndustry": "중고거래 플랫폼",
+      "candidatePros": "사용자 수 매우 많음, 실제 UX 결함 풍부, 모든 기능 무료 테스트 가능",
+      "candidateRank": 1,
+      "candidateRepeatPosts": "7회+",
+      "candidateSince": "2026-06-05T00:00:00.000Z",
       "companyNameKo": "주식회사 중고나라",
       "companyTier": "unknown",
       "contact": {
@@ -489,10 +670,13 @@
         }
       ],
       "favorite": true,
+      "favoriteStage": "confirmed",
       "hidden": false,
+      "isCandidate": true,
       "leadGrade": "B",
       "manual": true,
       "notes": "",
+      "pilotDifficulty": 1,
       "priorityScore": "65",
       "profile": {
         "bizItem": "시스템 소프트웨어 개발 및 공급업",
@@ -506,6 +690,7 @@
         "homepage": "www.qdillion.com",
         "industrySummary": "대분류 : 도매 및 소매업 · 중분류 : 소매업; 자동차 제외 · 소분류 : 무점포 소매업 · 세분류 : 통신 판매업 · 세세분류 : 전자상거래 소매업"
       },
+      "recommendScore": 5,
       "scoreParts": {
         "_total": "65"
       },
@@ -514,6 +699,7 @@
     },
     "cmp_test": {
       "actions": {},
+      "candidate": {},
       "companyNameKo": "에스에프씨 주식회사",
       "contact": {},
       "domain": "sfc-dye.com",
@@ -715,53 +901,6 @@
           "status": "보류"
         }
       },
-      "companyId": "cmp_m_07ab4042",
-      "companyName": "수동 등록 회사",
-      "companyNameKo": "수동 등록 회사",
-      "companyTier": "unknown",
-      "companyTierLabel": "-",
-      "contactSecured": "no",
-      "domain": "",
-      "domainVerified": false,
-      "email": "",
-      "emailConfidence": "low",
-      "excludeReason": "",
-      "excluded": false,
-      "isManual": true,
-      "lastCollectedAt": "2026-06-05T06:34:51.040Z",
-      "leadGrade": "C",
-      "manualNotes": "",
-      "manualOverrideLocked": false,
-      "meetingRequired": "no",
-      "posts": [],
-      "priorityScore": "0",
-      "profile": {
-        "bizNo": "881-87-01258"
-      },
-      "profileComplete": true,
-      "reportRequired": "no",
-      "salesStage": "new",
-      "scoreReason": "manual"
-    },
-    {
-      "actionReasons": [
-        "수동 등록 회사 — 프로필·공고를 입력하세요."
-      ],
-      "actionSummary": "보류",
-      "actions": {
-        "inquiry": {
-          "label": "문의",
-          "status": "보류"
-        },
-        "meeting": {
-          "label": "미팅",
-          "status": "보류"
-        },
-        "proposal": {
-          "label": "제안",
-          "status": "보류"
-        }
-      },
       "companyId": "cmp_m_42eb5ccf",
       "companyName": "수동 등록 회사",
       "companyNameKo": "수동 등록 회사",
@@ -792,14 +931,15 @@
     }
   ],
   "favorites": [
-    "cmp_393ab6130c",
-    "cmp_90fe138f0f",
-    "cmp_50ac179198",
-    "cmp_m_fadf711e",
     "cmp_m_89c58fb9",
-    "cmp_m_07ab4042",
-    "cmp_m_42eb5ccf"
+    "cmp_m_42eb5ccf",
+    "cmp_8bc2e45789",
+    "cmp_m_fadf711e",
+    "cmp_50ac179198",
+    "cmp_052a9ef558",
+    "cmp_393ab6130c",
+    "cmp_90fe138f0f"
   ],
-  "updatedAt": "2026-06-05T06:38:25.537Z",
-  "version": 2
+  "updatedAt": "2026-06-08T00:29:41.066Z",
+  "version": 3
 }
