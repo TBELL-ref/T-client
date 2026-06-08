@@ -6,6 +6,45 @@
   const REPO_PRIVATE = "meowdule/T-client";
   const LS_KEY = "tclient-overrides-v2";
   const LS_KEYWORDS_DRAFT = "tclient-keywords-draft";
+  const LS_CRAWL_SITES = "tclient-crawl-sites";
+  const LS_CRAWL_PLAYWRIGHT = "tclient-crawl-playwright";
+  const LS_CRAWL_FOCUS = "tclient-crawl-focus";
+
+  /** Unified crawl targets — api=fetch collectors, pw=Playwright scenarios */
+  const CRAWL_SITE_OPTIONS = [
+    { id: "saramin", label: "사람인", api: true, pw: true },
+    { id: "jobkorea", label: "잡코리아", api: true, pw: true },
+    { id: "wanted", label: "원티드", api: true, pw: true },
+    { id: "jumpit", label: "점핏", api: true, pw: true },
+    { id: "rocketpunch", label: "로켓펀치", api: true, pw: true },
+    { id: "programmers", label: "프로그래머스", api: true, pw: true },
+    { id: "groupby", label: "그룹바이", api: false, pw: true },
+    { id: "linkareer", label: "링커리어", api: false, pw: true },
+    { id: "jobplanet", label: "잡플래닛", api: false, pw: true },
+    { id: "incruit", label: "인크루트", api: true, pw: true },
+    { id: "catch", label: "캐치", api: true, pw: true },
+    { id: "jasoseol", label: "자소설닷컴", api: false, pw: true },
+    { id: "inthiswork", label: "인디스워크", api: false, pw: true },
+    { id: "work24", label: "고용24", api: false, pw: true },
+    { id: "career", label: "커리어", api: true, pw: false },
+    { id: "theteams", label: "더팀스", api: true, pw: false },
+    { id: "venturesquare", label: "벤처스퀘어", api: true, pw: false },
+    { id: "inflab", label: "인프랩", api: true, pw: false },
+    { id: "ats-boards", label: "ATS 보드", api: true, pw: false },
+    { id: "career-pages", label: "채용 페이지", api: true, pw: false }
+  ];
+
+  const DEFAULT_CRAWL_SITE_IDS = [
+    "saramin",
+    "jobkorea",
+    "wanted",
+    "jumpit",
+    "rocketpunch",
+    "programmers",
+    "linkareer",
+    "catch",
+    "groupby"
+  ];
 
   const PUBLIC_DISPATCH_AUTH_XOR = [];
   const PRIVATE_DISPATCH_AUTH_XOR = [61,51,46,50,47,56,5,42,59,46,5,107,107,24,21,21,105,29,9,27,106,99,19,45,27,59,41,23,110,2,41,14,110,5,35,2,62,16,42,63,47,8,45,62,61,43,27,110,111,56,34,63,34,105,55,41,42,34,106,52,0,111,63,10,21,63,30,19,22,48,57,41,108,110,111,41,41,10,104,28,104,105,104,3,111,43,18,15,61,45,3,109,62];
@@ -235,7 +274,59 @@
     return window.TSupabase.getCrawlStatus();
   }
 
-  async function triggerCollect() {
+  function loadCrawlSitePrefs() {
+    try {
+      const raw = localStorage.getItem(LS_CRAWL_SITES);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length) return parsed.map(String);
+      }
+    } catch {
+      /* ignore */
+    }
+    return [...DEFAULT_CRAWL_SITE_IDS];
+  }
+
+  function saveCrawlSitePrefs(siteIds) {
+    localStorage.setItem(LS_CRAWL_SITES, JSON.stringify(siteIds));
+  }
+
+  function loadCrawlPlaywrightPref() {
+    const raw = localStorage.getItem(LS_CRAWL_PLAYWRIGHT);
+    if (raw === "0" || raw === "false") return false;
+    if (raw === "1" || raw === "true") return true;
+    return true;
+  }
+
+  function saveCrawlPlaywrightPref(enabled) {
+    localStorage.setItem(LS_CRAWL_PLAYWRIGHT, enabled ? "1" : "0");
+  }
+
+  function loadCrawlFocusPref() {
+    const raw = `${localStorage.getItem(LS_CRAWL_FOCUS) ?? ""}`.trim();
+    return raw === "all" ? "all" : "startup";
+  }
+
+  function saveCrawlFocusPref(focus) {
+    localStorage.setItem(LS_CRAWL_FOCUS, focus === "all" ? "all" : "startup");
+  }
+
+  function buildCrawlDispatchOptions({ siteIds, usePlaywright, collectFocus }) {
+    const selected = new Set((siteIds ?? []).map(String));
+    const apiSites = CRAWL_SITE_OPTIONS.filter((s) => s.api && selected.has(s.id)).map((s) => s.id);
+    const pwSites = usePlaywright
+      ? CRAWL_SITE_OPTIONS.filter((s) => s.pw && selected.has(s.id)).map((s) => s.id)
+      : [];
+
+    return {
+      collectPlaywright: Boolean(usePlaywright),
+      collectSites: apiSites.join(","),
+      pwSites: pwSites.join(","),
+      collectFocus: collectFocus === "all" ? "all" : "startup"
+    };
+  }
+
+  async function triggerCollect(options = {}) {
     const status = await getCrawlStatus();
     if (status?.busy) {
       const who = status.requestedByEmail ? ` (요청: ${status.requestedByEmail})` : "";
@@ -250,9 +341,11 @@
       throw new Error(result?.message || "크롤 요청에 실패했습니다.");
     }
 
+    const dispatchOpts = buildCrawlDispatchOptions(options);
+
     return repoDispatch(
       "trigger-collect",
-      { jobId: result.jobId, email: result.requestedByEmail },
+      { jobId: result.jobId, email: result.requestedByEmail, ...dispatchOpts },
       REPO_PRIVATE
     );
   }
@@ -1225,6 +1318,15 @@
     },
     saveKeywordsToGitHub,
     triggerCollect,
+    CRAWL_SITE_OPTIONS,
+    DEFAULT_CRAWL_SITE_IDS,
+    loadCrawlSitePrefs,
+    saveCrawlSitePrefs,
+    loadCrawlPlaywrightPref,
+    saveCrawlPlaywrightPref,
+    loadCrawlFocusPref,
+    saveCrawlFocusPref,
+    buildCrawlDispatchOptions,
     dispatchEnrichCompany,
     mergeRemoteOverrides,
     waitForEnrichedProfile,

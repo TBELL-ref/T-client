@@ -2454,7 +2454,8 @@ function showPasswordSetupUi(show = true) {
 
 async function updateCrawlUi() {
   const badge = byId("crawlStatusBadge");
-  const btn = byId("adminTriggerCollect");
+  const startBtn = byId("crawlStartBtn");
+  const openBtn = byId("adminOpenCrawlModal");
   if (!badge) return;
   try {
     const status = await window.TClientAdmin?.getCrawlStatus?.();
@@ -2465,13 +2466,15 @@ async function updateCrawlUi() {
       badge.textContent = `크롤링 중${who}`;
       badge.title = "현재 크롤링 진행 중입니다";
     }
-    if (btn) {
+    for (const btn of [startBtn, openBtn]) {
+      if (!btn) continue;
       btn.disabled = busy;
       btn.title = busy ? "현재 크롤링 진행 중입니다" : "";
     }
   } catch {
     badge.classList.add("hidden");
-    if (btn) btn.disabled = false;
+    if (startBtn) startBtn.disabled = false;
+    if (openBtn) openBtn.disabled = false;
   }
 }
 
@@ -2497,15 +2500,11 @@ function toggleAdminPopover() {
   const open = pop?.classList.toggle("hidden") === false;
   pop?.setAttribute("aria-hidden", open ? "false" : "true");
   btn?.setAttribute("aria-expanded", open ? "true" : "false");
-  if (open && window.TClientAdmin.isUnlocked()) {
-    setAdminUi(true);
-    renderAdminKeywords();
-  }
   if (open) byId("adminEmail")?.focus();
 }
 
-function renderAdminKeywords() {
-  const el = byId("keywordChips");
+function renderCrawlKeywords() {
+  const el = byId("crawlKeywordChips");
   if (!el || !window.TClientAdmin?.isUnlocked()) return;
   const labels = window.TClientAdmin.getActiveKeywordLabels();
   el.innerHTML = labels.length
@@ -2518,57 +2517,158 @@ function renderAdminKeywords() {
   el.querySelectorAll("[data-kw-remove]").forEach((btn) => {
     btn.addEventListener("click", () => {
       window.TClientAdmin.removeKeywordDraft(btn.getAttribute("data-kw-remove"));
-      renderAdminKeywords();
+      renderCrawlKeywords();
     });
   });
 }
 
-function bindKeywordAdmin() {
-  byId("keywordAddBtn")?.addEventListener("click", () => {
-    const input = byId("keywordInput");
+function getSelectedCrawlSiteIds() {
+  const grid = byId("crawlSiteGrid");
+  if (!grid) return window.TClientAdmin.loadCrawlSitePrefs();
+  return [...grid.querySelectorAll('input[type="checkbox"][data-site-id]:checked')].map((el) =>
+    el.getAttribute("data-site-id")
+  );
+}
+
+function renderCrawlSiteGrid() {
+  const grid = byId("crawlSiteGrid");
+  if (!grid || !window.TClientAdmin?.CRAWL_SITE_OPTIONS) return;
+  const selected = new Set(window.TClientAdmin.loadCrawlSitePrefs());
+  grid.innerHTML = window.TClientAdmin.CRAWL_SITE_OPTIONS.map((site) => {
+    const meta = [site.api && "API", site.pw && "UI"].filter(Boolean).join("·");
+    const checked = selected.has(site.id) ? "checked" : "";
+    return `<label class="crawl-site-chip"><input type="checkbox" data-site-id="${escapeAttr(site.id)}" ${checked} /><span>${escapeHtml(site.label)}</span><span class="crawl-site-chip-meta">${escapeHtml(meta)}</span></label>`;
+  }).join("");
+  grid.querySelectorAll('input[type="checkbox"][data-site-id]').forEach((input) => {
+    input.addEventListener("change", () => {
+      window.TClientAdmin.saveCrawlSitePrefs(getSelectedCrawlSiteIds());
+    });
+  });
+}
+
+function paintCrawlModal() {
+  if (!window.TClientAdmin?.isUnlocked()) return;
+  renderCrawlKeywords();
+  renderCrawlSiteGrid();
+  const pw = byId("crawlUsePlaywright");
+  const focus = byId("crawlFocus");
+  if (pw) pw.checked = window.TClientAdmin.loadCrawlPlaywrightPref();
+  if (focus) focus.value = window.TClientAdmin.loadCrawlFocusPref();
+}
+
+function openCrawlModal() {
+  if (!window.TClientAdmin?.isUnlocked()) {
+    showToast("관리자 로그인이 필요합니다.", "error");
+    return;
+  }
+  closeAdminPopover();
+  paintCrawlModal();
+  const modal = byId("crawlModal");
+  modal?.classList.remove("hidden");
+  modal?.setAttribute("aria-hidden", "false");
+  hydrateIcons(modal);
+  byId("crawlKeywordInput")?.focus();
+}
+
+function closeCrawlModal() {
+  const modal = byId("crawlModal");
+  modal?.classList.add("hidden");
+  modal?.setAttribute("aria-hidden", "true");
+}
+
+function bindCrawlModal() {
+  byId("adminOpenCrawlModal")?.addEventListener("click", () => {
+    openCrawlModal();
+  });
+
+  document.querySelectorAll("[data-close-crawl]").forEach((el) => {
+    el.addEventListener("click", () => closeCrawlModal());
+  });
+
+  byId("crawlKeywordAddBtn")?.addEventListener("click", () => {
+    const input = byId("crawlKeywordInput");
     const value = input?.value ?? "";
     if (!window.TClientAdmin.addKeywordDraft(value)) {
-      setAdminStatus(value.trim() ? "이미 있는 키워드입니다." : "키워드를 입력하세요.");
+      showToast(value.trim() ? "이미 있는 키워드입니다." : "키워드를 입력하세요.", "error");
       return;
     }
     input.value = "";
-    renderAdminKeywords();
-    setAdminStatus("");
+    renderCrawlKeywords();
   });
 
-  byId("keywordInput")?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") byId("keywordAddBtn")?.click();
+  byId("crawlKeywordInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") byId("crawlKeywordAddBtn")?.click();
   });
 
-  byId("adminSaveKeywords")?.addEventListener("click", async () => {
-    setAdminStatus("키워드 반영 중…");
-    try {
-      await window.TClientAdmin.saveKeywordsToGitHub();
-      renderAdminKeywords();
-      setAdminStatus("키워드 반영됨 (시트 동기화 중)");
-    } catch (err) {
-      setAdminStatus(err.message || String(err));
+  byId("crawlSitesSelectAll")?.addEventListener("click", () => {
+    const ids = window.TClientAdmin.CRAWL_SITE_OPTIONS.map((s) => s.id);
+    window.TClientAdmin.saveCrawlSitePrefs(ids);
+    renderCrawlSiteGrid();
+  });
+
+  byId("crawlSitesClear")?.addEventListener("click", () => {
+    window.TClientAdmin.saveCrawlSitePrefs([]);
+    renderCrawlSiteGrid();
+  });
+
+  byId("crawlUsePlaywright")?.addEventListener("change", (e) => {
+    window.TClientAdmin.saveCrawlPlaywrightPref(e.target.checked);
+  });
+
+  byId("crawlFocus")?.addEventListener("change", (e) => {
+    window.TClientAdmin.saveCrawlFocusPref(e.target.value);
+  });
+
+  byId("crawlStartBtn")?.addEventListener("click", async () => {
+    const siteIds = getSelectedCrawlSiteIds();
+    if (!siteIds.length) {
+      showToast("탐색 사이트를 하나 이상 선택하세요.", "error");
+      return;
     }
-  });
+    const keywords = window.TClientAdmin.getActiveKeywordLabels();
+    if (!keywords.length) {
+      showToast("검색 키워드를 하나 이상 추가하세요.", "error");
+      return;
+    }
 
-  byId("adminTriggerCollect")?.addEventListener("click", async () => {
-    setAdminStatus("크롤링 요청 중…");
+    const usePlaywright = byId("crawlUsePlaywright")?.checked ?? true;
+    const collectFocus = byId("crawlFocus")?.value ?? "startup";
+    window.TClientAdmin.saveCrawlSitePrefs(siteIds);
+    window.TClientAdmin.saveCrawlPlaywrightPref(usePlaywright);
+    window.TClientAdmin.saveCrawlFocusPref(collectFocus);
+
+    const dispatchPreview = window.TClientAdmin.buildCrawlDispatchOptions({
+      siteIds,
+      usePlaywright,
+      collectFocus
+    });
+    if (!dispatchPreview.collectSites && (!dispatchPreview.collectPlaywright || !dispatchPreview.pwSites)) {
+      showToast("선택한 사이트로 수집할 수 없습니다. Playwright를 켜거나 API 수집 사이트를 선택하세요.", "error");
+      return;
+    }
+
+    const startBtn = byId("crawlStartBtn");
+    if (startBtn) startBtn.disabled = true;
+    showToast("크롤링 요청 중…");
+
     try {
       const status = await window.TClientAdmin.getCrawlStatus();
       if (status?.busy) {
-        setAdminStatus("현재 크롤링 진행 중입니다.");
+        showToast("현재 크롤링 진행 중입니다.", "error");
         await updateCrawlUi();
         return;
       }
       await window.TClientAdmin.flushPersist();
       await window.TClientAdmin.saveKeywordsToGitHub();
-      await window.TClientAdmin.triggerCollect();
-      renderAdminKeywords();
-      setAdminStatus("크롤링 시작됨. 완료 시 이메일로 안내합니다.");
+      await window.TClientAdmin.triggerCollect({ siteIds, usePlaywright, collectFocus });
+      closeCrawlModal();
+      showToast("크롤링이 시작되었습니다. 완료 시 이메일로 안내합니다.");
       await updateCrawlUi();
     } catch (err) {
-      setAdminStatus(err.message || String(err));
+      showToast(err.message || String(err), "error");
       await updateCrawlUi();
+    } finally {
+      if (startBtn) startBtn.disabled = false;
     }
   });
 }
@@ -2590,20 +2690,25 @@ function bindAdmin() {
       await window.TClientAdmin.signIn(email, password);
       setAdminUi(true);
       setAdminStatus("");
-      renderAdminKeywords();
+      closeAdminPopover();
+      showToast("로그인되었습니다.");
       refreshViews();
     } catch (err) {
-      setAdminStatus(err.message || String(err));
+      showToast(err.message || String(err), "error");
     }
   });
 
   byId("adminSetupEmailBtn")?.addEventListener("click", async () => {
     const email = byId("adminEmail")?.value ?? "";
+    if (!`${email}`.trim()) {
+      showToast("이메일을 입력하세요.", "error");
+      return;
+    }
     try {
       await window.TClientAdmin.sendPasswordSetupEmail(email);
-      setAdminStatus("비밀번호 설정 메일을 보냈습니다. 메일의 링크에서 비밀번호를 설정하세요.");
+      showToast("비밀번호 설정 메일을 보냈습니다. 메일의 링크에서 비밀번호를 설정하세요.");
     } catch (err) {
-      setAdminStatus(err.message || String(err));
+      showToast(err.message || String(err), "error");
     }
   });
 
@@ -2611,18 +2716,19 @@ function bindAdmin() {
     const pwd = byId("adminNewPassword")?.value ?? "";
     const confirm = byId("adminConfirmPassword")?.value ?? "";
     if (pwd !== confirm) {
-      setAdminStatus("비밀번호 확인이 일치하지 않습니다.");
+      showToast("비밀번호 확인이 일치하지 않습니다.", "error");
       return;
     }
     try {
       await window.TClientAdmin.updatePassword(pwd);
       showPasswordSetupUi(false);
       setAdminUi(true);
-      setAdminStatus("비밀번호가 설정되었습니다. 이후부터는 이메일과 비밀번호로 로그인하세요.");
-      renderAdminKeywords();
+      setAdminStatus("");
+      closeAdminPopover();
+      showToast("비밀번호가 설정되었습니다. 이후부터는 이메일과 비밀번호로 로그인하세요.");
       refreshViews();
     } catch (err) {
-      setAdminStatus(err.message || String(err));
+      showToast(err.message || String(err), "error");
     }
   });
 
@@ -2644,10 +2750,10 @@ function bindAdmin() {
   });
 
   window.TClientAdmin.setOnPersistStatus((status) => {
-    if (status === "pending") setAdminStatus("저장 대기…");
-    else if (status === "saving") setAdminStatus("DB 저장 중…");
-    else if (status === "saved") setAdminStatus("저장됨");
-    else if (status && status !== "idle") setAdminStatus(`저장 실패: ${status}`);
+    if (status === "saved") showToast("저장되었습니다.");
+    else if (status && status !== "idle" && status !== "pending" && status !== "saving") {
+      showToast(`저장 실패: ${status}`, "error");
+    }
   });
 
   window.addEventListener("beforeunload", () => {
@@ -2656,7 +2762,7 @@ function bindAdmin() {
     }
   });
 
-  bindKeywordAdmin();
+  bindCrawlModal();
 
   window.TAuth.onAuthStateChange(async (event) => {
     if (event === "PASSWORD_RECOVERY") {
@@ -2666,13 +2772,11 @@ function bindAdmin() {
     }
     await window.TClientAdmin.syncSession();
     setAdminUi(window.TClientAdmin.isUnlocked());
-    if (window.TClientAdmin.isUnlocked()) renderAdminKeywords();
     refreshViews();
   });
 
   if (window.TClientAdmin.isUnlocked()) {
     setAdminUi(true);
-    renderAdminKeywords();
   }
 }
 
