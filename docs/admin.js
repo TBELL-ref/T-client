@@ -441,11 +441,9 @@
   function mergeCompanies(sourceCompanyId, targetCompanyId) {
     if (!sourceCompanyId || !targetCompanyId) return false;
     if (sourceCompanyId === targetCompanyId) return false;
-    if (!isCustomCompany(sourceCompanyId)) return false;
 
     const src = getEntry(sourceCompanyId);
     const dst = getEntry(targetCompanyId);
-    if (!src || !dst) return false;
 
     const pickNonEmpty = (a, b) => (a === undefined || a === null || a === "" ? b : a);
     const pickDefined = (a, b) => (a === undefined ? b : a);
@@ -515,12 +513,22 @@
     // Favorites
     const favs = new Set([...(state.doc.favorites ?? [])]);
     favs.delete(sourceCompanyId);
-    if (src.favorite && !dst.favorite) favs.add(targetCompanyId);
+    const srcStage = resolveFavoriteStage(src);
+    const dstStage = resolveFavoriteStage(merged);
+    if (srcStage || dstStage) favs.add(targetCompanyId);
     state.doc.favorites = [...favs];
 
-    // Remove source custom company
-    state.doc.customCompanies = (state.doc.customCompanies ?? []).filter((r) => r.companyId !== sourceCompanyId);
-    delete state.doc.companies[sourceCompanyId];
+    if (isCustomCompany(sourceCompanyId)) {
+      state.doc.customCompanies = (state.doc.customCompanies ?? []).filter((r) => r.companyId !== sourceCompanyId);
+      delete state.doc.companies[sourceCompanyId];
+    } else {
+      state.doc.companies[sourceCompanyId] = {
+        hidden: true,
+        favorite: false,
+        favoriteStage: "",
+        updatedAt: new Date().toISOString()
+      };
+    }
 
     state.dirty = true;
     saveLocal(state.doc);

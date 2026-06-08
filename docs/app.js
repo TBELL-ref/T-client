@@ -172,10 +172,39 @@ function inlineInput(id, value, type = "text", placeholder = "") {
 }
 
 function inlineSelect(id, value, options) {
+  const current = `${value ?? ""}`;
   const opts = options
-    .map(([v, l]) => `<option value="${escapeAttr(v)}"${value === v ? " selected" : ""}>${escapeHtml(l)}</option>`)
+    .map(([v, l]) => `<option value="${escapeAttr(v)}"${current === `${v}` ? " selected" : ""}>${escapeHtml(l)}</option>`)
     .join("");
   return `<select id="${id}" class="inline-field inline-select">${opts}</select>`;
+}
+
+function scoreSelectValue(value) {
+  const n = Number.parseInt(`${value ?? ""}`, 10);
+  return Number.isFinite(n) && n > 0 ? String(n) : "";
+}
+
+function parseStarSelect(raw) {
+  const s = `${raw ?? ""}`.trim();
+  if (!s) return 0;
+  const n = Number.parseInt(s, 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function detailCard(title, body, extraClass = "") {
+  return `<section class="detail-card ${extraClass}">
+    <header class="detail-card-head"><h3 class="detail-card-title">${escapeHtml(title)}</h3></header>
+    <div class="detail-card-body">${body}</div>
+  </section>`;
+}
+
+function detailKvGrid(rows) {
+  return `<dl class="detail-kv">${rows
+    .map(
+      ([label, value]) =>
+        `<div class="detail-kv-row"><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`
+    )
+    .join("")}</dl>`;
 }
 
 function renderProfileSection(row, edit = false, p = {}, domain = "", admin = false) {
@@ -218,16 +247,16 @@ function renderProfileSection(row, edit = false, p = {}, domain = "", admin = fa
       .join("")}</tbody></table>`;
   }
 
-  return `<table class="profile-table"><tbody>${fields
+  return `<dl class="detail-kv profile-kv">${fields
     .map(([label, , val]) => {
       const v = `${val ?? ""}`.trim();
       const cell =
         label === "홈페이지" && v
           ? `<a class="link" href="${escapeAttr(v)}" target="_blank" rel="noreferrer">${escapeHtml(v)}</a>`
-          : escapeHtml(label === "종업원" && v ? `${v}명` : v);
-      return `<tr><th>${escapeHtml(label)}</th><td>${cell}</td></tr>`;
+          : escapeHtml(label === "종업원" && v ? `${v}명` : v || "—");
+      return `<div class="detail-kv-row"><dt>${escapeHtml(label)}</dt><dd>${cell}</dd></div>`;
     })
-    .join("")}</tbody></table>`;
+    .join("")}</dl>`;
 }
 
 function actionSelect(id, value) {
@@ -487,10 +516,10 @@ function bindDetailEdits(row) {
       candidateRank: byId("edit-cand-rank")?.value,
       candidateIndustry: byId("edit-cand-industry")?.value.trim(),
       candidateRepeatPosts: byId("edit-cand-repeat")?.value.trim(),
-      pilotDifficulty: byId("edit-cand-pilot")?.value,
+      pilotDifficulty: parseStarSelect(byId("edit-cand-pilot")?.value),
       candidatePros: byId("edit-cand-pros")?.value.trim(),
       candidateCons: byId("edit-cand-cons")?.value.trim(),
-      recommendScore: byId("edit-cand-score")?.value,
+      recommendScore: parseStarSelect(byId("edit-cand-score")?.value),
       excludeReason: byId("edit-exclude")?.value.trim(),
       notes: byId("edit-notes")?.value.trim(),
       contact: {
@@ -1287,67 +1316,86 @@ function renderDetailBody(row, edit, admin = false) {
   const tierVal = e.companyTier || row.companyTier || "";
   const email = c.email || row.email || "";
 
-  const classifyBlock = edit
-    ? `<div class="inline-grid">
-        <div class="inline-row"><span class="inline-label">회사명</span>${inlineInput("edit-name-ko", e.companyNameKo || row.companyNameKo)}</div>
-        <div class="inline-row"><span class="inline-label">규모</span>${inlineSelect("edit-tier", tierVal, [
-          ["", "(자동)"],
-          ["startup", "소·스타트업"],
-          ["mid", "중견"],
-          ["enterprise", "대기업"],
-          ["unknown", "미확인"]
-        ])}</div>
-        <div class="inline-row"><span class="inline-label">등급</span>${inlineSelect("edit-grade", e.leadGrade || row.leadGrade, [
-          ["", "(유지)"],
-          ["A", "A"],
-          ["B", "B"],
-          ["C", "C"]
-        ])}</div>
-        <div class="inline-row inline-checks">
-          <label><input type="checkbox" id="edit-is-candidate" ${row.isCandidate ? "checked" : ""} /> 후보 등록</label>
-          <label><input type="checkbox" id="edit-hidden" ${e.hidden ? "checked" : ""} /> 숨김</label>
+  const heroChips = [
+    `<span class="detail-chip grade-chip grade-${row.leadGrade}">${row.leadGrade}등급</span>`,
+    `<span class="detail-chip">${row.priorityScore}점</span>`,
+    `<span class="detail-chip">공고 ${row.posts.length}건</span>`
+  ];
+  if (row.isCandidate) heroChips.push(`<span class="detail-chip chip-candidate">후보</span>`);
+  if (row.isManual) heroChips.unshift(`<span class="detail-chip chip-manual">수동</span>`);
+
+  const heroBlock = edit
+    ? `<div class="detail-hero-card detail-hero-edit">
+        <div class="detail-chip-row">${heroChips.join("")} ${favoriteStageBadge(row)}</div>
+        <div class="inline-grid">
+          <div class="inline-row"><span class="inline-label">회사명</span>${inlineInput("edit-name-ko", e.companyNameKo || row.companyNameKo)}</div>
+          <div class="inline-row"><span class="inline-label">규모</span>${inlineSelect("edit-tier", tierVal, [
+            ["", "(자동)"],
+            ["startup", "소·스타트업"],
+            ["mid", "중견"],
+            ["enterprise", "대기업"],
+            ["unknown", "미확인"]
+          ])}</div>
+          <div class="inline-row"><span class="inline-label">등급</span>${inlineSelect("edit-grade", e.leadGrade || row.leadGrade, [
+            ["", "(유지)"],
+            ["A", "A"],
+            ["B", "B"],
+            ["C", "C"]
+          ])}</div>
+          <div class="inline-row inline-checks">
+            <label><input type="checkbox" id="edit-is-candidate" ${row.isCandidate ? "checked" : ""} /> 후보</label>
+            <label><input type="checkbox" id="edit-hidden" ${e.hidden ? "checked" : ""} /> 숨김</label>
+          </div>
+          <div class="inline-row"><span class="inline-label">분류</span>${inlineSelect("edit-fav-stage", e.favoriteStage || row.userFavoriteStage || "", [
+            ["", "(없음)"],
+            ["basic", "기본"],
+            ["recommended", "추천"],
+            ["confirmed", "확정"]
+          ])}</div>
+          <div class="inline-row"><span class="inline-label">제외</span>${inlineInput("edit-exclude", e.excludeReason ?? row.excludeReason ?? "")}</div>
+          <div class="inline-row full-width"><span class="inline-label">메모</span>${inlineInput("edit-notes", e.notes ?? row.manualNotes ?? "")}</div>
         </div>
-        <div class="inline-row"><span class="inline-label">분류</span>${inlineSelect("edit-fav-stage", e.favoriteStage || row.userFavoriteStage || "", [
-          ["", "(없음)"],
-          ["basic", "기본"],
-          ["recommended", "추천"],
-          ["confirmed", "확정"]
-        ])}</div>
-        <div class="inline-row"><span class="inline-label">제외</span>${inlineInput("edit-exclude", e.excludeReason ?? row.excludeReason ?? "")}</div>
-        <div class="inline-row"><span class="inline-label">메모</span>${inlineInput("edit-notes", e.notes ?? row.manualNotes ?? "")}</div>
       </div>`
-    : `<p class="detail-summary"><strong>${escapeHtml(displayName(row))}</strong> ${tierBadge(row)} <span class="badge grade-${row.leadGrade}">${row.leadGrade}</span> ${favoriteStageBadge(row)}</p>
-       <p class="muted">${escapeHtml(companySubline(row))} · ${row.priorityScore}점 · ${escapeHtml(tierLabelKo(row.companyTier))}${row.isCandidate ? ` · 후보 ${formatDate(row.candidateSince)}` : ""}</p>`;
+    : `<div class="detail-hero-card">
+        <div class="detail-chip-row">${heroChips.join("")} ${tierBadge(row)} ${favoriteStageBadge(row)}</div>
+        <p class="detail-hero-name">${escapeHtml(displayName(row))}</p>
+        <p class="detail-hero-sub">${escapeHtml(companySubline(row))}</p>
+        ${row.isCandidate ? `<p class="detail-hero-meta">후보 등록 · ${formatDate(row.candidateSince)}</p>` : ""}
+      </div>`;
 
   const contactBlock = edit
-    ? `<div class="inline-grid cols-3">
+    ? `<div class="inline-grid">
         <div class="inline-row"><span class="inline-label">이름</span>${inlineInput("edit-contact-name", c.name ?? "")}</div>
         <div class="inline-row"><span class="inline-label">이메일</span>${inlineInput("edit-contact-email", email, "email")}</div>
         <div class="inline-row"><span class="inline-label">전화</span>${inlineInput("edit-contact-phone", c.phone ?? "", "tel")}</div>
       </div>`
-    : `<p>${c.name ? `<strong>${escapeHtml(c.name)}</strong> · ` : ""}${email ? escapeHtml(email) : '<span class="muted">이메일 없음</span>'}${c.phone ? ` · ${escapeHtml(c.phone)}` : ""}</p>`;
+    : detailKvGrid([
+        ["이름", c.name ? `<strong>${escapeHtml(c.name)}</strong>` : '<span class="muted">—</span>'],
+        ["이메일", email ? escapeHtml(email) : '<span class="muted">없음</span>'],
+        ["전화", c.phone ? escapeHtml(c.phone) : '<span class="muted">—</span>']
+      ]);
 
   const actionsBlock = edit
-    ? `<div class="inline-grid cols-3 action-inline">
+    ? `<div class="inline-grid action-inline">
         <div class="inline-row"><span class="inline-label">적합</span>${actionSelect("edit-act-proposal", row.actions.proposal.status)}</div>
         <div class="inline-row"><span class="inline-label">진행</span>${actionSelect("edit-act-meeting", row.actions.meeting.status)}</div>
         <div class="inline-row"><span class="inline-label">제안</span>${actionSelect("edit-act-inquiry", row.actions.inquiry.status)}</div>
       </div>`
-    : `<div class="action-row">${renderActionBadges(row.actions)}</div>`;
+    : `<div class="action-row action-row-spaced">${renderActionBadges(row.actions)}</div>`;
 
   const candidateBlock = edit
     ? `<div class="inline-grid cols-2">
         <div class="inline-row"><span class="inline-label">순위</span>${inlineInput("edit-cand-rank", row.candidateRank || "", "number", "1")}</div>
-        <div class="inline-row"><span class="inline-label">후보 등록일</span>${inlineInput("edit-cand-since", row.candidateSince ? row.candidateSince.slice(0, 10) : "", "date")}</div>
+        <div class="inline-row"><span class="inline-label">등록일</span>${inlineInput("edit-cand-since", row.candidateSince ? row.candidateSince.slice(0, 10) : "", "date")}</div>
         <div class="inline-row"><span class="inline-label">업종</span>${inlineInput("edit-cand-industry", row.candidateIndustry || candidateIndustryLabel(row))}</div>
         <div class="inline-row"><span class="inline-label">반복공고</span>${inlineInput("edit-cand-repeat", row.candidateRepeatPosts || candidateRepeatLabel(row), "text", "7회+")}</div>
-        <div class="inline-row"><span class="inline-label">파일럿 난이도</span>${inlineSelect("edit-cand-pilot", row.pilotDifficulty || "", [
+        <div class="inline-row"><span class="inline-label">파일럿 난이도</span>${inlineSelect("edit-cand-pilot", scoreSelectValue(row.pilotDifficulty), [
           ["", "(선택)"],
           ["1", "★☆☆ (쉬움)"],
           ["2", "★★☆ (보통)"],
           ["3", "★★★ (어려움)"]
         ])}</div>
-        <div class="inline-row"><span class="inline-label">추천 점수</span>${inlineSelect("edit-cand-score", row.recommendScore || "", [
+        <div class="inline-row"><span class="inline-label">추천 점수</span>${inlineSelect("edit-cand-score", scoreSelectValue(row.recommendScore), [
           ["", "(선택)"],
           ["5", "★★★★★"],
           ["4", "★★★★☆"],
@@ -1359,81 +1407,76 @@ function renderDetailBody(row, edit, admin = false) {
         <div class="inline-row full-width"><span class="inline-label">주요 단점</span>${inlineInput("edit-cand-cons", row.candidateCons ?? "")}</div>
       </div>`
     : row.isCandidate
-      ? `<table class="profile-table candidate-read-table"><tbody>
-          <tr><th>순위</th><td>${row.candidateRank || "-"}</td><th>후보 등록</th><td>${formatDate(row.candidateSince)}</td></tr>
-          <tr><th>업종</th><td colspan="3">${escapeHtml(candidateIndustryLabel(row))}</td></tr>
-          <tr><th>반복공고</th><td>${escapeHtml(candidateRepeatLabel(row))}</td><th>파일럿</th><td>${renderStarRating(row.pilotDifficulty, 3)}</td></tr>
-          <tr><th>추천</th><td colspan="3">${renderStarRating(row.recommendScore, 5)}</td></tr>
-          <tr><th>장점</th><td colspan="3">${escapeHtml(row.candidatePros || "-")}</td></tr>
-          <tr><th>단점</th><td colspan="3">${escapeHtml(row.candidateCons || "-")}</td></tr>
-        </tbody></table>`
-      : `<p class="muted">후보로 등록되지 않았습니다. 수정 모드에서 「후보 등록」을 켜세요.</p>`;
+      ? detailKvGrid([
+          ["순위", escapeHtml(`${row.candidateRank || "-"}`)],
+          ["후보 등록", formatDate(row.candidateSince)],
+          ["업종", escapeHtml(candidateIndustryLabel(row))],
+          ["반복공고", escapeHtml(candidateRepeatLabel(row))],
+          ["파일럿 난이도", renderStarRating(row.pilotDifficulty, 3)],
+          ["추천 점수", renderStarRating(row.recommendScore, 5)],
+          ["주요 장점", `<span class="detail-prose">${escapeHtml(row.candidatePros || "-")}</span>`],
+          ["주요 단점", `<span class="detail-prose">${escapeHtml(row.candidateCons || "-")}</span>`]
+        ])
+      : `<p class="muted detail-empty-hint">후보로 등록되지 않았습니다. 수정 모드에서 「후보」를 켜세요.</p>`;
+
+  const postsRows = row.posts
+    .map(
+      (post) => `
+    <tr>
+      <td class="cell-post-title">${escapeHtml(post.title)}</td>
+      <td>${escapeHtml(post.sourceLabel || post.source)}</td>
+      <td class="cell-post-link">
+        <a class="link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${iconSvg("external", 14)} 열기</a>
+        ${
+          admin
+            ? '<button type="button" class="btn-icon-delete post-delete-btn" data-post-url="' +
+              escapeAttr(post.url) +
+              '" data-post-manual="' +
+              (post.isManualPost ? "1" : "0") +
+              '" title="공고 삭제"><span data-icon="trash"></span></button>'
+            : ""
+        }
+      </td>
+    </tr>`
+    )
+    .join("");
+
+  const postsBlock = `
+    <div class="detail-table-wrap">
+      <table class="detail-table detail-table-compact">
+        <thead><tr><th>공고</th><th>출처</th><th></th></tr></thead>
+        <tbody>${postsRows || '<tr><td colspan="3" class="muted">등록된 공고 없음</td></tr>'}</tbody>
+      </table>
+    </div>
+    ${
+      edit
+        ? `<div class="inline-grid cols-2 post-add-row">
+        <div class="inline-row"><span class="inline-label">추가 제목</span>${inlineInput("edit-post-title", "", "text", "QA 엔지니어")}</div>
+        <div class="inline-row"><span class="inline-label">URL</span>${inlineInput("edit-post-url", "", "url", "https://...")}</div>
+      </div>`
+        : ""
+    }`;
+
+  const sidebar = `
+    ${heroBlock}
+    ${detailCard("담당자", contactBlock)}
+    ${detailCard("다음 액션", `${actionsBlock}${reasons.length ? `<ul class="reason-list reason-list-compact">${reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>` : ""}`)}
+  `;
+
+  const main = `
+    ${detailCard("회사 프로필", renderProfileSection(row, edit, p, e.domain || row.domain || "", admin))}
+    ${detailCard("영업 후보", candidateBlock, row.isCandidate ? "detail-card-accent" : "")}
+    ${detailCard(`QA 채용 공고 · ${row.posts.length}건`, postsBlock)}
+    ${detailCard("점수 근거", renderScoreSection(row, edit, admin), "detail-card-muted")}
+  `;
 
   return `
-    <section class="detail-section">
-      ${detailTitle("분류 · 등급")}
-      ${classifyBlock}
-    </section>
-    <section class="detail-section">
-      ${detailTitle("담당자")}
-      ${contactBlock}
-    </section>
-    <section class="detail-section">
-      ${detailTitle("회사 프로필")}
-      ${renderProfileSection(row, edit, p, e.domain || row.domain || "", admin)}
-    </section>
-    <section class="detail-section">
-      ${detailTitle("다음 액션")}
-      ${actionsBlock}
-      ${reasons.length ? `<ul class="reason-list">${reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>` : ""}
-    </section>
-    <section class="detail-section">
-      ${detailTitle("영업 후보")}
-      ${candidateBlock}
-    </section>
-    <section class="detail-section">
-      ${detailTitle(`QA 채용 공고 (${row.posts.length}건)`)}
-      <table class="detail-table">
-        <thead><tr><th>공고</th><th>출처</th><th>링크</th></tr></thead>
-        <tbody>
-          ${row.posts
-            .map(
-              (post) => `
-            <tr>
-              <td>${escapeHtml(post.title)}</td>
-              <td>${escapeHtml(post.sourceLabel || post.source)}</td>
-              <td>
-                <a class="link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${iconSvg("external", 14)} 열기</a>
-                ${
-                  admin
-                    ? '<button type="button" class="btn-icon-delete post-delete-btn" data-post-url="' +
-                      escapeAttr(post.url) +
-                      '" data-post-manual="' +
-                      (post.isManualPost ? "1" : "0") +
-                      '" title="공고 삭제"><span data-icon="trash"></span></button>'
-                    : ""
-                }
-              </td>
-            </tr>`
-            )
-            .join("")}
-        </tbody>
-      </table>
-      ${
-        edit
-          ? `<div class="inline-grid cols-2 post-add-row">
-          <div class="inline-row"><span class="inline-label">추가 제목</span>${inlineInput("edit-post-title", "", "text", "QA 엔지니어")}</div>
-          <div class="inline-row"><span class="inline-label">URL</span>${inlineInput("edit-post-url", "", "url", "https://...")}</div>
-        </div>`
-          : ""
-      }
-    </section>
-    <section class="detail-section muted-box">
-      ${detailTitle("점수 근거")}
-      ${renderScoreSection(row, edit, admin)}
-    </section>
-    ${row.excludeReason ? `<p class="warn">제외: ${escapeHtml(row.excludeReason)}</p>` : ""}
-    ${edit ? `<footer class="detail-footer"><button type="button" class="btn-ghost btn-sm" id="detail-cancel-edit">취소</button><button type="button" class="btn-primary" id="detail-save-all">변경 저장</button></footer>` : ""}`;
+    <div class="detail-layout">
+      <aside class="detail-sidebar">${sidebar}</aside>
+      <div class="detail-main">${main}</div>
+    </div>
+    ${row.excludeReason ? `<p class="warn detail-warn">제외 사유: ${escapeHtml(row.excludeReason)}</p>` : ""}
+    ${edit ? `<footer class="detail-footer detail-footer-sticky"><button type="button" class="btn-ghost btn-sm" id="detail-cancel-edit">취소</button><button type="button" class="btn-primary" id="detail-save-all">변경 저장</button></footer>` : ""}`;
 }
 
 function paintDetailModal() {
@@ -1453,8 +1496,7 @@ function paintDetailModal() {
   editBtn?.setAttribute("aria-pressed", edit ? "true" : "false");
 
   const mergeBtn = byId("detailMergeBtn");
-  const canMerge = admin && (row.isManual || window.TClientAdmin?.isCustomCompany?.(row.companyId));
-  mergeBtn?.classList.toggle("hidden", !canMerge);
+  mergeBtn?.classList.toggle("hidden", !admin);
 
   const deleteBtn = byId("detailDeleteBtn");
   deleteBtn?.classList.toggle("hidden", !admin);
@@ -1699,18 +1741,12 @@ function deletePostFromCompany(row, postUrl, isManualPost) {
 
 function openMergeModal(row) {
   if (!row?.companyId || !window.TClientAdmin?.isUnlocked()) return;
-  const admin = window.TClientAdmin;
-  const isManual = row.isManual || admin.isCustomCompany?.(row.companyId);
-  if (!isManual) {
-    showToast("수동(직접 등록) 회사만 병합할 수 있습니다.", "error");
-    return;
-  }
 
   state.mergeSourceRow = row;
   const modal = byId("mergeModal");
   const hint = byId("mergeSourceHint");
   if (hint) {
-    hint.textContent = `「${displayName(row)}」의 수동 데이터를 다른 회사로 옮깁니다. 병합 대상을 검색해 선택하세요.`;
+    hint.textContent = `「${displayName(row)}」의 메모·후보·공고·프로필 정보를 다른 회사로 옮깁니다. 병합 대상을 검색해 선택하세요.`;
   }
   byId("mergeSearch").value = "";
   renderMergeResults("");
@@ -1766,7 +1802,7 @@ function confirmMergeToTarget(targetId) {
 
   if (
     !window.confirm(
-      `「${displayName(sourceRow)}」을(를) 「${displayName(targetRow)}」로 병합할까요?\n(수동 공고/프로필이 대상에 옮겨지고, 원본 수동 회사는 삭제됩니다.)`
+      `「${displayName(sourceRow)}」을(를) 「${displayName(targetRow)}」로 병합할까요?\n(메모·후보·공고·프로필이 대상에 합쳐지고, 원본 회사는 ${window.TClientAdmin?.isCustomCompany?.(sourceId) ? "삭제" : "숨김"} 처리됩니다.)`
     )
   )
     return;
@@ -1778,12 +1814,17 @@ function confirmMergeToTarget(targetId) {
 
   const editMode = state.detailEdit;
   closeMergeModal();
-  closeDetail();
   reloadRowsWithAdmin();
   refreshViews();
 
   const target = state.rows.find((r) => r.companyId === targetId);
-  if (target) openDetail(target, editMode);
+  if (target) {
+    state.detailRow = target;
+    state.detailEdit = editMode;
+    paintDetailModal();
+  } else {
+    closeDetail();
+  }
   showToast("회사 병합이 완료되었습니다.");
 }
 
