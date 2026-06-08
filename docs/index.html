@@ -70,10 +70,22 @@
       <section id="dashboard" class="dashboard" aria-label="대시보드"></section>
 
       <section class="toolbar">
-        <div class="search-box">
-          <span class="search-icon" data-icon="search"></span>
-          <input id="search" type="search" placeholder="회사명, 도메인, 업종 검색" />
+        <div class="search-row">
+          <div class="search-box">
+            <span class="search-icon" data-icon="search"></span>
+            <input id="search" type="search" placeholder="회사명, 도메인, 업종 검색" />
+          </div>
+          <div class="search-row-actions">
+            <button type="button" id="filterToggleBtn" class="btn-toolbar-icon" aria-expanded="false" aria-controls="filterAdvanced" title="상세 필터">
+              <span data-icon="sliders"></span>
+            </button>
+            <button type="button" id="filterResetBtn" class="btn-toolbar-icon" title="필터 초기화">
+              <span data-icon="rotate"></span>
+            </button>
+            <span id="resultCount" class="result-count"></span>
+          </div>
         </div>
+        <div id="filterAdvanced" class="filter-advanced hidden">
         <div class="filter-chips">
           <select id="grade" class="select-pill" aria-label="등급">
             <option value="">등급 전체</option>
@@ -119,15 +131,15 @@
               <option value="recent">최근 수집순</option>
               <option value="name">회사명순</option>
             </select>
-            <span id="resultCount" class="result-count"></span>
           </div>
+        </div>
         </div>
       </section>
 
       <div class="tabs-bar">
         <nav class="tabs" aria-label="보기 전환">
-          <button type="button" data-tab="leads" class="tab active">회사</button>
-          <button type="button" data-tab="candidates" class="tab">후보</button>
+          <button type="button" data-tab="candidates" class="tab active">후보</button>
+          <button type="button" data-tab="leads" class="tab">회사</button>
           <button type="button" data-tab="posts" class="tab">전체 공고</button>
         </nav>
         <div class="tabs-bar-actions admin-only hidden">
@@ -137,10 +149,33 @@
       </div>
 
       <main class="main-panels">
-        <div id="leads" class="panel"></div>
-        <div id="candidates" class="panel hidden"></div>
+        <div id="candidates" class="panel"></div>
+        <div id="leads" class="panel hidden"></div>
         <div id="posts" class="panel hidden"></div>
       </main>
+    </div>
+
+    <div id="mergeModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close-merge="1"></div>
+      <div class="modal-panel modal-panel-sm" role="dialog" aria-labelledby="mergeTitle">
+        <header class="modal-header">
+          <h2 id="mergeTitle">회사 병합</h2>
+          <button type="button" class="modal-close" data-close-merge="1" aria-label="닫기">
+            <span data-icon="x"></span>
+          </button>
+        </header>
+        <div class="modal-body">
+          <p id="mergeSourceHint" class="muted add-company-hint"></p>
+          <div class="search-box merge-search-box">
+            <span class="search-icon" data-icon="search"></span>
+            <input id="mergeSearch" type="search" placeholder="병합 대상 회사 검색 (회사명, 도메인, 사업자번호)" />
+          </div>
+          <div id="mergeResults" class="merge-results" role="listbox" aria-label="병합 대상 목록"></div>
+        </div>
+        <footer class="detail-footer">
+          <button type="button" class="btn-ghost btn-sm" data-close-merge="1">취소</button>
+        </footer>
+      </div>
     </div>
 
     <div id="addCompanyModal" class="modal hidden" aria-hidden="true">

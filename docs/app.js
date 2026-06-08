@@ -9,9 +9,11 @@ const state = {
   failureSummary: {},
   gradeSummary: {},
   activePreset: "",
-  activeTab: "leads",
+  activeTab: "candidates",
   detailRow: null,
   detailEdit: false,
+  mergeSourceRow: null,
+  filtersOpen: false,
   tableSort: { column: "priorityScore", direction: "desc" }
 };
 
@@ -37,7 +39,10 @@ function iconSvg(name, size = 14) {
 function hydrateIcons(root = document) {
   root.querySelectorAll("[data-icon]").forEach((el) => {
     const name = el.dataset.icon;
-    if (name) el.innerHTML = iconSvg(name, el.classList.contains("search-icon") ? 18 : 16);
+    if (!name) return;
+    let size = 16;
+    if (el.classList.contains("search-icon") || el.closest(".btn-toolbar-icon")) size = 18;
+    el.innerHTML = iconSvg(name, size);
   });
 }
 
@@ -911,6 +916,46 @@ function setFilters(values, { keepPreset = false } = {}) {
     if (el) el.value = value;
   });
   if (!keepPreset) state.activePreset = "";
+  syncCustomSelects();
+  refreshViews();
+}
+
+function syncCustomSelects() {
+  document.querySelectorAll(".cselect select.select-pill").forEach((sel) => {
+    const wrap = sel.parentElement;
+    const trigger = wrap?.querySelector(".cselect-trigger");
+    const opt = sel.options[sel.selectedIndex];
+    if (trigger && opt) trigger.textContent = opt.textContent.trim();
+    wrap?.querySelectorAll(".cselect-opt").forEach((li) => {
+      const on = li.dataset.value === sel.value;
+      li.classList.toggle("active", on);
+      li.setAttribute("aria-selected", on ? "true" : "false");
+    });
+  });
+}
+
+function toggleFilterAdvanced(force) {
+  const panel = byId("filterAdvanced");
+  const btn = byId("filterToggleBtn");
+  if (!panel) return;
+  const open = force !== undefined ? force : panel.classList.contains("hidden");
+  panel.classList.toggle("hidden", !open);
+  btn?.classList.toggle("active", open);
+  btn?.setAttribute("aria-expanded", open ? "true" : "false");
+  state.filtersOpen = open;
+}
+
+function resetFilters() {
+  byId("search").value = "";
+  ["grade", "action", "contact", "exclude", "tier", "favorite"].forEach((id) => {
+    const el = byId(id);
+    if (el) el.value = "";
+  });
+  const sortEl = byId("sort");
+  if (sortEl) sortEl.value = "priority";
+  state.activePreset = "";
+  syncCustomSelects();
+  renderPresets();
   refreshViews();
 }
 
@@ -1652,7 +1697,7 @@ function deletePostFromCompany(row, postUrl, isManualPost) {
   showToast(isManualPost ? "수동 공고가 삭제되었습니다." : "공고가 삭제(숨김 처리)되었습니다.");
 }
 
-function mergeManualCompany(row) {
+function openMergeModal(row) {
   if (!row?.companyId || !window.TClientAdmin?.isUnlocked()) return;
   const admin = window.TClientAdmin;
   const isManual = row.isManual || admin.isCustomCompany?.(row.companyId);
@@ -1661,58 +1706,115 @@ function mergeManualCompany(row) {
     return;
   }
 
-  const sourceId = row.companyId;
-  const sourceBizNo = row.profile?.bizNo ?? row.profile?.biz_no ?? "";
-  const sourceDomain = row.domain ?? admin.getEntry?.(sourceId)?.domain ?? "";
-  const sourceLegalName = row.profile?.companyNameLegal ?? row.companyNameKo ?? row.companyName ?? "";
+  state.mergeSourceRow = row;
+  const modal = byId("mergeModal");
+  const hint = byId("mergeSourceHint");
+  if (hint) {
+    hint.textContent = `「${displayName(row)}」의 수동 데이터를 다른 회사로 옮깁니다. 병합 대상을 검색해 선택하세요.`;
+  }
+  byId("mergeSearch").value = "";
+  renderMergeResults("");
+  modal?.classList.remove("hidden");
+  modal?.setAttribute("aria-hidden", "false");
+  hydrateIcons(modal);
+  byId("mergeSearch")?.focus();
+}
 
-  const candidates = [];
-  const add = (targetRow, reason, priority) => {
-    if (!targetRow?.companyId || targetRow.companyId === sourceId) return;
-    if (candidates.some((c) => c.id === targetRow.companyId)) return;
-    candidates.push({ id: targetRow.companyId, reason, priority });
-  };
+function closeMergeModal() {
+  const modal = byId("mergeModal");
+  modal?.classList.add("hidden");
+  modal?.setAttribute("aria-hidden", "true");
+  state.mergeSourceRow = null;
+}
 
-  if (sourceBizNo) add(findCompanyByBizNo(sourceBizNo), "사업자번호 일치", 3);
-  if (sourceDomain) add(findCompanyByDomain(sourceDomain), "도메인 일치", 2);
-  if (sourceLegalName) add(findCompanyByLegalName(sourceLegalName), "회사명 유사", 1);
+function renderMergeResults(query = "") {
+  const el = byId("mergeResults");
+  const sourceId = state.mergeSourceRow?.companyId;
+  if (!el || !sourceId) return;
 
-  if (!candidates.length) {
-    showToast("병합 후보를 찾지 못했습니다. (사업자번호/도메인/회사명 확인 필요)", "error");
+  const q = `${query}`.toLowerCase().trim();
+  const rows = state.rows
+    .filter((r) => r.companyId !== sourceId && !r.userHidden)
+    .filter((r) => {
+      if (!q) return true;
+      const hay = `${displayName(r)} ${r.companyName} ${r.domain} ${r.profile?.bizNo ?? ""} ${r.profile?.companyNameLegal ?? ""}`.toLowerCase();
+      return hay.includes(q);
+    })
+    .slice(0, 40);
+
+  if (!rows.length) {
+    el.innerHTML = '<p class="muted merge-empty">검색 결과가 없습니다.</p>';
     return;
   }
 
-  const nonCustom = candidates
-    .map((c) => ({ ...c, row: state.rows.find((r) => r.companyId === c.id) }))
-    .filter((c) => c.row && !admin.isCustomCompany?.(c.id));
-  const bestPool = nonCustom.length ? nonCustom : candidates.map((c) => ({ ...c, row: state.rows.find((r) => r.companyId === c.id) })).filter((c) => c.row);
-  bestPool.sort((a, b) => b.priority - a.priority);
-  const best = bestPool[0];
+  el.innerHTML = rows
+    .map(
+      (r) => `
+    <button type="button" class="merge-pick-row" data-merge-target="${escapeAttr(r.companyId)}">
+      <span class="merge-pick-name">${escapeHtml(displayName(r))}${manualBadge(r)}</span>
+      <span class="merge-pick-meta">${escapeHtml(r.domain || "-")} · ${escapeHtml(r.leadGrade || "-")} · 공고 ${r.posts?.length ?? 0}건</span>
+    </button>`
+    )
+    .join("");
+}
 
-  if (!best?.row) return;
+function confirmMergeToTarget(targetId) {
+  const sourceRow = state.mergeSourceRow;
+  const sourceId = sourceRow?.companyId;
+  const targetRow = state.rows.find((r) => r.companyId === targetId);
+  if (!sourceId || !targetRow || !window.TClientAdmin?.isUnlocked()) return;
 
-  const editMode = state.detailEdit;
-  const sourceName = displayName(row);
-  const targetName = displayName(best.row);
   if (
     !window.confirm(
-      `「${sourceName}」을(를) 「${targetName}」로 병합할까요?\n(수동 공고/프로필이 대상에 옮겨지고, 원본 수동 회사는 삭제됩니다.)\n- 후보 근거: ${best.reason}`
+      `「${displayName(sourceRow)}」을(를) 「${displayName(targetRow)}」로 병합할까요?\n(수동 공고/프로필이 대상에 옮겨지고, 원본 수동 회사는 삭제됩니다.)`
     )
   )
     return;
 
-  if (!admin.mergeCompanies(sourceId, best.id)) {
+  if (!window.TClientAdmin.mergeCompanies(sourceId, targetId)) {
     showToast("병합에 실패했습니다.", "error");
     return;
   }
 
+  const editMode = state.detailEdit;
+  closeMergeModal();
   closeDetail();
   reloadRowsWithAdmin();
   refreshViews();
 
-  const target = state.rows.find((r) => r.companyId === best.id);
+  const target = state.rows.find((r) => r.companyId === targetId);
   if (target) openDetail(target, editMode);
   showToast("회사 병합이 완료되었습니다.");
+}
+
+function mergeManualCompany(row) {
+  openMergeModal(row);
+}
+
+function bindMergeModal() {
+  const modal = byId("mergeModal");
+  if (!modal) return;
+
+  byId("mergeSearch")?.addEventListener("input", (e) => {
+    renderMergeResults(e.target.value);
+  });
+
+  byId("mergeResults")?.addEventListener("click", (e) => {
+    const btn = e.target?.closest?.(".merge-pick-row");
+    if (!btn?.dataset.mergeTarget) return;
+    confirmMergeToTarget(btn.dataset.mergeTarget);
+  });
+
+  modal.querySelectorAll("[data-close-merge]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeMergeModal();
+    });
+  });
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal || e.target.classList.contains("modal-backdrop")) closeMergeModal();
+  });
 }
 
 function bindAddPostModal() {
@@ -1898,7 +2000,9 @@ function bindTabs() {
       state.activeTab = btn.dataset.tab;
       ["leads", "candidates", "posts"].forEach((id) => byId(id).classList.add("hidden"));
       byId(btn.dataset.tab).classList.remove("hidden");
-      document.querySelector(".toolbar")?.classList.toggle("toolbar-candidates", state.activeTab === "candidates");
+      const toolbar = document.querySelector(".toolbar");
+      toolbar?.classList.toggle("toolbar-candidates", state.activeTab === "candidates");
+      if (state.activeTab === "candidates" && state.filtersOpen) toggleFilterAdvanced(false);
       refreshViews();
     });
   });
@@ -2090,11 +2194,15 @@ async function boot() {
     });
 
     bindModal();
+    bindMergeModal();
     bindAddCompanyModal();
     bindAddPostModal();
     bindAdmin();
     renderPresets();
     bindTabs();
+    byId("filterToggleBtn")?.addEventListener("click", () => toggleFilterAdvanced());
+    byId("filterResetBtn")?.addEventListener("click", resetFilters);
+    document.querySelector(".toolbar")?.classList.toggle("toolbar-candidates", state.activeTab === "candidates");
     window.TUiSelect?.init();
     refreshViews();
   } catch (err) {
