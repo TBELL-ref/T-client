@@ -261,12 +261,12 @@ function renderProfileSection(row, edit = false, p = {}, domain = "", admin = fa
       </div>`
       : "";
     const tableFields = admin ? fields.filter(([, id]) => id !== "edit-prof-bizno") : fields;
-    return `${enrichBlock}<table class="profile-table profile-inline"><tbody>${tableFields
-      .map(
-        ([label, id, val]) =>
-          `<tr><th>${escapeHtml(label)}</th><td>${inlineInput(id, val, id.includes("home") ? "url" : "text")}</td></tr>`
-      )
-      .join("")}</tbody></table>`;
+    return `${enrichBlock}<div class="detail-form-grid">${tableFields
+      .map(([label, id, val]) => {
+        const wide = id === "edit-prof-industry" || id === "edit-prof-home";
+        return `<div class="inline-row${wide ? " span-2" : ""}"><span class="inline-label">${escapeHtml(label)}</span>${inlineInput(id, val, id.includes("home") ? "url" : "text")}</div>`;
+      })
+      .join("")}</div>`;
   }
 
   return `<dl class="detail-kv detail-kv-profile">${fields
@@ -298,19 +298,18 @@ function renderScoreSection(row, edit, admin = false) {
     return `<p class="muted">점수 정보 없음</p>${recalcBtn}`;
   }
   if (edit && breakdown.length) {
-    const rows = breakdown
+    return `<div class="detail-form-grid">${breakdown
       .map((b) => {
         const defaultPts = `${b.pts ?? ""}`.replace(":", "") || "0";
         const val = b.override !== undefined && b.override !== "" ? b.override : "";
-        return `<tr>
-          <th>${escapeHtml(b.label)} <span class="score-pts">${escapeHtml(b.pts || "")}</span></th>
-          <td><input type="number" class="inline-field score-part-input" data-score-part="${escapeAttr(b.part)}" value="${escapeAttr(val)}" placeholder="${escapeAttr(defaultPts)}" /></td>
-        </tr>`;
+        return `<div class="inline-row span-2">
+          <span class="inline-label">${escapeHtml(b.label)} <span class="score-pts">${escapeHtml(b.pts || "")}</span></span>
+          <input type="number" class="inline-field score-part-input" data-score-part="${escapeAttr(b.part)}" value="${escapeAttr(val)}" placeholder="${escapeAttr(defaultPts)}" />
+        </div>`;
       })
-      .join("");
-    return `<table class="profile-table profile-inline"><tbody>${rows}
-      <tr><th>총점</th><td>${inlineInput("edit-score-total", row.priorityScore, "number")}</td></tr>
-    </tbody></table>${recalcBtn}`;
+      .join("")}
+      <div class="inline-row"><span class="inline-label">총점</span>${inlineInput("edit-score-total", row.priorityScore, "number")}</div>
+    </div>${recalcBtn}`;
   }
   const lines = breakdown.length
     ? breakdown
@@ -1381,9 +1380,12 @@ function renderDetailBody(row, edit, admin = false) {
           ["B", "B"],
           ["C", "C"]
         ])}</div>
-        <div class="inline-row inline-checks span-2">
-          <label><input type="checkbox" id="edit-is-candidate" ${row.isCandidate ? "checked" : ""} /> 후보</label>
-          <label><input type="checkbox" id="edit-hidden" ${e.hidden ? "checked" : ""} /> 숨김</label>
+        <div class="inline-row span-2">
+          <span class="inline-label">옵션</span>
+          <div class="inline-checks-group">
+            <label><input type="checkbox" id="edit-is-candidate" ${row.isCandidate ? "checked" : ""} /> 후보</label>
+            <label><input type="checkbox" id="edit-hidden" ${e.hidden ? "checked" : ""} /> 숨김</label>
+          </div>
         </div>
         <div class="inline-row"><span class="inline-label">분류</span>${inlineSelect("edit-fav-stage", e.favoriteStage || row.userFavoriteStage || "", [
           ["", "(없음)"],
@@ -1522,7 +1524,9 @@ function renderDetailBody(row, edit, admin = false) {
   if (edit && classifyBlock) sections.push(detailCard("기본 정보", classifyBlock, "detail-block-form"));
   if (statsRow) sections.push(statsRow);
   sections.push(
-    `<div class="detail-split">${detailCard("담당자", contactBlock)}${detailCard("다음 액션", `${actionsBlock}${reasons.length ? `<ul class="reason-list reason-list-compact">${reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>` : ""}`)}</div>`
+    edit
+      ? `${detailCard("담당자", contactBlock)}${detailCard("다음 액션", `${actionsBlock}${reasons.length ? `<ul class="reason-list reason-list-compact">${reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>` : ""}`)}`
+      : `<div class="detail-split">${detailCard("담당자", contactBlock)}${detailCard("다음 액션", `${actionsBlock}${reasons.length ? `<ul class="reason-list reason-list-compact">${reasons.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>` : ""}`)}</div>`
   );
   sections.push(detailCard("회사 프로필", renderProfileSection(row, edit, p, e.domain || row.domain || "", admin)));
   sections.push(detailCard("영업 후보", candidateBlock, row.isCandidate ? "detail-block-warm" : ""));
@@ -1530,7 +1534,7 @@ function renderDetailBody(row, edit, admin = false) {
   sections.push(detailCard("점수 근거", renderScoreSection(row, edit, admin), "detail-block-muted"));
 
   return `
-    <div class="detail-shell">
+    <div class="detail-shell${edit ? " is-edit" : ""}">
       ${sections.join("")}
     </div>
     ${row.excludeReason ? `<p class="warn detail-warn">제외 사유: ${escapeHtml(row.excludeReason)}</p>` : ""}
@@ -1565,6 +1569,7 @@ function paintDetailModal() {
   deleteBtn?.classList.toggle("hidden", !admin);
 
   byId("detailBody").innerHTML = renderDetailBody(row, edit, admin);
+  modal?.classList.toggle("is-edit", edit);
 
   if (admin) {
     byId("btn-recalc-score")?.addEventListener("click", () => runRecalcScore(row));
@@ -1594,6 +1599,7 @@ function closeDetail() {
   const modal = byId("detailModal");
   state.detailRow = null;
   state.detailEdit = false;
+  modal?.classList.remove("is-edit");
   modal.classList.add("hidden");
   modal.setAttribute("aria-hidden", "true");
 }

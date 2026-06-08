@@ -1917,8 +1917,90 @@ tbody tr.row-manual {
 }
 
 #detailModal .inline-row {
-  grid-template-columns: 84px 1fr;
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
   align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+#detailModal .inline-row .cselect,
+#detailModal .inline-row select,
+#detailModal .inline-row input,
+#detailModal .inline-row textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+#detailModal .cselect {
+  display: block;
+  width: 100%;
+}
+
+#detailModal .cselect-trigger {
+  min-width: 0;
+  width: 100%;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#detailModal .inline-checks-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+#detailModal .inline-checks-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#detailModal .bizno-fetch-row {
+  margin-bottom: 14px;
+}
+
+#detailModal .bizno-fetch-line {
+  margin-bottom: 6px;
+}
+
+#detailModal .bizno-fetch-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+#detailModal .bizno-fetch-controls .inline-field {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+#detailModal.is-edit .detail-form-grid.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#detailModal.is-edit .detail-shell.is-edit > .detail-block + .detail-block {
+  margin-top: 4px;
+}
+
+#detailModal.is-edit .post-add-row {
+  margin-top: 12px;
 }
 
 #detailModal .inline-label {
