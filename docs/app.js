@@ -584,7 +584,6 @@ function bindDetailEdits(row) {
 
     window.TClientAdmin.setEntry(cid, patch);
     finishDetailSave(cid, { exitEdit: true, toastMessage: "정상 저장되었습니다." });
-    setAdminStatus("저장됨 (로컬). GitHub 반영은 상단 관리 → 저장 반영");
   });
 }
 
@@ -1755,13 +1754,13 @@ function deleteCompany(row) {
   const isManual = row.isManual || admin.isCustomCompany?.(row.companyId);
 
   if (isManual) {
-    if (!window.confirm(`「${name}」 수동 등록 회사를 삭제할까요?\n(로컬 overrides에서 제거, 저장 반영 필요)`)) return;
+    if (!window.confirm(`「${name}」 수동 등록 회사를 삭제할까요?`)) return;
     if (!admin.removeCustomCompany(row.companyId)) {
       showToast("삭제할 수 없습니다.", "error");
       return;
     }
   } else {
-    if (!window.confirm(`「${name}」 회사를 목록에서 삭제(숨김 처리)할까요?\n(로컬 overrides에 숨김이 기록됩니다.)`)) return;
+    if (!window.confirm(`「${name}」 회사를 목록에서 삭제(숨김 처리)할까요?`)) return;
     if (!admin.hideCompany(row.companyId)) {
       showToast("삭제(숨김 처리)에 실패했습니다.", "error");
       return;
@@ -1773,11 +1772,9 @@ function deleteCompany(row) {
   refreshViews();
 
   if (isManual) {
-    showToast("수동 등록이 삭제되었습니다. GitHub 반영은 저장 반영을 실행하세요.");
-    setAdminStatus("저장됨 (로컬). GitHub 반영은 상단 관리 → 저장 반영");
+    showToast("수동 등록이 삭제되었습니다.");
   } else {
     showToast("회사가 목록에서 삭제(숨김 처리)되었습니다.");
-    setAdminStatus("저장됨 (로컬). GitHub 반영은 상단 관리 → 저장 반영");
   }
 }
 
@@ -1787,8 +1784,8 @@ function deletePostFromCompany(row, postUrl, isManualPost) {
   const admin = window.TClientAdmin;
   const companyName = displayName(row);
   const msg = isManualPost
-    ? `「${companyName}」의 수동 공고를 삭제할까요?\n(로컬 overrides에서 제거, 저장 반영 필요)`
-    : `「${companyName}」의 공고를 목록에서 삭제(숨김 처리)할까요?\n(로컬 overrides에 숨김이 기록됩니다.)`;
+    ? `「${companyName}」의 수동 공고를 삭제할까요?`
+    : `「${companyName}」의 공고를 목록에서 삭제(숨김 처리)할까요?`;
 
   if (!window.confirm(msg)) return;
 
@@ -2156,10 +2153,40 @@ function setAdminStatus(msg) {
 }
 
 function setAdminUi(unlocked) {
-  byId("adminBadge")?.classList.toggle("hidden", !unlocked);
+  const badge = byId("adminBadge");
+  badge?.classList.toggle("hidden", !unlocked);
+  if (badge && unlocked) {
+    const email = window.TClientAdmin?.getUserEmail?.() ?? "";
+    badge.textContent = email || "로그인";
+    badge.title = email ? `로그인: ${email}` : "로그인됨";
+  }
   byId("adminTools")?.classList.toggle("hidden", !unlocked);
   byId("adminLoginForm")?.classList.toggle("hidden", unlocked);
   document.querySelectorAll(".admin-only").forEach((el) => el.classList.toggle("hidden", !unlocked));
+  updateCrawlUi();
+}
+
+async function updateCrawlUi() {
+  const badge = byId("crawlStatusBadge");
+  const btn = byId("adminTriggerCollect");
+  if (!badge) return;
+  try {
+    const status = await window.TClientAdmin?.getCrawlStatus?.();
+    const busy = Boolean(status?.busy);
+    badge.classList.toggle("hidden", !busy);
+    if (busy) {
+      const who = status.requestedByEmail ? ` · ${status.requestedByEmail}` : "";
+      badge.textContent = `크롤링 중${who}`;
+      badge.title = "현재 크롤링 진행 중입니다";
+    }
+    if (btn) {
+      btn.disabled = busy;
+      btn.title = busy ? "현재 크롤링 진행 중입니다" : "";
+    }
+  } catch {
+    badge.classList.add("hidden");
+    if (btn) btn.disabled = false;
+  }
 }
 
 function closeAdminPopover() {
@@ -2180,7 +2207,7 @@ function toggleAdminPopover() {
     setAdminUi(true);
     renderAdminKeywords();
   }
-  if (open) byId("adminPassword")?.focus();
+  if (open) byId("adminEmail")?.focus();
 }
 
 function renderAdminKeywords() {
@@ -2233,12 +2260,21 @@ function bindKeywordAdmin() {
   byId("adminTriggerCollect")?.addEventListener("click", async () => {
     setAdminStatus("크롤링 요청 중…");
     try {
+      const status = await window.TClientAdmin.getCrawlStatus();
+      if (status?.busy) {
+        setAdminStatus("현재 크롤링 진행 중입니다.");
+        await updateCrawlUi();
+        return;
+      }
+      await window.TClientAdmin.flushPersist();
       await window.TClientAdmin.saveKeywordsToGitHub();
       await window.TClientAdmin.triggerCollect();
       renderAdminKeywords();
-      setAdminStatus("크롤링 시작됨 (10~30분 후 새로고침)");
+      setAdminStatus("크롤링 시작됨. 완료 시 이메일로 안내합니다.");
+      await updateCrawlUi();
     } catch (err) {
       setAdminStatus(err.message || String(err));
+      await updateCrawlUi();
     }
   });
 }
@@ -2254,25 +2290,21 @@ function bindAdmin() {
   });
 
   byId("adminLoginBtn")?.addEventListener("click", async () => {
-    const pw = byId("adminPassword").value;
-    if (await window.TClientAdmin.unlock(pw)) {
-      setAdminUi(true);
-      setAdminStatus("관리자 모드");
-      byId("adminPassword").value = "";
-      renderAdminKeywords();
-      refreshViews();
-      if (state.detailRow) paintDetailModal();
-    } else {
-      setAdminStatus("키가 올바르지 않습니다.");
+    const email = byId("adminEmail")?.value ?? "";
+    try {
+      await window.TClientAdmin.sendLoginLink(email);
+      setAdminStatus("인증 링크를 이메일로 보냈습니다. 메일의 링크를 클릭하세요.");
+    } catch (err) {
+      setAdminStatus(err.message || String(err));
     }
   });
 
-  byId("adminPassword")?.addEventListener("keydown", (e) => {
+  byId("adminEmail")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") byId("adminLoginBtn")?.click();
   });
 
-  byId("adminLogout")?.addEventListener("click", () => {
-    window.TClientAdmin.lock();
+  byId("adminLogout")?.addEventListener("click", async () => {
+    await window.TClientAdmin.lock();
     setAdminUi(false);
     setAdminStatus("");
     closeAdminPopover();
@@ -2280,17 +2312,27 @@ function bindAdmin() {
     if (state.detailRow) paintDetailModal();
   });
 
-  byId("adminSaveGithub")?.addEventListener("click", async () => {
-    setAdminStatus("저장 요청 중…");
-    try {
-      await window.TClientAdmin.saveToGitHub();
-      setAdminStatus("반영됨 (1~2분 후 새로고침)");
-    } catch (err) {
-      setAdminStatus(err.message || String(err));
+  window.TClientAdmin.setOnPersistStatus((status) => {
+    if (status === "pending") setAdminStatus("저장 대기…");
+    else if (status === "saving") setAdminStatus("DB 저장 중…");
+    else if (status === "saved") setAdminStatus("저장됨");
+    else if (status && status !== "idle") setAdminStatus(`저장 실패: ${status}`);
+  });
+
+  window.addEventListener("beforeunload", () => {
+    if (window.TClientAdmin?.isDirty?.()) {
+      window.TClientAdmin.flushPersist();
     }
   });
 
   bindKeywordAdmin();
+
+  window.TAuth.onAuthStateChange(async () => {
+    await window.TClientAdmin.syncSession();
+    setAdminUi(window.TClientAdmin.isUnlocked());
+    if (window.TClientAdmin.isUnlocked()) renderAdminKeywords();
+    refreshViews();
+  });
 
   if (window.TClientAdmin.isUnlocked()) {
     setAdminUi(true);
@@ -2301,9 +2343,8 @@ function bindAdmin() {
 async function boot() {
   try {
     await window.TClientAdmin.initDoc();
-    const res = await fetch(`./data/snapshot.json?ts=${Date.now()}`, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const snapshot = await res.json();
+    const snapshot = await window.TSupabase.getPublishedSnapshot();
+    if (!snapshot?.rows) throw new Error("스냅샷이 비어 있습니다. Lead Collector를 먼저 실행하세요.");
     state.snapshotGeneratedAt = snapshot.generatedAt ?? null;
     state.snapshotRows = snapshot.rows ?? [];
     reloadRowsWithAdmin();
@@ -2329,6 +2370,20 @@ async function boot() {
     bindAddCompanyModal();
     bindAddPostModal();
     bindAdmin();
+    await updateCrawlUi();
+    setInterval(updateCrawlUi, 30000);
+    setInterval(async () => {
+      if (!window.TClientAdmin?.isUnlocked?.()) return;
+      if (window.TClientAdmin.isDirty?.()) return;
+      try {
+        await window.TClientAdmin.mergeRemoteOverrides();
+        reloadRowsWithAdmin();
+        refreshViews();
+        if (state.detailRow) paintDetailModal();
+      } catch {
+        /* ignore poll errors */
+      }
+    }, 45000);
     renderPresets();
     bindTabs();
     byId("filterToggleBtn")?.addEventListener("click", () => toggleFilterAdvanced());

@@ -10,7 +10,11 @@
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="./styles.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script defer src="./icons.js"></script>
+    <script defer src="./supabase-config.js"></script>
+    <script defer src="./auth.js"></script>
+    <script defer src="./supabase.js"></script>
     <script defer src="./enrich-bizno.js"></script>
     <script defer src="./ui-select.js"></script>
     <script defer src="./admin.js"></script>
@@ -29,7 +33,8 @@
         <div class="header-end">
           <div id="meta" class="meta"></div>
           <div class="admin-bar">
-            <span id="adminBadge" class="admin-badge hidden" title="관리자 모드">관리자</span>
+            <span id="adminBadge" class="admin-badge hidden" title="로그인됨"></span>
+            <span id="crawlStatusBadge" class="admin-badge crawl-busy hidden" title="크롤링 진행 중">크롤링 중</span>
             <div class="admin-anchor">
               <button type="button" id="adminUnlockBtn" class="btn-ghost btn-admin" aria-expanded="false" aria-controls="adminPopover">
                 <span class="btn-icon" data-icon="settings"></span>
@@ -37,16 +42,16 @@
               </button>
               <div id="adminPopover" class="admin-popover hidden" aria-hidden="true">
                 <div id="adminLoginForm" class="admin-popover-section">
-                  <p class="admin-popover-title">관리자 인증</p>
-                  <p class="admin-popover-hint">비밀번호 입력 = 저장·토큰 사용에 동의</p>
-                  <input type="password" id="adminPassword" class="admin-popover-input" placeholder="관리자 키" autocomplete="off" />
-                  <button type="button" id="adminLoginBtn" class="btn-primary btn-sm">입장</button>
+                  <p class="admin-popover-title">이메일 로그인</p>
+                  <p class="admin-popover-hint">허용된 이메일로 magic link를 보냅니다</p>
+                  <input type="email" id="adminEmail" class="admin-popover-input" placeholder="you@company.com" autocomplete="email" />
+                  <button type="button" id="adminLoginBtn" class="btn-primary btn-sm">인증 링크 받기</button>
                 </div>
                 <div id="adminTools" class="admin-popover-section hidden">
-                  <p class="admin-popover-hint">분류(기본·추천·확정)·후보·상세 수정 · 로컬 자동 저장</p>
+                  <p class="admin-popover-hint">분류·후보·상세 수정 — 변경 시 DB에 자동 저장</p>
                   <div class="admin-keyword-block">
                     <p class="admin-popover-title">크롤링 키워드</p>
-                    <p class="admin-popover-hint">검색어 · 「저장 반영」 시 시트·overrides 동기화</p>
+                    <p class="admin-popover-hint">검색어 · 변경 시 자동 저장</p>
                     <div id="keywordChips" class="keyword-chips" aria-live="polite"></div>
                     <div class="keyword-add-row">
                       <input type="text" id="keywordInput" class="admin-popover-input" placeholder="키워드 추가" autocomplete="off" />
@@ -54,10 +59,9 @@
                     </div>
                   </div>
                   <div class="admin-popover-actions">
-                    <button type="button" id="adminSaveKeywords" class="btn-primary btn-sm">키워드 반영</button>
+                    <button type="button" id="adminSaveKeywords" class="btn-primary btn-sm hidden">키워드 반영</button>
                     <button type="button" id="adminTriggerCollect" class="btn-sm">크롤링 실행</button>
-                    <button type="button" id="adminSaveGithub" class="btn-sm">저장 반영</button>
-                    <button type="button" id="adminLogout" class="btn-sm">잠금</button>
+                    <button type="button" id="adminLogout" class="btn-sm">로그아웃</button>
                   </div>
                 </div>
                 <p id="adminStatus" class="admin-popover-status"></p>

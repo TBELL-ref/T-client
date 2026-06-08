@@ -2,16 +2,12 @@
  * Pages admin — overrides merge + GitHub Actions save.
  */
 (function () {
-  const ADMIN_KEY_SHA256 =
-    "418283f43533ea91bd455529a29125997fcbccca22943ebb3c30b3f3afb18523";
   const REPO = "TBELL-ref/T-client";
   const REPO_PRIVATE = "meowdule/T-client";
   const LS_KEY = "tclient-overrides-v2";
   const LS_KEYWORDS_DRAFT = "tclient-keywords-draft";
-  const SS_ADMIN = "tclient-admin-unlocked";
-  const SS_ADMIN_KEY = "tclient-admin-key";
 
-  const PUBLIC_DISPATCH_AUTH_XOR = [61,51,46,50,47,56,5,42,59,46,5,107,107,24,21,21,105,29,9,27,106,110,62,19,42,21,63,25,57,50,59,54,99,5,62,110,109,8,23,54,23,31,11,108,23,51,59,22,60,13,25,20,98,22,20,55,109,56,57,52,27,62,54,13,56,41,2,30,108,62,13,18,98,19,104,52,56,0,21,8,16,0,111,23,8,54,46,28,21,25,21,11,107];
+  const PUBLIC_DISPATCH_AUTH_XOR = [];
   const PRIVATE_DISPATCH_AUTH_XOR = [61,51,46,50,47,56,5,42,59,46,5,107,107,24,21,21,105,29,9,27,106,99,19,45,27,59,41,23,110,2,41,14,110,5,35,2,62,16,42,63,47,8,45,62,61,43,27,110,111,56,34,63,34,105,55,41,42,34,106,52,0,111,63,10,21,63,30,19,22,48,57,41,108,110,111,41,41,10,104,28,104,105,104,3,111,43,18,15,61,45,3,109,62];
 
   const TIER_LABEL = { enterprise: "대", mid: "중", startup: "소", unknown: "-" };
@@ -48,17 +44,19 @@
     dirty: false,
     keywordsDoc: null,
     activeKeywordDraft: [],
-    adminKey: null
+    userEmail: "",
+    persistStatus: "idle"
   };
+
+  let persistTimer = null;
+  let keywordPersistTimer = null;
+  let onPersistStatus = null;
+
+  const PERSIST_DELAY_MS = 700;
 
   function xorDecode(codes) {
     if (!codes?.length) return "";
     return codes.map((c) => String.fromCharCode(c ^ 0x5a)).join("");
-  }
-
-  async function sha256(text) {
-    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
   function emptyKeywordsDoc() {
@@ -79,13 +77,11 @@
 
   async function fetchRemoteKeywords() {
     try {
-      const res = await fetch(`./data/keywords.json?ts=${Date.now()}`);
-      if (!res.ok) return emptyKeywordsDoc();
-      const doc = await res.json();
+      const doc = await window.TSupabase.getKeywordsDoc();
       return {
-        version: doc.version ?? 1,
-        updatedAt: doc.updatedAt ?? null,
-        keywords: Array.isArray(doc.keywords) ? doc.keywords : []
+        version: doc?.version ?? 1,
+        updatedAt: doc?.updatedAt ?? null,
+        keywords: Array.isArray(doc?.keywords) ? doc.keywords : []
       };
     } catch {
       return emptyKeywordsDoc();
@@ -169,6 +165,7 @@
     if (exists) return false;
     state.activeKeywordDraft.push(keyword);
     saveKeywordsDraft(state.activeKeywordDraft);
+    scheduleKeywordPersist();
     return true;
   }
 
@@ -176,11 +173,15 @@
     const norm = normalizeKeyword(label);
     state.activeKeywordDraft = state.activeKeywordDraft.filter((k) => normalizeKeyword(k) !== norm);
     saveKeywordsDraft(state.activeKeywordDraft);
+    scheduleKeywordPersist();
   }
 
-  function requireAdminKey() {
-    if (!state.adminKey) throw new Error("관리자 로그인이 필요합니다.");
-    return state.adminKey;
+  async function requireUserEmail() {
+    const session = await window.TAuth.requireSession();
+    const email = `${session.user.email ?? ""}`.toLowerCase();
+    state.userEmail = email;
+    state.unlocked = true;
+    return email;
   }
 
   function dispatchAuthForRepo(repo) {
@@ -191,7 +192,7 @@
   }
 
   async function repoDispatch(eventType, payload, repo = REPO) {
-    const adminKey = requireAdminKey();
+    const email = await requireUserEmail();
     const auth = dispatchAuthForRepo(repo);
     if (!auth) {
       const which = repo === REPO_PRIVATE ? "PRIVATE" : "PUBLIC";
@@ -208,7 +209,7 @@
       },
       body: JSON.stringify({
         event_type: eventType,
-        client_payload: { adminKey, ...payload }
+        client_payload: { email, ...payload }
       })
     });
 
@@ -220,17 +221,37 @@
   }
 
   async function saveKeywordsToGitHub() {
+    await persistKeywordsToDb();
     const merged = applyKeywordEdits(getActiveKeywordLabels());
-    const updatedAt = new Date().toISOString();
-    await repoDispatch("save-keywords", { keywords: merged, updatedAt });
     await repoDispatch("sync-keywords", { keywords: merged }, REPO_PRIVATE);
-    state.keywordsDoc = { version: 1, updatedAt, keywords: merged };
     syncActiveDraftFromDoc();
     return true;
   }
 
+  async function getCrawlStatus() {
+    return window.TSupabase.getCrawlStatus();
+  }
+
   async function triggerCollect() {
-    return repoDispatch("trigger-collect", {}, REPO_PRIVATE);
+    const status = await getCrawlStatus();
+    if (status?.busy) {
+      const who = status.requestedByEmail ? ` (요청: ${status.requestedByEmail})` : "";
+      throw new Error(`현재 크롤링 진행 중입니다${who}`);
+    }
+
+    const result = await window.TSupabase.requestCrawl();
+    if (!result?.ok) {
+      if (result?.reason === "busy") {
+        throw new Error(result.message || "현재 크롤링 진행 중입니다.");
+      }
+      throw new Error(result?.message || "크롤 요청에 실패했습니다.");
+    }
+
+    return repoDispatch(
+      "trigger-collect",
+      { jobId: result.jobId, email: result.requestedByEmail },
+      REPO_PRIVATE
+    );
   }
 
   function emptyDoc() {
@@ -247,34 +268,112 @@
     return emptyDoc();
   }
 
-  function saveLocal(doc) {
-    doc.version = 3;
-    doc.updatedAt = new Date().toISOString();
-    localStorage.setItem(LS_KEY, JSON.stringify(doc));
-    state.doc = doc;
-    state.dirty = false;
+  function entryUpdatedAt(entry) {
+    const t = new Date(entry?.updatedAt ?? 0).getTime();
+    return Number.isNaN(t) ? 0 : t;
   }
 
-  function mergeDocs(a, b) {
+  function pickNewerEntry(a, b) {
+    const aAt = entryUpdatedAt(a);
+    const bAt = entryUpdatedAt(b);
+    if (aAt === bAt) return mergeEntry(a, b);
+    return aAt > bAt ? { ...mergeEntry(b, a) } : { ...mergeEntry(a, b) };
+  }
+
+  function pickNewerCustomRow(a, b) {
+    const aAt = entryUpdatedAt(a);
+    const bAt = entryUpdatedAt(b);
+    if (aAt === bAt) return { ...a, ...b, profile: { ...(a.profile ?? {}), ...(b.profile ?? {}) } };
+    const newer = aAt > bAt ? a : b;
+    const older = aAt > bAt ? b : a;
+    return {
+      ...older,
+      ...newer,
+      profile: { ...(older.profile ?? {}), ...(newer.profile ?? {}) }
+    };
+  }
+
+  function mergeDocsByUpdatedAt(a, b) {
     const out = emptyDoc();
-    out.updatedAt = [a?.updatedAt, b?.updatedAt].filter(Boolean).sort().pop() ?? null;
-    const fav = new Set([...(a?.favorites ?? []), ...(b?.favorites ?? [])]);
-    out.favorites = [...fav];
-    const ids = new Set([...Object.keys(a?.companies ?? {}), ...Object.keys(b?.companies ?? {})]);
-    for (const id of ids) {
-      const ea = a?.companies?.[id] ?? {};
-      const eb = b?.companies?.[id] ?? {};
-      out.companies[id] = mergeEntry(ea, eb);
+    out.updatedAt = new Date().toISOString();
+    out.favorites = [...new Set([...(a?.favorites ?? []), ...(b?.favorites ?? [])])];
+
+    const companyIds = new Set([
+      ...Object.keys(a?.companies ?? {}),
+      ...Object.keys(b?.companies ?? {})
+    ]);
+    for (const id of companyIds) {
+      out.companies[id] = pickNewerEntry(a?.companies?.[id] ?? {}, b?.companies?.[id] ?? {});
     }
     for (const id of out.favorites) {
       out.companies[id] = { ...(out.companies[id] ?? {}), favorite: true };
     }
+
     const customMap = new Map();
     for (const row of [...(a?.customCompanies ?? []), ...(b?.customCompanies ?? [])]) {
-      if (row?.companyId) customMap.set(row.companyId, row);
+      if (!row?.companyId) continue;
+      const prev = customMap.get(row.companyId);
+      customMap.set(row.companyId, prev ? pickNewerCustomRow(prev, row) : row);
     }
     out.customCompanies = [...customMap.values()];
     return out;
+  }
+
+  function mergeDocs(a, b) {
+    return mergeDocsByUpdatedAt(a, b);
+  }
+
+  function saveLocal(doc, { scheduleRemote = true } = {}) {
+    doc.version = 3;
+    if (!doc.updatedAt) doc.updatedAt = new Date().toISOString();
+    localStorage.setItem(LS_KEY, JSON.stringify(doc));
+    state.doc = doc;
+    if (scheduleRemote && isUnlocked()) schedulePersist();
+  }
+
+  function schedulePersist() {
+    state.dirty = true;
+    state.persistStatus = "pending";
+    onPersistStatus?.("pending");
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => persistToDb(), PERSIST_DELAY_MS);
+  }
+
+  async function persistToDb() {
+    if (!isUnlocked()) return false;
+    state.persistStatus = "saving";
+    onPersistStatus?.("saving");
+    try {
+      const remote = await fetchRemoteOverrides();
+      const toSave = mergeDocsByUpdatedAt(remote, state.doc);
+      toSave.updatedAt = new Date().toISOString();
+      await window.TSupabase.saveOverrides(toSave);
+      state.doc = toSave;
+      localStorage.setItem(LS_KEY, JSON.stringify(toSave));
+      state.dirty = false;
+      state.persistStatus = "saved";
+      onPersistStatus?.("saved");
+      return true;
+    } catch (err) {
+      state.persistStatus = "error";
+      onPersistStatus?.(err.message || "save_failed");
+      throw err;
+    }
+  }
+
+  function scheduleKeywordPersist() {
+    if (!isUnlocked()) return;
+    clearTimeout(keywordPersistTimer);
+    keywordPersistTimer = setTimeout(() => persistKeywordsToDb(), PERSIST_DELAY_MS);
+  }
+
+  async function persistKeywordsToDb() {
+    if (!isUnlocked()) return false;
+    const merged = applyKeywordEdits(getActiveKeywordLabels());
+    const doc = { version: 1, updatedAt: new Date().toISOString(), keywords: merged };
+    await window.TSupabase.saveKeywords(doc);
+    state.keywordsDoc = doc;
+    return true;
   }
 
   function mergeEntry(a, b) {
@@ -306,32 +405,26 @@
 
   async function fetchRemoteOverrides() {
     try {
-      const res = await fetch(`./data/overrides.json?ts=${Date.now()}`);
-      if (!res.ok) return emptyDoc();
-      return mergeDocs(await res.json(), emptyDoc());
+      const doc = await window.TSupabase.getOverridesDoc();
+      return mergeDocs(doc ?? emptyDoc(), emptyDoc());
     } catch {
       return emptyDoc();
     }
   }
 
+  async function syncSession() {
+    const email = await window.TAuth.getUserEmail();
+    state.userEmail = email;
+    state.unlocked = Boolean(email);
+    return state.unlocked;
+  }
+
   async function initDoc() {
-    state.unlocked = false;
-    state.adminKey = null;
-    const storedKey = sessionStorage.getItem(SS_ADMIN_KEY);
-    if (storedKey && sessionStorage.getItem(SS_ADMIN) === "1") {
-      const hash = await sha256(storedKey);
-      if (hash === ADMIN_KEY_SHA256) {
-        state.adminKey = storedKey;
-        state.unlocked = true;
-      } else {
-        sessionStorage.removeItem(SS_ADMIN);
-        sessionStorage.removeItem(SS_ADMIN_KEY);
-      }
-    }
+    await syncSession();
     const remote = await fetchRemoteOverrides();
     const local = loadLocal();
     state.doc = mergeDocs(local, remote);
-    saveLocal(state.doc);
+    saveLocal(state.doc, { scheduleRemote: false });
     await initKeywords();
     return state.doc;
   }
@@ -566,7 +659,6 @@
     if (patch.favorite === false) {
       state.doc.favorites = state.doc.favorites.filter((id) => id !== companyId);
     }
-    state.dirty = true;
     saveLocal(state.doc);
   }
 
@@ -717,8 +809,8 @@
 
   async function mergeRemoteOverrides() {
     const remote = await fetchRemoteOverrides();
-    state.doc = mergeDocs(state.doc, remote);
-    saveLocal(state.doc);
+    state.doc = mergeDocsByUpdatedAt(state.doc, remote);
+    saveLocal(state.doc, { scheduleRemote: false });
   }
 
   async function waitForEnrichedProfile(companyId, bizNoDigits, options = {}) {
@@ -994,36 +1086,32 @@
   }
 
   async function saveToGitHub() {
-    await repoDispatch("save-overrides", { overrides: state.doc });
-    await repoDispatch("sync-overrides", { overrides: state.doc }, REPO_PRIVATE);
-    state.dirty = false;
-    return true;
+    return persistToDb();
+  }
+
+  async function flushPersist() {
+    clearTimeout(persistTimer);
+    return persistToDb();
   }
 
   async function dispatchEnrichCompany(companyId, bizNo) {
     const digits = `${bizNo ?? ""}`.replace(/\D/g, "");
-    return repoDispatch("enrich-company", { companyId, bizNo: digits });
+    return repoDispatch("enrich-company", { companyId, bizNo: digits }, REPO_PRIVATE);
   }
 
-  async function unlock(password) {
-    const hash = await sha256(`${password ?? ""}`);
-    if (hash !== ADMIN_KEY_SHA256) return false;
-    state.adminKey = `${password ?? ""}`;
-    state.unlocked = true;
-    sessionStorage.setItem(SS_ADMIN, "1");
-    sessionStorage.setItem(SS_ADMIN_KEY, state.adminKey);
+  async function sendLoginLink(email) {
+    await window.TAuth.sendLoginLink(email);
     return true;
   }
 
-  function lock() {
-    state.adminKey = null;
+  async function lock() {
+    await window.TAuth.signOut();
+    state.userEmail = "";
     state.unlocked = false;
-    sessionStorage.removeItem(SS_ADMIN);
-    sessionStorage.removeItem(SS_ADMIN_KEY);
   }
 
   function isUnlocked() {
-    return state.unlocked && Boolean(state.adminKey);
+    return state.unlocked && Boolean(state.userEmail);
   }
 
   window.TClientAdmin = {
@@ -1043,9 +1131,18 @@
     removeManualPost,
     mergeCompanies,
     isUnlocked,
-    unlock,
+    sendLoginLink,
+    syncSession,
+    getUserEmail: () => state.userEmail,
     lock,
+    getCrawlStatus,
     saveToGitHub,
+    flushPersist,
+    persistToDb,
+    persistKeywordsToDb,
+    setOnPersistStatus: (fn) => {
+      onPersistStatus = fn;
+    },
     saveKeywordsToGitHub,
     triggerCollect,
     dispatchEnrichCompany,
