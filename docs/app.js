@@ -1179,8 +1179,10 @@ function renderGradeDonut(counts) {
 function renderDashboard() {
   const s = state.gradeSummary;
   const gradeCounts = computeGradeCounts();
-  const totalCompanies = state.rows.filter((r) => !r.userHidden).length;
-  const totalPosts = state.rows.reduce((n, r) => n + (r.posts?.length || 0), 0);
+  // KPI/Donut와 동일한 정의(활성 리드만): excluded 제외 + userHidden 제외
+  const activeRows = state.rows.filter((r) => !r.excluded && !r.userHidden);
+  const totalCompanies = activeRows.length;
+  const totalPosts = activeRows.reduce((n, r) => n + (r.posts?.length || 0), 0);
   const proposal = s.proposalRecommend ?? s.reportRequired ?? 0;
   const profile = s.profileComplete ?? 0;
 
@@ -2195,7 +2197,7 @@ function formatDate(value) {
 function paintMetaBanner() {
   const meta = byId("meta");
   if (!meta) return;
-  const visible = state.rows.filter((r) => !r.userHidden);
+  const visible = state.rows.filter((r) => !r.userHidden && !r.excluded);
   const companies = visible.filter((r) => (r.posts?.length ?? 0) > 0).length;
   const posts = visible.reduce((n, r) => n + (r.posts?.length ?? 0), 0);
   const generatedAt =
