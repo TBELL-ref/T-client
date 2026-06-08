@@ -1,5 +1,6 @@
 /**
- * Supabase email magic-link login (whitelist checked before OTP).
+ * Supabase email + password login (whitelist checked before auth).
+ * First-time setup: one password-reset email, then password-only sign-in.
  */
 (function () {
   let client = null;
@@ -26,17 +27,58 @@
     return client;
   }
 
-  async function sendLoginLink(email) {
+  function normalizeEmail(email) {
     const addr = `${email ?? ""}`.trim().toLowerCase();
     if (!addr.includes("@")) throw new Error("올바른 이메일을 입력하세요.");
+    return addr;
+  }
 
-    const allowed = await window.TSupabase.checkEmailAllowed(addr);
+  function redirectBase() {
+    return window.location.href.split("#")[0];
+  }
+
+  async function assertAllowedEmail(email) {
+    const allowed = await window.TSupabase.checkEmailAllowed(email);
     if (!allowed) throw new Error("허용되지 않은 이메일입니다. 관리자에게 등록을 요청하세요.");
+  }
 
-    const { error } = await getClient().auth.signInWithOtp({
+  async function signInWithPassword(email, password) {
+    const addr = normalizeEmail(email);
+    const pwd = `${password ?? ""}`;
+    if (pwd.length < 8) throw new Error("비밀번호는 8자 이상이어야 합니다.");
+
+    await assertAllowedEmail(addr);
+
+    const { error } = await getClient().auth.signInWithPassword({
       email: addr,
-      options: { emailRedirectTo: window.location.href.split("#")[0] }
+      password: pwd
     });
+    if (error) {
+      if (/invalid login credentials/i.test(error.message)) {
+        throw new Error("이메일 또는 비밀번호가 올바르지 않습니다. 처음이면 아래에서 비밀번호 설정 메일을 받으세요.");
+      }
+      throw new Error(error.message);
+    }
+    return true;
+  }
+
+  /** One-time (or forgot-password) setup email — not used for daily login. */
+  async function sendPasswordSetupEmail(email) {
+    const addr = normalizeEmail(email);
+    await assertAllowedEmail(addr);
+
+    const { error } = await getClient().auth.resetPasswordForEmail(addr, {
+      redirectTo: redirectBase()
+    });
+    if (error) throw new Error(error.message);
+    return true;
+  }
+
+  async function updatePassword(password) {
+    const pwd = `${password ?? ""}`;
+    if (pwd.length < 8) throw new Error("비밀번호는 8자 이상이어야 합니다.");
+
+    const { error } = await getClient().auth.updateUser({ password: pwd });
     if (error) throw new Error(error.message);
     return true;
   }
@@ -63,11 +105,13 @@
   }
 
   function onAuthStateChange(cb) {
-    return getClient().auth.onAuthStateChange((_event, session) => cb(session));
+    return getClient().auth.onAuthStateChange((event, session) => cb(event, session));
   }
 
   window.TAuth = {
-    sendLoginLink,
+    signInWithPassword,
+    sendPasswordSetupEmail,
+    updatePassword,
     getSession,
     requireSession,
     getUserEmail,

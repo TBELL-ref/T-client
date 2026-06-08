@@ -257,7 +257,7 @@ function renderProfileSection(row, edit = false, p = {}, domain = "", admin = fa
             <button type="button" class="btn-primary btn-sm" id="btn-enrich-bizno">정보 자동 수집</button>
           </div>
         </div>
-        <p class="enrich-bizno-status muted" id="enrich-bizno-status">관리자 전용 · bizno.net에서 업종·규모·홈페이지를 가져옵니다.</p>
+        <p class="enrich-bizno-status muted" id="enrich-bizno-status">관리자 전용 · 서버(bizno.net)에서 업종·규모·홈페이지를 가져옵니다.</p>
       </div>`
       : "";
     const tableFields = admin ? fields.filter(([, id]) => id !== "edit-prof-bizno") : fields;
@@ -407,7 +407,7 @@ async function applyEnrichedProfile(row, profile) {
   refreshViews();
   state.detailRow = state.rows.find((r) => r.companyId === row.companyId) ?? updated;
   paintDetailModal();
-  setEnrichBiznoStatus("수집 완료. 내용 확인 후 「변경 저장」을 눌러주세요.");
+  setEnrichBiznoStatus("수집 완료 · DB에 자동 저장됩니다.");
   showToast("회사 정보 수집이 완료되었습니다.");
 }
 
@@ -427,8 +427,8 @@ async function waitForServerEnrich(row, bizNo, digits) {
   await window.TClientAdmin.dispatchEnrichCompany(row.companyId, bizNo);
   tick();
   return window.TClientAdmin.waitForEnrichedProfile(row.companyId, digits, {
-    timeoutMs: 120000,
-    intervalMs: 2000,
+    timeoutMs: 90000,
+    intervalMs: 3000,
     onTick: tick
   });
 }
@@ -446,35 +446,35 @@ async function runEnrichBizNo(row) {
     return;
   }
 
-  if (btn) btn.disabled = true;
-  setDetailLoading(true, "회사 정보를 수집하고 있습니다…");
-  setEnrichBiznoStatus("bizno.net 조회 중 (브라우저, 최대 20초)…");
-
   if (!window.TClientAdmin?.isUnlocked?.()) {
-    setEnrichBiznoStatus("관리자 입장 후 사용할 수 있습니다.", true);
-    showToast("관리자 입장 후 다시 시도해 주세요.", "error");
+    setEnrichBiznoStatus("관리자 로그인 후 사용할 수 있습니다.", true);
+    showToast("관리자 로그인 후 다시 시도해 주세요.", "error");
     return;
   }
 
-  try {
-    const browserResult = await window.TEnrichBizno.fetchProfileByBizNo(bizNo, { maxMs: 18000 });
-    if (browserResult.ok) {
-      await applyEnrichedProfile(row, browserResult.profile);
-      return;
-    }
+  if (btn) btn.disabled = true;
+  setDetailLoading(true, "회사 정보를 수집하고 있습니다…");
 
-    setEnrichBiznoStatus("브라우저 조회 실패 — 서버 수집으로 전환합니다.");
+  try {
+    setEnrichBiznoStatus("서버에서 bizno.net 조회 중 (GitHub Actions)…");
     const waited = await waitForServerEnrich(row, bizNo, digits);
     if (waited.ok) {
       await applyEnrichedProfile(row, waited.profile);
       return;
     }
 
+    setEnrichBiznoStatus("서버 조회 실패 — 브라우저로 재시도…");
+    const browserResult = await window.TEnrichBizno.fetchProfileByBizNo(bizNo, { maxMs: 12000 });
+    if (browserResult.ok) {
+      await applyEnrichedProfile(row, browserResult.profile);
+      return;
+    }
+
     setEnrichBiznoStatus(
-      "수집 시간이 초과되었습니다. Actions 탭에서 enrich-company 완료 후 새로고침하세요.",
+      browserResult.message || "bizno.net에서 정보를 찾지 못했습니다. 번호를 확인하세요.",
       true
     );
-    showToast("수집 대기 시간이 초과되었습니다. 1~2분 뒤 새로고침해 주세요.", "error");
+    showToast("사업자 정보 수집에 실패했습니다.", "error");
   } catch (err) {
     setEnrichBiznoStatus(err.message || "수집 오류", true);
     showToast(err.message || "수집 오류", "error");
@@ -2152,7 +2152,7 @@ function setAdminStatus(msg) {
   if (el) el.textContent = msg;
 }
 
-function setAdminUi(unlocked) {
+function setAdminUi(unlocked, { passwordSetup = false } = {}) {
   const badge = byId("adminBadge");
   badge?.classList.toggle("hidden", !unlocked);
   if (badge && unlocked) {
@@ -2161,9 +2161,20 @@ function setAdminUi(unlocked) {
     badge.title = email ? `로그인: ${email}` : "로그인됨";
   }
   byId("adminTools")?.classList.toggle("hidden", !unlocked);
-  byId("adminLoginForm")?.classList.toggle("hidden", unlocked);
+  byId("adminLoginForm")?.classList.toggle("hidden", unlocked || passwordSetup);
+  byId("adminPasswordSetupForm")?.classList.toggle("hidden", !passwordSetup);
   document.querySelectorAll(".admin-only").forEach((el) => el.classList.toggle("hidden", !unlocked));
   updateCrawlUi();
+}
+
+function showPasswordSetupUi(show = true) {
+  byId("adminTools")?.classList.add("hidden");
+  byId("adminLoginForm")?.classList.toggle("hidden", show);
+  byId("adminPasswordSetupForm")?.classList.toggle("hidden", !show);
+  if (show) {
+    openAdminPopover();
+    byId("adminNewPassword")?.focus();
+  }
 }
 
 async function updateCrawlUi() {
@@ -2195,6 +2206,14 @@ function closeAdminPopover() {
   pop?.classList.add("hidden");
   pop?.setAttribute("aria-hidden", "true");
   btn?.setAttribute("aria-expanded", "false");
+}
+
+function openAdminPopover() {
+  const pop = byId("adminPopover");
+  const btn = byId("adminUnlockBtn");
+  pop?.classList.remove("hidden");
+  pop?.setAttribute("aria-hidden", "false");
+  btn?.setAttribute("aria-expanded", "true");
 }
 
 function toggleAdminPopover() {
@@ -2291,16 +2310,53 @@ function bindAdmin() {
 
   byId("adminLoginBtn")?.addEventListener("click", async () => {
     const email = byId("adminEmail")?.value ?? "";
+    const password = byId("adminPassword")?.value ?? "";
     try {
-      await window.TClientAdmin.sendLoginLink(email);
-      setAdminStatus("인증 링크를 이메일로 보냈습니다. 메일의 링크를 클릭하세요.");
+      await window.TClientAdmin.signIn(email, password);
+      setAdminUi(true);
+      setAdminStatus("");
+      renderAdminKeywords();
+      refreshViews();
     } catch (err) {
       setAdminStatus(err.message || String(err));
     }
   });
 
-  byId("adminEmail")?.addEventListener("keydown", (e) => {
+  byId("adminSetupEmailBtn")?.addEventListener("click", async () => {
+    const email = byId("adminEmail")?.value ?? "";
+    try {
+      await window.TClientAdmin.sendPasswordSetupEmail(email);
+      setAdminStatus("비밀번호 설정 메일을 보냈습니다. 메일의 링크에서 비밀번호를 설정하세요.");
+    } catch (err) {
+      setAdminStatus(err.message || String(err));
+    }
+  });
+
+  byId("adminPasswordSaveBtn")?.addEventListener("click", async () => {
+    const pwd = byId("adminNewPassword")?.value ?? "";
+    const confirm = byId("adminConfirmPassword")?.value ?? "";
+    if (pwd !== confirm) {
+      setAdminStatus("비밀번호 확인이 일치하지 않습니다.");
+      return;
+    }
+    try {
+      await window.TClientAdmin.updatePassword(pwd);
+      showPasswordSetupUi(false);
+      setAdminUi(true);
+      setAdminStatus("비밀번호가 설정되었습니다. 이후부터는 이메일과 비밀번호로 로그인하세요.");
+      renderAdminKeywords();
+      refreshViews();
+    } catch (err) {
+      setAdminStatus(err.message || String(err));
+    }
+  });
+
+  byId("adminPassword")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") byId("adminLoginBtn")?.click();
+  });
+
+  byId("adminEmail")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") byId("adminPassword")?.focus();
   });
 
   byId("adminLogout")?.addEventListener("click", async () => {
@@ -2327,7 +2383,12 @@ function bindAdmin() {
 
   bindKeywordAdmin();
 
-  window.TAuth.onAuthStateChange(async () => {
+  window.TAuth.onAuthStateChange(async (event) => {
+    if (event === "PASSWORD_RECOVERY") {
+      showPasswordSetupUi(true);
+      setAdminStatus("");
+      return;
+    }
     await window.TClientAdmin.syncSession();
     setAdminUi(window.TClientAdmin.isUnlocked());
     if (window.TClientAdmin.isUnlocked()) renderAdminKeywords();
@@ -2370,20 +2431,25 @@ async function boot() {
     bindAddCompanyModal();
     bindAddPostModal();
     bindAdmin();
+    if (window.location.hash.includes("type=recovery")) {
+      showPasswordSetupUi(true);
+    }
     await updateCrawlUi();
-    setInterval(updateCrawlUi, 30000);
+    setInterval(updateCrawlUi, 60000);
     setInterval(async () => {
+      if (document.hidden) return;
       if (!window.TClientAdmin?.isUnlocked?.()) return;
       if (window.TClientAdmin.isDirty?.()) return;
       try {
-        await window.TClientAdmin.mergeRemoteOverrides();
+        const changed = await window.TClientAdmin.mergeRemoteOverrides();
+        if (!changed) return;
         reloadRowsWithAdmin();
         refreshViews();
         if (state.detailRow) paintDetailModal();
       } catch {
         /* ignore poll errors */
       }
-    }, 45000);
+    }, 90000);
     renderPresets();
     bindTabs();
     byId("filterToggleBtn")?.addEventListener("click", () => toggleFilterAdvanced());

@@ -33,4 +33,4 @@ git push                        # Pages 자동 배포
 
 ## 로그인
 
-허용 이메일(`config/allowed-emails.txt`)만 magic link 로그인 가능.
+허용 이메일(`config/allowed-emails.txt`)만 이메일+비밀번호 로그인 가능 (최초 1회 비밀번호 설정 메일).

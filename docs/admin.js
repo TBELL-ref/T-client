@@ -51,8 +51,11 @@
   let persistTimer = null;
   let keywordPersistTimer = null;
   let onPersistStatus = null;
+  let remoteOverridesCache = { doc: null, fetchedAt: 0, updatedAt: null };
+  let lastMergedRemoteUpdatedAt = null;
 
-  const PERSIST_DELAY_MS = 700;
+  const PERSIST_DELAY_MS = 900;
+  const REMOTE_CACHE_MS = 4000;
 
   function xorDecode(codes) {
     if (!codes?.length) return "";
@@ -350,6 +353,12 @@
       await window.TSupabase.saveOverrides(toSave);
       state.doc = toSave;
       localStorage.setItem(LS_KEY, JSON.stringify(toSave));
+      remoteOverridesCache = {
+        doc: toSave,
+        fetchedAt: Date.now(),
+        updatedAt: toSave.updatedAt
+      };
+      lastMergedRemoteUpdatedAt = toSave.updatedAt;
       state.dirty = false;
       state.persistStatus = "saved";
       onPersistStatus?.("saved");
@@ -403,12 +412,27 @@
     state.doc.favorites = [...new Set(favs)];
   }
 
-  async function fetchRemoteOverrides() {
+  async function fetchRemoteOverrides(options = {}) {
+    const force = Boolean(options.force);
+    const now = Date.now();
+    if (
+      !force &&
+      remoteOverridesCache.doc &&
+      now - remoteOverridesCache.fetchedAt < REMOTE_CACHE_MS
+    ) {
+      return remoteOverridesCache.doc;
+    }
     try {
       const doc = await window.TSupabase.getOverridesDoc();
-      return mergeDocs(doc ?? emptyDoc(), emptyDoc());
+      const merged = mergeDocs(doc ?? emptyDoc(), emptyDoc());
+      remoteOverridesCache = {
+        doc: merged,
+        fetchedAt: now,
+        updatedAt: merged.updatedAt ?? null
+      };
+      return merged;
     } catch {
-      return emptyDoc();
+      return remoteOverridesCache.doc ?? emptyDoc();
     }
   }
 
@@ -808,14 +832,33 @@
   }
 
   async function mergeRemoteOverrides() {
-    const remote = await fetchRemoteOverrides();
-    state.doc = mergeDocsByUpdatedAt(state.doc, remote);
+    const remote = await fetchRemoteOverrides({ force: true });
+    const remoteUpdatedAt = remote?.updatedAt ?? null;
+    if (remoteUpdatedAt && remoteUpdatedAt === lastMergedRemoteUpdatedAt) {
+      return false;
+    }
+    const merged = mergeDocsByUpdatedAt(state.doc, remote);
+    state.doc = merged;
     saveLocal(state.doc, { scheduleRemote: false });
+    remoteOverridesCache = {
+      doc: merged,
+      fetchedAt: Date.now(),
+      updatedAt: merged.updatedAt ?? remoteUpdatedAt
+    };
+    lastMergedRemoteUpdatedAt = remoteUpdatedAt;
+    return true;
+  }
+
+  async function fetchCompanyOverride(companyId) {
+    const remote = await fetchRemoteOverrides({ force: true });
+    return remote?.companies?.[companyId] ?? null;
   }
 
   async function waitForEnrichedProfile(companyId, bizNoDigits, options = {}) {
-    const { timeoutMs = 120000, intervalMs = 2000, onTick } = options;
+    const { timeoutMs = 90000, intervalMs = 3000, onTick } = options;
     const deadline = Date.now() + timeoutMs;
+    const initialWait = 6000;
+    await new Promise((r) => setTimeout(r, initialWait));
 
     function profileReady(profile) {
       if (!profile) return false;
@@ -828,10 +871,14 @@
       if (profileReady(entry.profile)) {
         return { ok: true, profile: entry.profile, source: "local" };
       }
-      await mergeRemoteOverrides();
-      const merged = getEntry(companyId);
-      if (profileReady(merged.profile)) {
-        return { ok: true, profile: merged.profile, source: "remote" };
+      const remoteEntry = await fetchCompanyOverride(companyId);
+      if (profileReady(remoteEntry?.profile)) {
+        state.doc.companies[companyId] = pickNewerEntry(
+          state.doc.companies[companyId] ?? {},
+          remoteEntry
+        );
+        saveLocal(state.doc, { scheduleRemote: false });
+        return { ok: true, profile: state.doc.companies[companyId].profile, source: "remote" };
       }
       onTick?.();
       await new Promise((r) => setTimeout(r, intervalMs));
@@ -1099,8 +1146,20 @@
     return repoDispatch("enrich-company", { companyId, bizNo: digits }, REPO_PRIVATE);
   }
 
-  async function sendLoginLink(email) {
-    await window.TAuth.sendLoginLink(email);
+  async function signIn(email, password) {
+    await window.TAuth.signInWithPassword(email, password);
+    await syncSession();
+    return true;
+  }
+
+  async function sendPasswordSetupEmail(email) {
+    await window.TAuth.sendPasswordSetupEmail(email);
+    return true;
+  }
+
+  async function updatePassword(password) {
+    await window.TAuth.updatePassword(password);
+    await syncSession();
     return true;
   }
 
@@ -1131,7 +1190,9 @@
     removeManualPost,
     mergeCompanies,
     isUnlocked,
-    sendLoginLink,
+    signIn,
+    sendPasswordSetupEmail,
+    updatePassword,
     syncSession,
     getUserEmail: () => state.userEmail,
     lock,
