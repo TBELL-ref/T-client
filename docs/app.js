@@ -128,23 +128,6 @@ function candidateIndustryLabel(row) {
   return p.bizItem || p.bizType || p.industrySummary?.split("·")[0]?.trim() || "-";
 }
 
-function resolvePoolFlags(entry = {}) {
-  if (entry.hidden) {
-    return { isRecommended: false, isCandidate: false, userHidden: true };
-  }
-  if (entry.isRecommended !== undefined) {
-    return {
-      isRecommended: Boolean(entry.isRecommended),
-      isCandidate: Boolean(entry.isCandidate),
-      userHidden: false
-    };
-  }
-  if (entry.isCandidate) {
-    return { isRecommended: true, isCandidate: false, userHidden: false };
-  }
-  return { isRecommended: false, isCandidate: false, userHidden: false };
-}
-
 function poolClassOf(row) {
   if (row.userHidden) return "hidden";
   if (row.isRecommended) return "recommended";
@@ -2692,7 +2675,7 @@ async function confirmMergeToTargetAsync(targetId) {
   try {
     const targetEntry = window.TClientAdmin.getEntry(targetId);
     if (window.TSalesManagement?.mergeFromCompanies) {
-      await window.TSalesManagement.mergeFromCompanies(sourceId, targetId, targetEntry, targetRow);
+      await window.TSalesManagement.mergeFromCompanies(sourceId, targetId, targetEntry, targetRow, sourceRow);
     }
     await window.TClientAdmin.flushPersist?.();
   } catch (err) {
@@ -3275,6 +3258,8 @@ function bindAdmin() {
       setAdminUi(true);
       setAdminStatus("");
       closeAdminPopover();
+      await window.TClientAdmin.afterAuth?.();
+      reloadRowsWithAdmin();
       showToast("비밀번호가 설정되었습니다. 이후부터는 이메일과 비밀번호로 로그인하세요.");
       refreshViews();
     } catch (err) {

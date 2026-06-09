@@ -72,41 +72,89 @@
     return out;
   }
 
-  function entryToPatch(entry = {}) {
-    if (!entry || typeof entry !== "object") return {};
+  function pickNonEmpty(a, b) {
+    return a === undefined || a === null || a === "" ? b : a;
+  }
+
+  function rowToSalesPatch(row, entry = {}) {
+    if (!row) return {};
     const P = window.TPipeline;
-    const patch = {};
+    const hidden = Boolean(row.userHidden);
+    return sanitizePatch({
+      isHidden: hidden,
+      isRecommended: hidden ? false : Boolean(row.isRecommended),
+      isCandidate: hidden ? false : Boolean(row.isCandidate),
+      pipelineStage: P?.resolvePipelineStage?.(row.pipelineStage) ?? row.pipelineStage,
+      pipelineStatus: P?.resolvePipelineStatus?.(row.pipelineStatus) ?? row.pipelineStatus,
+      closedReason: row.closedReason ?? "",
+      recommendScore: row.recommendScore,
+      pilotDifficulty: row.pilotDifficulty,
+      candidateRank: row.candidateRank,
+      candidateIndustry: row.candidateIndustry ?? "",
+      candidateRepeatPosts: row.candidateRepeatPosts ?? "",
+      candidatePros: row.candidatePros ?? "",
+      candidateCons: row.candidateCons ?? "",
+      recommendedSince: row.recommendedSince ?? "",
+      candidateSince: row.candidateSince ?? "",
+      pipelineStageAt: row.pipelineStageAt ?? "",
+      memo: row.salesMemo ?? row.manualNotes ?? entry.notes ?? ""
+    });
+  }
 
-    if (entry.hidden === true) {
-      patch.isHidden = true;
-      patch.isRecommended = false;
-      patch.isCandidate = false;
-    } else if (entry.hidden === false) {
-      patch.isHidden = false;
-    }
-    if (entry.isRecommended !== undefined) patch.isRecommended = Boolean(entry.isRecommended);
-    if (entry.isCandidate !== undefined) patch.isCandidate = Boolean(entry.isCandidate);
-    if (entry.pipelineStage) {
-      patch.pipelineStage = P?.resolvePipelineStage?.(entry.pipelineStage) ?? entry.pipelineStage;
-    }
-    if (entry.pipelineStatus) {
-      patch.pipelineStatus = P?.resolvePipelineStatus?.(entry.pipelineStatus) ?? entry.pipelineStatus;
-    }
-    if (entry.closedReason !== undefined) patch.closedReason = entry.closedReason ?? "";
-    if (entry.recommendScore !== undefined && entry.recommendScore !== "") patch.recommendScore = entry.recommendScore;
-    if (entry.pilotDifficulty !== undefined && entry.pilotDifficulty !== "") patch.pilotDifficulty = entry.pilotDifficulty;
-    if (entry.candidateRank !== undefined && entry.candidateRank !== "") patch.candidateRank = entry.candidateRank;
-    if (entry.candidateIndustry !== undefined) patch.candidateIndustry = entry.candidateIndustry ?? "";
-    if (entry.candidateRepeatPosts !== undefined) patch.candidateRepeatPosts = entry.candidateRepeatPosts ?? "";
-    if (entry.candidatePros !== undefined) patch.candidatePros = entry.candidatePros ?? "";
-    if (entry.candidateCons !== undefined) patch.candidateCons = entry.candidateCons ?? "";
-    if (entry.recommendedSince !== undefined) patch.recommendedSince = entry.recommendedSince ?? "";
-    if (entry.candidateSince !== undefined) patch.candidateSince = entry.candidateSince ?? "";
-    if (entry.pipelineStageAt !== undefined) patch.pipelineStageAt = entry.pipelineStageAt ?? "";
-    const memo = entry.memo ?? entry.notes;
-    if (memo !== undefined) patch.memo = memo ?? "";
+  function mergeSalesPatchForMerge(targetRow, sourceRow, targetEntry = {}) {
+    const t = rowToSalesPatch(targetRow, targetEntry);
+    if (!sourceRow) return t;
+    const s = rowToSalesPatch(sourceRow);
+    const pickNum = (a, b) => {
+      const av = Number.parseInt(`${a ?? 0}`, 10) || 0;
+      const bv = Number.parseInt(`${b ?? 0}`, 10) || 0;
+      return av > 0 || bv > 0 ? Math.max(av, bv) : pickNonEmpty(a, b);
+    };
+    const memos = [t.memo, s.memo].map((m) => `${m ?? ""}`.trim()).filter(Boolean);
+    return sanitizePatch({
+      isHidden: Boolean(t.isHidden),
+      isRecommended: t.isHidden ? false : Boolean(t.isRecommended) || Boolean(s.isRecommended),
+      isCandidate: t.isHidden ? false : Boolean(t.isCandidate) || Boolean(s.isCandidate),
+      pipelineStage: pickNonEmpty(t.pipelineStage, s.pipelineStage),
+      pipelineStatus: pickNonEmpty(t.pipelineStatus, s.pipelineStatus),
+      closedReason: pickNonEmpty(t.closedReason, s.closedReason),
+      recommendScore: pickNum(t.recommendScore, s.recommendScore),
+      pilotDifficulty: pickNum(t.pilotDifficulty, s.pilotDifficulty),
+      candidateRank: pickNum(t.candidateRank, s.candidateRank),
+      candidateIndustry: pickNonEmpty(t.candidateIndustry, s.candidateIndustry),
+      candidateRepeatPosts: pickNonEmpty(t.candidateRepeatPosts, s.candidateRepeatPosts),
+      candidatePros: pickNonEmpty(t.candidatePros, s.candidatePros),
+      candidateCons: pickNonEmpty(t.candidateCons, s.candidateCons),
+      recommendedSince: pickNonEmpty(t.recommendedSince, s.recommendedSince),
+      candidateSince: pickNonEmpty(t.candidateSince, s.candidateSince),
+      pipelineStageAt: pickNonEmpty(t.pipelineStageAt, s.pipelineStageAt),
+      memo: memos.join("\n---\n")
+    });
+  }
 
-    return sanitizePatch(patch);
+  function entryToPatch(entry = {}) {
+    return rowToSalesPatch(
+      {
+        userHidden: entry.hidden,
+        isRecommended: entry.isRecommended,
+        isCandidate: entry.isCandidate,
+        pipelineStage: entry.pipelineStage,
+        pipelineStatus: entry.pipelineStatus,
+        closedReason: entry.closedReason,
+        recommendScore: entry.recommendScore,
+        pilotDifficulty: entry.pilotDifficulty,
+        candidateRank: entry.candidateRank,
+        candidateIndustry: entry.candidateIndustry,
+        candidateRepeatPosts: entry.candidateRepeatPosts,
+        candidatePros: entry.candidatePros,
+        candidateCons: entry.candidateCons,
+        recommendedSince: entry.recommendedSince,
+        candidateSince: entry.candidateSince,
+        pipelineStageAt: entry.pipelineStageAt,
+        salesMemo: entry.memo ?? entry.notes
+      },
+      entry
+    );
   }
 
   async function hide(companyId, row = null) {
@@ -123,9 +171,9 @@
     );
   }
 
-  async function mergeFromCompanies(sourceId, targetId, targetEntry, targetRow = null) {
+  async function mergeFromCompanies(sourceId, targetId, targetEntry, targetRow = null, sourceRow = null) {
     await window.TCompanies?.ensureManualById?.(targetId, targetRow);
-    const patch = entryToPatch(targetEntry);
+    const patch = mergeSalesPatchForMerge(targetRow, sourceRow, targetEntry);
     if (Object.keys(patch).length) await upsert(targetId, patch, targetRow);
     if (window.TCompanies?.isManualCompanyId?.(sourceId)) {
       await window.TCompanies?.deleteManual?.(sourceId);

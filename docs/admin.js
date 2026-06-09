@@ -808,23 +808,6 @@
     return true;
   }
 
-  function resolvePoolFlags(entry = {}) {
-    if (entry.hidden) {
-      return { isRecommended: false, isCandidate: false, userHidden: true };
-    }
-    if (entry.isRecommended !== undefined) {
-      return {
-        isRecommended: Boolean(entry.isRecommended),
-        isCandidate: Boolean(entry.isCandidate),
-        userHidden: false
-      };
-    }
-    if (entry.isCandidate) {
-      return { isRecommended: true, isCandidate: false, userHidden: false };
-    }
-    return { isRecommended: false, isCandidate: false, userHidden: false };
-  }
-
   function setEntry(companyId, patch) {
     const safePatch = stripLegacySalesPatch(patch);
     const prev = getEntry(companyId);

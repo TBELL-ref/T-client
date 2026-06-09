@@ -27,7 +27,8 @@ git push                        # Pages 자동 배포
 | UI | Supabase |
 |----|----------|
 | 대시보드 | `get_published_snapshot` |
-| 편집 overrides | `save_overrides_doc` (JWT, 자동 저장) |
+| 영업/파이프라인 | `sales_management` 테이블 (`upsert_sales_management`) |
+| 편집 overrides | `save_overrides_doc` (프로필·공고, JWT 자동 저장) |
 | 키워드 | `save_keywords_doc` |
 | 크롤 요청 | `request_crawl` + GitHub Actions |
 
