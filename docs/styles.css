@@ -153,11 +153,7 @@ body {
 }
 
 .dash-actions {
-  gap: 0;
-}
-
-.dash-actions-title {
-  margin-top: 12px;
+  gap: 10px;
 }
 
 .portfolio-map-wrap {
@@ -174,133 +170,6 @@ body {
 .portfolio-chart-col {
   position: relative;
   min-width: 0;
-}
-
-.portfolio-select-panel {
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 4px;
-}
-
-.portfolio-select-panel-empty {
-  min-height: 120px;
-}
-
-.portfolio-select-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.portfolio-select-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--text);
-}
-
-.portfolio-select-close {
-  padding: 4px 8px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.portfolio-select-close:hover {
-  color: var(--text);
-  background: #f1f5f9;
-}
-
-.portfolio-select-empty {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.portfolio-select-switcher {
-  margin-bottom: 10px;
-}
-
-.portfolio-select-cluster-note {
-  margin: 0 0 6px;
-  font-size: 11px;
-}
-
-.portfolio-select-picks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.portfolio-select-pick {
-  max-width: 100%;
-  padding: 4px 8px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: #fff;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--muted);
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.portfolio-select-pick:hover {
-  border-color: #86efac;
-  color: #047857;
-}
-
-.portfolio-select-pick.active {
-  border-color: #059669;
-  background: #ecfdf5;
-  color: #047857;
-}
-
-.portfolio-select-name {
-  display: block;
-  font-size: 15px;
-  line-height: 1.35;
-  margin-bottom: 10px;
-  word-break: keep-all;
-}
-
-.portfolio-select-facts {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
-  margin: 0 0 12px;
-}
-
-.portfolio-select-fact {
-  display: grid;
-  grid-template-columns: 88px 1fr;
-  gap: 8px;
-  align-items: baseline;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.portfolio-select-fact dt {
-  margin: 0;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.portfolio-select-fact dd {
-  margin: 0;
-  color: var(--text);
-}
-
-.portfolio-select-detail {
-  width: 100%;
 }
 
 .portfolio-svg-wrap {
@@ -376,11 +245,6 @@ body {
   stroke-width: 2.5;
 }
 
-.portfolio-cluster.is-active .portfolio-cluster-dot {
-  stroke: #047857;
-  stroke-width: 3;
-}
-
 .portfolio-cluster.is-active .portfolio-cluster-ring {
   opacity: 0.55;
 }
@@ -449,18 +313,81 @@ body {
   color: #047857;
 }
 
-.portfolio-tooltip-hint {
-  margin: 6px 0 4px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #86efac;
-}
-
 .portfolio-tooltip-host {
   position: fixed;
   z-index: 1200;
-  pointer-events: none;
-  max-width: 280px;
+  pointer-events: auto;
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.portfolio-popover {
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  overflow: hidden;
+}
+
+.portfolio-popover-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fafc;
+}
+
+.portfolio-popover-zone {
+  font-size: 11px;
+  font-weight: 800;
+  color: #047857;
+}
+
+.portfolio-popover-meta {
+  font-size: 11px;
+}
+
+.portfolio-popover-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: min(280px, 50vh);
+  overflow: auto;
+}
+
+.portfolio-popover-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.portfolio-popover-item:hover {
+  background: #f0fdf4;
+}
+
+.portfolio-popover-item strong {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.portfolio-popover-item-meta {
+  font-size: 11px;
+}
+
+.portfolio-popover-hint {
+  margin: 0;
+  padding: 6px 12px 10px;
+  font-size: 10px;
+  border-top: 1px solid var(--line);
 }
 
 .portfolio-tooltip {
