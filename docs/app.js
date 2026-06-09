@@ -18,7 +18,7 @@ const state = {
   tableSort: { column: "priorityScore", direction: "desc" },
   leadsPage: 1,
   postsPage: 1,
-  portfolioClusterFilter: null
+  portfolioSelection: null
 };
 
 const PAGE_SIZE = 10;
@@ -1376,16 +1376,78 @@ function portfolioClusterKey(row) {
   return `${parseRecommendScore(row)}:${parseApproachEase(row)}`;
 }
 
-function getPortfolioTopRows(eligibleRows) {
-  if (state.portfolioClusterFilter) {
-    const filtered = eligibleRows.filter((row) => portfolioClusterKey(row) === state.portfolioClusterFilter);
-    return getTopTargetRows(filtered, filtered.length);
-  }
-  return getTopTargetRows(eligibleRows, 5);
-}
-
 function topTargetStageLabel(row) {
   return companySalesBucket(row).label;
+}
+
+function candidateRegisteredDate(row) {
+  return formatDate(row.candidateSince || row.recommendedSince || row.firstCollectedAt);
+}
+
+function getPortfolioSelectionRows() {
+  if (!state.portfolioSelection) return [];
+  const eligibleRows = activeLeadRows().filter((row) => portfolioQuadrant(row));
+  return eligibleRows.filter((row) => portfolioClusterKey(row) === state.portfolioSelection.clusterKey);
+}
+
+function getPortfolioSelectionRow() {
+  const rows = getPortfolioSelectionRows();
+  if (!rows.length) return null;
+  const id = state.portfolioSelection?.companyId;
+  return rows.find((row) => row.companyId === id) ?? getTopTargetRows(rows, 1)[0];
+}
+
+function selectPortfolioCluster(cluster) {
+  const top = getTopTargetRows(cluster.rows, 1)[0];
+  state.portfolioSelection = {
+    clusterKey: cluster.key,
+    companyId: top?.companyId ?? cluster.rows[0]?.companyId ?? null
+  };
+}
+
+function renderPortfolioSelectionPanel() {
+  const row = getPortfolioSelectionRow();
+  const clusterRows = getPortfolioSelectionRows();
+
+  if (!row) {
+    return `<section class="portfolio-select-panel portfolio-select-panel-empty">
+      <h3 class="portfolio-select-title">선택 기업</h3>
+      <p class="muted portfolio-select-empty">클러스터를 클릭하면 기업 정보가 표시됩니다</p>
+    </section>`;
+  }
+
+  const switcher =
+    clusterRows.length > 1
+      ? `<div class="portfolio-select-switcher">
+          <p class="portfolio-select-cluster-note muted">클러스터 · ${clusterRows.length}개</p>
+          <div class="portfolio-select-picks">
+            ${getTopTargetRows(clusterRows, clusterRows.length)
+              .map(
+                (r) =>
+                  `<button type="button" class="portfolio-select-pick${r.companyId === row.companyId ? " active" : ""}" data-company="${escapeAttr(r.companyId)}">${escapeHtml(displayName(r))}</button>`
+              )
+              .join("")}
+          </div>
+        </div>`
+      : "";
+
+  return `<section class="portfolio-select-panel">
+    <div class="portfolio-select-head">
+      <h3 class="portfolio-select-title">선택 기업</h3>
+      <button type="button" class="portfolio-select-close" data-portfolio-clear aria-label="선택 해제">닫기</button>
+    </div>
+    ${switcher}
+    <strong class="portfolio-select-name">${escapeHtml(displayName(row))}</strong>
+    <dl class="portfolio-select-facts">
+      <div class="portfolio-select-fact"><dt>추천 점수</dt><dd>${starGlyphs(parseRecommendScore(row), 5)}</dd></div>
+      <div class="portfolio-select-fact"><dt>파일럿 난이도</dt><dd>${starGlyphs(parsePilotDifficulty(row), 3)}</dd></div>
+      <div class="portfolio-select-fact"><dt>현재 단계</dt><dd>${escapeHtml(topTargetStageLabel(row))}</dd></div>
+      <div class="portfolio-select-fact"><dt>업종</dt><dd>${escapeHtml(candidateIndustryLabel(row))}</dd></div>
+      <div class="portfolio-select-fact"><dt>반복공고</dt><dd>${escapeHtml(candidateRepeatLabel(row))}</dd></div>
+      <div class="portfolio-select-fact"><dt>후보 등록일</dt><dd>${escapeHtml(candidateRegisteredDate(row))}</dd></div>
+    </dl>
+    <button type="button" class="btn btn-primary portfolio-select-detail" data-portfolio-detail="${escapeAttr(row.companyId)}">상세 보기</button>
+  </section>`;
 }
 
 function renderPortfolioClusterTooltip(cluster) {
@@ -1397,7 +1459,7 @@ function renderPortfolioClusterTooltip(cluster) {
     <div>추천 ${starGlyphs(cluster.score, 5)} · 용이 ${starGlyphs(cluster.ease, 5)}</div>
     ${
       cluster.rows.length > 1
-        ? `<p class="portfolio-tooltip-hint">클릭하여 기업 선택</p><div class="portfolio-tooltip-names">${names}</div>`
+        ? `<p class="portfolio-tooltip-hint">클릭하여 기업 정보 확인</p><div class="portfolio-tooltip-names">${names}</div>`
         : `<strong>${escapeHtml(displayName(row))}</strong>
            <div class="portfolio-tooltip-names">${names}</div>
            <div class="muted portfolio-tooltip-sub">난이도 ${starGlyphs(cluster.pilot, 3)} · ${escapeHtml(candidateIndustryLabel(row))}</div>`
@@ -1405,60 +1467,13 @@ function renderPortfolioClusterTooltip(cluster) {
   </div>`;
 }
 
-function renderTopTargetsList(eligibleRows) {
-  const top = getPortfolioTopRows(eligibleRows);
-  const filtered = Boolean(state.portfolioClusterFilter);
-  const headExtra = filtered
-    ? `<button type="button" class="portfolio-top-clear" data-portfolio-clear>전체 보기</button>`
-    : "";
-
-  if (!top.length) {
-    return `<section class="portfolio-top-targets">
-      <div class="portfolio-top-head">
-        <h3 class="portfolio-top-title">TOP 공략 대상</h3>
-        ${headExtra}
-      </div>
-      <p class="muted portfolio-top-empty">${filtered ? "선택한 클러스터에 표시할 기업이 없습니다." : "평가된 기업이 없습니다."}</p>
-    </section>`;
-  }
-
-  return `<section class="portfolio-top-targets">
-    <div class="portfolio-top-head">
-      <div class="portfolio-top-head-main">
-        <h3 class="portfolio-top-title">TOP 공략 대상</h3>
-        ${filtered ? `<p class="portfolio-top-filter-note muted">선택 클러스터 · ${top.length}개</p>` : ""}
-      </div>
-      ${headExtra}
-    </div>
-    <ol class="portfolio-top-grid">
-      ${top
-        .map(
-          (row, idx) => `
-        <li>
-          <button type="button" class="portfolio-top-card" data-company="${escapeAttr(row.companyId)}">
-            <span class="portfolio-top-rank">${idx + 1}</span>
-            <span class="portfolio-top-body">
-              <strong class="portfolio-top-name">${escapeHtml(displayName(row))}</strong>
-              <span class="portfolio-top-line">추천 ${starGlyphs(parseRecommendScore(row), 5)}</span>
-              <span class="portfolio-top-line">난이도 ${starGlyphs(parsePilotDifficulty(row), 3)}</span>
-              <span class="portfolio-top-line">단계 : ${escapeHtml(topTargetStageLabel(row))}</span>
-              <span class="portfolio-top-line muted">업종 : ${escapeHtml(candidateIndustryLabel(row))}</span>
-            </span>
-          </button>
-        </li>`
-        )
-        .join("")}
-    </ol>
-  </section>`;
-}
-
 function renderPortfolioMap() {
   const eligibleRows = activeLeadRows().filter((row) => portfolioQuadrant(row));
   const clusters = clusterPortfolioRows(eligibleRows);
 
-  const W = 760;
-  const H = 400;
-  const pad = { l: 56, r: 20, t: 16, b: 48 };
+  const W = 720;
+  const H = 360;
+  const pad = { l: 56, r: 16, t: 14, b: 44 };
   const innerW = W - pad.l - pad.r;
   const innerH = H - pad.t - pad.b;
 
@@ -1501,7 +1516,7 @@ function renderPortfolioMap() {
       const n = cluster.rows.length;
       const r = n > 1 ? 12 + Math.min(n, 4) : 8;
       const companyIds = cluster.rows.map((row) => row.companyId).join(",");
-      const selected = state.portfolioClusterFilter === cluster.key ? " is-active" : "";
+      const selected = state.portfolioSelection?.clusterKey === cluster.key ? " is-active" : "";
       return `<g class="portfolio-cluster${selected}" data-cluster-key="${escapeAttr(cluster.key)}" data-companies="${escapeAttr(companyIds)}" data-quadrant="${cluster.quadrant}" tabindex="0" role="button" aria-label="${escapeAttr(displayName(cluster.rows[0]))}${n > 1 ? ` 외 ${n - 1}곳` : ""}">
         <circle class="portfolio-cluster-bg" cx="${cx}" cy="${cy}" r="${r + 3}" fill="${meta.color}" opacity="0.2"/>
         <circle class="portfolio-cluster-ring" cx="${cx}" cy="${cy}" r="${r + 6}" fill="none" stroke="${meta.color}" stroke-width="2" opacity="0"/>
@@ -1513,14 +1528,13 @@ function renderPortfolioMap() {
 
   const chartBody =
     eligibleRows.length > 0
-      ? `<div class="portfolio-matrix-stack">
-      <div class="portfolio-chart-col">
+      ? `<div class="portfolio-chart-col">
         <div class="portfolio-svg-wrap">
           <svg class="portfolio-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="공략 우선순위 매트릭스">
             ${quadrantsSvg}
             ${splitLines}
             <rect x="${pad.l}" y="${pad.t}" width="${innerW}" height="${innerH}" fill="none" stroke="#cbd5e1" stroke-width="1.5" rx="8"/>
-            ${[1, 2, 3, 4, 5].map((n) => `<text x="${xFor(n)}" y="${H - 28}" text-anchor="middle" class="portfolio-axis-tick">${n}</text>`).join("")}
+            ${[1, 2, 3, 4, 5].map((n) => `<text x="${xFor(n)}" y="${H - 26}" text-anchor="middle" class="portfolio-axis-tick">${n}</text>`).join("")}
             ${[1, 2, 3, 4, 5].map((n) => `<text x="${pad.l - 10}" y="${yFor(n) + 4}" text-anchor="end" class="portfolio-axis-tick">${n}</text>`).join("")}
             ${points}
           </svg>
@@ -1528,15 +1542,10 @@ function renderPortfolioMap() {
         </div>
         <p class="portfolio-axis-caption portfolio-axis-caption-x">공략 용이성 <span class="muted">(오른쪽으로 갈수록 파일럿 진입 쉬움)</span></p>
         <p class="portfolio-axis-caption portfolio-axis-caption-y">추천 점수 <span class="muted">(위로 갈수록 추천도 높음)</span></p>
-      </div>
-      ${renderTopTargetsList(eligibleRows)}
-    </div>`
+      </div>`
       : `<p class="muted dash-empty-hint">표시할 평가 데이터가 없습니다.<br />상세 → 수정에서 추천 점수·파일럿 난이도를 입력하세요.</p>`;
 
-  return `<div class="portfolio-map-wrap">
-    <p class="muted portfolio-map-sub">매트릭스에서 클러스터를 클릭하면 아래 TOP 공략 대상이 연동됩니다</p>
-    ${chartBody}
-  </div>`;
+  return `<div class="portfolio-map-wrap">${chartBody}</div>`;
 }
 
 function bindPortfolioMap() {
@@ -1544,8 +1553,21 @@ function bindPortfolioMap() {
   if (!host) return;
 
   host.querySelector("[data-portfolio-clear]")?.addEventListener("click", () => {
-    state.portfolioClusterFilter = null;
+    state.portfolioSelection = null;
     renderDashboard();
+  });
+
+  host.querySelector("[data-portfolio-detail]")?.addEventListener("click", (ev) => {
+    const row = state.rows.find((r) => r.companyId === ev.currentTarget.dataset.portfolioDetail);
+    if (row) openDetail(row);
+  });
+
+  host.querySelectorAll(".portfolio-select-pick").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (!state.portfolioSelection) return;
+      state.portfolioSelection = { ...state.portfolioSelection, companyId: btn.dataset.company };
+      renderDashboard();
+    });
   });
 
   host.querySelectorAll(".portfolio-cluster").forEach((g) => {
@@ -1582,16 +1604,12 @@ function bindPortfolioMap() {
     g.addEventListener("click", (ev) => {
       ev.stopPropagation();
       byId("portfolioTooltip")?.classList.add("hidden");
-      state.portfolioClusterFilter =
-        state.portfolioClusterFilter === cluster.key ? null : cluster.key;
+      if (state.portfolioSelection?.clusterKey === cluster.key) {
+        state.portfolioSelection = null;
+      } else {
+        selectPortfolioCluster(cluster);
+      }
       renderDashboard();
-    });
-  });
-
-  host.querySelectorAll(".portfolio-top-card").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const row = state.rows.find((r) => r.companyId === btn.dataset.company);
-      if (row) openDetail(row);
     });
   });
 }
@@ -1852,11 +1870,15 @@ function renderDashboard() {
 
   byId("dashboard").innerHTML = `
     <article class="dash-card dash-portfolio">
-      <h2 class="dash-card-title">${iconSvg("chart", 16)} 공략 우선순위 매트릭스</h2>
+      <div class="dash-card-head">
+        <h2 class="dash-card-title">${iconSvg("chart", 16)} 공략 우선순위 매트릭스</h2>
+        <p class="muted portfolio-map-sub">클러스터 클릭 시 기업 정보 확인</p>
+      </div>
       ${renderPortfolioMap()}
     </article>
     <article class="dash-card dash-actions">
-      <h2 class="dash-card-title">${iconSvg("layers", 16)} 액션 현황</h2>
+      ${renderPortfolioSelectionPanel()}
+      <h2 class="dash-card-title dash-actions-title">${iconSvg("layers", 16)} 액션 현황</h2>
       ${renderActionKpiCards(actionKpi)}
     </article>`;
 
