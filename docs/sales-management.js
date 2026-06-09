@@ -109,18 +109,8 @@
     return sanitizePatch(patch);
   }
 
-  function attachCompanyMeta(patch, row) {
-    if (!row) return patch;
-    return {
-      ...patch,
-      companyName: row.companyNameKo || row.companyName || row.companyId || "",
-      companyNameKo: row.companyNameKo || row.companyName || "",
-      domain: row.domain || ""
-    };
-  }
-
   async function hide(companyId, row = null) {
-    if (window.TClientAdmin?.isCustomCompany?.(companyId) && !row) return null;
+    if (window.TCompanies?.isManualCompanyId?.(companyId)) return null;
     return upsert(
       companyId,
       {
@@ -136,13 +126,14 @@
   async function mergeFromCompanies(sourceId, targetId, targetEntry, targetRow = null) {
     const patch = entryToPatch(targetEntry);
     if (Object.keys(patch).length) await upsert(targetId, patch, targetRow);
-    if (!window.TClientAdmin?.isCustomCompany?.(sourceId)) {
+    if (!window.TCompanies?.isManualCompanyId?.(sourceId)) {
       await hide(sourceId);
     }
   }
 
   async function upsert(companyId, patch, row = null) {
-    const safePatch = sanitizePatch(attachCompanyMeta(patch, row));
+    if (row) await window.TCompanies?.ensureManual?.(row);
+    const safePatch = sanitizePatch(patch);
     const result = await window.TSupabase.upsertSalesManagement(companyId, safePatch);
     setLocal(companyId, result ?? safePatch);
     return get(companyId);

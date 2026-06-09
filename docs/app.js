@@ -977,6 +977,12 @@ async function resolveCompanyForManualPost(url, bizNo) {
     profile
   });
   if (!window.TClientAdmin.addCustomCompany(row)) return { row: null, created: false, enrichProfile };
+  try {
+    await window.TCompanies.upsertManual(row);
+  } catch (err) {
+    window.TClientAdmin.removeCustomCompany(row.companyId);
+    throw err;
+  }
   return { row, created: true, enrichProfile };
 }
 
@@ -2344,6 +2350,10 @@ function closeAddCompanyModal() {
 }
 
 function submitAddCompany() {
+  void submitAddCompanyAsync();
+}
+
+async function submitAddCompanyAsync() {
   const name = byId("add-co-name")?.value.trim();
   if (!name) {
     showToast("회사명을 입력하세요.", "error");
@@ -2356,6 +2366,14 @@ function submitAddCompany() {
   });
   if (!window.TClientAdmin.addCustomCompany(row)) {
     showToast("이미 등록된 회사입니다.", "error");
+    return;
+  }
+  try {
+    await window.TCompanies.upsertManual(row);
+    await window.TClientAdmin.flushPersist?.();
+  } catch (err) {
+    window.TClientAdmin.removeCustomCompany(row.companyId);
+    showToast(err.message || "회사 등록 실패", "error");
     return;
   }
   reloadRowsWithAdmin();
@@ -2464,6 +2482,16 @@ async function submitAddPostAsync() {
         domain: enrichProfile.domain || row.domain,
         profile: profilePatchFromEnrich(enrichProfile)
       });
+      const updated = state.rows.find((r) => r.companyId === row.companyId) ?? row;
+      await window.TCompanies.upsertManual({
+        ...updated,
+        companyNameKo: enrichProfile.companyNameLegal || updated.companyNameKo,
+        companyName: enrichProfile.companyNameLegal || updated.companyName,
+        domain: enrichProfile.domain || updated.domain,
+        profile: profilePatchFromEnrich(enrichProfile)
+      });
+    } else if (created) {
+      await window.TCompanies.ensureManual(row);
     }
 
     reloadRowsWithAdmin();
@@ -2511,7 +2539,9 @@ async function deleteCompanyAsync(row) {
   }
 
   try {
-    if (!isManual && window.TSalesManagement?.hide) {
+    if (isManual) {
+      await window.TCompanies.deleteManual(row.companyId);
+    } else if (window.TSalesManagement?.hide) {
       await window.TSalesManagement.hide(row.companyId);
     }
     await window.TClientAdmin.flushPersist?.();

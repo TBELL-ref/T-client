@@ -541,6 +541,16 @@
     saveLocal(state.doc, { scheduleRemote: false });
     await initKeywords();
     if (window.TSalesManagement?.loadAll) await window.TSalesManagement.loadAll(true);
+    if (state.unlocked && window.TCompanies?.migrateFromOverrides) {
+      try {
+        const migrated = await window.TCompanies.migrateFromOverrides();
+        if (migrated?.migrated > 0) {
+          console.info("[companies] overrides → companies migrated", migrated);
+        }
+      } catch (err) {
+        console.warn("[companies] migrate_custom_companies_from_overrides", err);
+      }
+    }
     return state.doc;
   }
 

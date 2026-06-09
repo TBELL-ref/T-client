@@ -54,6 +54,11 @@
     saveOverrides: (doc) => rpc("save_overrides_doc", { doc }, { auth: true }),
     upsertSalesManagement: (companyId, patch) =>
       rpc("upsert_sales_management", { p_company_id: companyId, p_patch: patch }, { auth: true }),
+    upsertManualCompany: (companyId, patch) =>
+      rpc("upsert_manual_company", { p_company_id: companyId, p_patch: patch }, { auth: true }),
+    deleteManualCompany: (companyId) =>
+      rpc("delete_manual_company", { p_company_id: companyId }, { auth: true }),
+    migrateCustomCompaniesFromOverrides: () => rpc("migrate_custom_companies_from_overrides", {}, { auth: true }),
     saveKeywords: (doc) => rpc("save_keywords_doc", { doc }, { auth: true })
   };
 })();
