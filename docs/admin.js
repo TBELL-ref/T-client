@@ -89,12 +89,16 @@
 
   let persistTimer = null;
   let keywordPersistTimer = null;
+  let syncOverridesTimer = null;
+  let lastSyncOverridesDispatchAt = 0;
   let onPersistStatus = null;
   let remoteOverridesCache = { doc: null, fetchedAt: 0, updatedAt: null };
   let lastMergedRemoteUpdatedAt = null;
 
   const PERSIST_DELAY_MS = 900;
   const REMOTE_CACHE_MS = 4000;
+  const SYNC_OVERRIDES_DEBOUNCE_MS = 60_000;
+  const SYNC_OVERRIDES_COOLDOWN_MS = 5 * 60_000;
 
   const LEGACY_SALES_KEYS = [
     "hidden",
@@ -138,6 +142,29 @@
   function stripLegacySalesPatch(patch) {
     if (!patch || typeof patch !== "object") return patch;
     return stripLegacySalesFields(patch);
+  }
+
+  function hasSyncableOverrides(doc) {
+    if (!doc) return false;
+    if ((doc.customCompanies ?? []).length) return true;
+    for (const entry of Object.values(doc.companies ?? {})) {
+      if ((entry.extraPosts ?? []).length) return true;
+    }
+    return false;
+  }
+
+  function scheduleSyncOverridesDispatch(doc = state.doc) {
+    if (!isUnlocked() || !hasSyncableOverrides(doc)) return;
+    clearTimeout(syncOverridesTimer);
+    syncOverridesTimer = setTimeout(() => {
+      syncOverridesTimer = null;
+      const now = Date.now();
+      if (now - lastSyncOverridesDispatchAt < SYNC_OVERRIDES_COOLDOWN_MS) return;
+      lastSyncOverridesDispatchAt = now;
+      void repoDispatch("sync-overrides", {}, REPO_PRIVATE).catch((err) => {
+        console.warn("[sync-overrides]", err);
+      });
+    }, SYNC_OVERRIDES_DEBOUNCE_MS);
   }
 
   function xorDecode(codes) {
@@ -499,9 +526,7 @@
       state.dirty = false;
       state.persistStatus = "saved";
       onPersistStatus?.("saved");
-      void repoDispatch("sync-overrides", {}, REPO_PRIVATE).catch((err) => {
-        console.warn("[sync-overrides]", err);
-      });
+      scheduleSyncOverridesDispatch(toSave);
       return true;
     } catch (err) {
       state.persistStatus = "error";
