@@ -2304,6 +2304,7 @@ function paintDetailModal() {
 
 function openDetail(row, edit = false) {
   const modal = byId("detailModal");
+  hidePortfolioPopover();
   state.detailRow = row;
   state.detailEdit = edit && window.TClientAdmin?.isUnlocked();
   paintDetailModal();
@@ -2315,10 +2316,10 @@ function closeDetail() {
   const modal = byId("detailModal");
   state.detailRow = null;
   state.detailEdit = false;
-  closePortfolioClusterPicker();
+  hidePortfolioPopover();
   modal?.classList.remove("is-edit");
-  modal.classList.add("hidden");
-  modal.setAttribute("aria-hidden", "true");
+  modal?.classList.add("hidden");
+  modal?.setAttribute("aria-hidden", "true");
 }
 
 function openAddCompanyModal() {
@@ -2761,7 +2762,7 @@ function bindModal() {
       closeMergeModal();
       return;
     }
-    closeDetail();
+    if (!modal.classList.contains("hidden")) closeDetail();
   });
 }
 
