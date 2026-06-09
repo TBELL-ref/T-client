@@ -2486,6 +2486,10 @@ async function submitAddPostAsync() {
 }
 
 function deleteCompany(row) {
+  void deleteCompanyAsync(row);
+}
+
+async function deleteCompanyAsync(row) {
   if (!row?.companyId || !window.TClientAdmin?.isUnlocked()) return;
 
   const admin = window.TClientAdmin;
@@ -2504,6 +2508,16 @@ function deleteCompany(row) {
       showToast("삭제(숨김 처리)에 실패했습니다.", "error");
       return;
     }
+  }
+
+  try {
+    if (!isManual && window.TSalesManagement?.hide) {
+      await window.TSalesManagement.hide(row.companyId);
+    }
+    await window.TClientAdmin.flushPersist?.();
+  } catch (err) {
+    showToast(err.message || "저장 실패", "error");
+    return;
   }
 
   closeDetail();
@@ -2615,6 +2629,10 @@ function renderMergeResults(query = "") {
 }
 
 function confirmMergeToTarget(targetId) {
+  void confirmMergeToTargetAsync(targetId);
+}
+
+async function confirmMergeToTargetAsync(targetId) {
   const sourceRow = state.mergeSourceRow;
   const sourceId = sourceRow?.companyId;
   const targetRow = state.rows.find((r) => r.companyId === targetId);
@@ -2629,6 +2647,17 @@ function confirmMergeToTarget(targetId) {
 
   if (!window.TClientAdmin.mergeCompanies(sourceId, targetId)) {
     showToast("병합에 실패했습니다.", "error");
+    return;
+  }
+
+  try {
+    const targetEntry = window.TClientAdmin.getEntry(targetId);
+    if (window.TSalesManagement?.mergeFromCompanies) {
+      await window.TSalesManagement.mergeFromCompanies(sourceId, targetId, targetEntry);
+    }
+    await window.TClientAdmin.flushPersist?.();
+  } catch (err) {
+    showToast(err.message || "병합 저장 실패", "error");
     return;
   }
 

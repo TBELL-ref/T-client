@@ -72,6 +72,58 @@
     return out;
   }
 
+  function entryToPatch(entry = {}) {
+    if (!entry || typeof entry !== "object") return {};
+    const P = window.TPipeline;
+    const patch = {};
+
+    if (entry.hidden === true) {
+      patch.isHidden = true;
+      patch.isRecommended = false;
+      patch.isCandidate = false;
+    } else if (entry.hidden === false) {
+      patch.isHidden = false;
+    }
+    if (entry.isRecommended !== undefined) patch.isRecommended = Boolean(entry.isRecommended);
+    if (entry.isCandidate !== undefined) patch.isCandidate = Boolean(entry.isCandidate);
+    if (entry.pipelineStage) {
+      patch.pipelineStage = P?.resolvePipelineStage?.(entry.pipelineStage) ?? entry.pipelineStage;
+    }
+    if (entry.pipelineStatus) {
+      patch.pipelineStatus = P?.resolvePipelineStatus?.(entry.pipelineStatus) ?? entry.pipelineStatus;
+    }
+    if (entry.closedReason !== undefined) patch.closedReason = entry.closedReason ?? "";
+    if (entry.recommendScore !== undefined && entry.recommendScore !== "") patch.recommendScore = entry.recommendScore;
+    if (entry.pilotDifficulty !== undefined && entry.pilotDifficulty !== "") patch.pilotDifficulty = entry.pilotDifficulty;
+    if (entry.candidateRank !== undefined && entry.candidateRank !== "") patch.candidateRank = entry.candidateRank;
+    if (entry.candidateIndustry !== undefined) patch.candidateIndustry = entry.candidateIndustry ?? "";
+    if (entry.candidateRepeatPosts !== undefined) patch.candidateRepeatPosts = entry.candidateRepeatPosts ?? "";
+    if (entry.candidatePros !== undefined) patch.candidatePros = entry.candidatePros ?? "";
+    if (entry.candidateCons !== undefined) patch.candidateCons = entry.candidateCons ?? "";
+    if (entry.recommendedSince !== undefined) patch.recommendedSince = entry.recommendedSince ?? "";
+    if (entry.candidateSince !== undefined) patch.candidateSince = entry.candidateSince ?? "";
+    if (entry.pipelineStageAt !== undefined) patch.pipelineStageAt = entry.pipelineStageAt ?? "";
+    const memo = entry.memo ?? entry.notes;
+    if (memo !== undefined) patch.memo = memo ?? "";
+
+    return sanitizePatch(patch);
+  }
+
+  async function hide(companyId) {
+    return upsert(companyId, {
+      isHidden: true,
+      isRecommended: false,
+      isCandidate: false,
+      pipelineStatus: "closed"
+    });
+  }
+
+  async function mergeFromCompanies(sourceId, targetId, targetEntry) {
+    const patch = entryToPatch(targetEntry);
+    if (Object.keys(patch).length) await upsert(targetId, patch);
+    await hide(sourceId);
+  }
+
   async function upsert(companyId, patch) {
     const safePatch = sanitizePatch(patch);
     const result = await window.TSupabase.upsertSalesManagement(companyId, safePatch);
@@ -93,9 +145,9 @@
     }
     return {
       ...row,
-      userHidden: sm.isHidden,
-      isRecommended: sm.isRecommended,
-      isCandidate: sm.isCandidate,
+      userHidden: sm.isHidden || Boolean(row.userHidden),
+      isRecommended: sm.isHidden ? false : sm.isRecommended,
+      isCandidate: sm.isHidden ? false : sm.isCandidate,
       pipelineStage: sm.pipelineStage,
       pipelineStatus: sm.pipelineStatus,
       closedReason: sm.closedReason,
@@ -118,6 +170,9 @@
     loadAll,
     get,
     upsert,
+    hide,
+    mergeFromCompanies,
+    entryToPatch,
     applyToRow,
     normalizeEntry
   };

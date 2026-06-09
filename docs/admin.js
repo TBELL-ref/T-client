@@ -1197,6 +1197,12 @@
       return { part: p, label, pts, override };
     });
 
+    if (entry.hidden) {
+      next.userHidden = true;
+      next.isRecommended = false;
+      next.isCandidate = false;
+    }
+
     return window.TSalesManagement?.applyToRow(next) ?? next;
   }
 
