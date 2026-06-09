@@ -635,7 +635,7 @@ function bindDetailEdits(row) {
       pipelineStage: byId("edit-pipeline-stage")?.value ?? "",
       pipelineStatus: byId("edit-pipeline-status")?.value ?? "",
       closedReason: byId("edit-closed-reason")?.value ?? "",
-      candidateRank: byId("edit-cand-rank")?.value,
+      candidateRank: parseStarSelect(byId("edit-cand-rank")?.value),
       candidateIndustry: byId("edit-cand-industry")?.value.trim(),
       candidateRepeatPosts: byId("edit-cand-repeat")?.value.trim(),
       pilotDifficulty: parseStarSelect(byId("edit-cand-pilot")?.value),

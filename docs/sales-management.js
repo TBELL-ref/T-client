@@ -57,9 +57,25 @@
     return state.map;
   }
 
+  function sanitizePatch(patch = {}) {
+    const out = { ...patch };
+    if ("recommendScore" in out) {
+      out.recommendScore = Number.parseInt(`${out.recommendScore ?? 0}`, 10) || 0;
+    }
+    if ("pilotDifficulty" in out) {
+      out.pilotDifficulty = Number.parseInt(`${out.pilotDifficulty ?? 0}`, 10) || 0;
+    }
+    if ("candidateRank" in out) {
+      const raw = `${out.candidateRank ?? ""}`.trim();
+      out.candidateRank = raw === "" ? 0 : Number.parseInt(raw, 10) || 0;
+    }
+    return out;
+  }
+
   async function upsert(companyId, patch) {
-    const result = await window.TSupabase.upsertSalesManagement(companyId, patch);
-    setLocal(companyId, result ?? patch);
+    const safePatch = sanitizePatch(patch);
+    const result = await window.TSupabase.upsertSalesManagement(companyId, safePatch);
+    setLocal(companyId, result ?? safePatch);
     return get(companyId);
   }
 
