@@ -686,7 +686,7 @@ function bindDetailEdits(row) {
 
     try {
       if (window.TClientAdmin.isUnlocked()) {
-        await window.TSalesManagement.upsert(cid, salesPatch);
+        await window.TSalesManagement.upsert(cid, salesPatch, row);
       }
       window.TClientAdmin.setEntry(cid, overridePatch);
       finishDetailSave(cid, { exitEdit: true, toastMessage: "정상 저장되었습니다." });
@@ -2653,7 +2653,7 @@ async function confirmMergeToTargetAsync(targetId) {
   try {
     const targetEntry = window.TClientAdmin.getEntry(targetId);
     if (window.TSalesManagement?.mergeFromCompanies) {
-      await window.TSalesManagement.mergeFromCompanies(sourceId, targetId, targetEntry);
+      await window.TSalesManagement.mergeFromCompanies(sourceId, targetId, targetEntry, targetRow);
     }
     await window.TClientAdmin.flushPersist?.();
   } catch (err) {

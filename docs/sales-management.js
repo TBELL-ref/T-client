@@ -109,23 +109,40 @@
     return sanitizePatch(patch);
   }
 
-  async function hide(companyId) {
-    return upsert(companyId, {
-      isHidden: true,
-      isRecommended: false,
-      isCandidate: false,
-      pipelineStatus: "closed"
-    });
+  function attachCompanyMeta(patch, row) {
+    if (!row) return patch;
+    return {
+      ...patch,
+      companyName: row.companyNameKo || row.companyName || row.companyId || "",
+      companyNameKo: row.companyNameKo || row.companyName || "",
+      domain: row.domain || ""
+    };
   }
 
-  async function mergeFromCompanies(sourceId, targetId, targetEntry) {
+  async function hide(companyId, row = null) {
+    if (window.TClientAdmin?.isCustomCompany?.(companyId) && !row) return null;
+    return upsert(
+      companyId,
+      {
+        isHidden: true,
+        isRecommended: false,
+        isCandidate: false,
+        pipelineStatus: "closed"
+      },
+      row
+    );
+  }
+
+  async function mergeFromCompanies(sourceId, targetId, targetEntry, targetRow = null) {
     const patch = entryToPatch(targetEntry);
-    if (Object.keys(patch).length) await upsert(targetId, patch);
-    await hide(sourceId);
+    if (Object.keys(patch).length) await upsert(targetId, patch, targetRow);
+    if (!window.TClientAdmin?.isCustomCompany?.(sourceId)) {
+      await hide(sourceId);
+    }
   }
 
-  async function upsert(companyId, patch) {
-    const safePatch = sanitizePatch(patch);
+  async function upsert(companyId, patch, row = null) {
+    const safePatch = sanitizePatch(attachCompanyMeta(patch, row));
     const result = await window.TSupabase.upsertSalesManagement(companyId, safePatch);
     setLocal(companyId, result ?? safePatch);
     return get(companyId);
