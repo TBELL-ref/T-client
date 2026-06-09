@@ -600,12 +600,24 @@
         const migrated = await window.TCompanies.migrateSalesFromOverrides();
         if (migrated?.migrated > 0) {
           console.info("[sales] overrides → sales_management migrated", migrated);
-          await window.TSalesManagement?.loadAll?.(true);
         }
       } catch (err) {
         console.warn("[sales] migrate_sales_from_overrides", err);
       }
     }
+
+    if (window.TCompanies?.recoverSalesFromSnapshot) {
+      try {
+        const recovered = await window.TCompanies.recoverSalesFromSnapshot();
+        if (recovered?.recovered > 0) {
+          console.info("[sales] recovered from published_snapshot", recovered);
+        }
+      } catch (err) {
+        console.warn("[sales] recover_sales_from_published_snapshot", err);
+      }
+    }
+
+    await window.TSalesManagement?.loadAll?.(true);
 
     if (state.doc) {
       const cleaned = sanitizeOverridesDoc(state.doc);
@@ -621,7 +633,7 @@
     await syncSession();
     const remote = await fetchRemoteOverrides();
     const local = loadLocal();
-    state.doc = sanitizeOverridesDoc(mergeDocs(local, remote));
+    state.doc = mergeDocs(local, remote);
     saveLocal(state.doc, { scheduleRemote: false });
     await initKeywords();
     await afterAuth();

@@ -67,6 +67,10 @@
     return window.TSupabase.migrateSalesFromOverrides();
   }
 
+  async function recoverSalesFromSnapshot() {
+    return window.TSupabase.recoverSalesFromPublishedSnapshot();
+  }
+
   window.TCompanies = {
     isManualCompanyId,
     isManualRow,
@@ -77,6 +81,7 @@
     resolveManualRow,
     ensureManualById,
     migrateFromOverrides,
-    migrateSalesFromOverrides
+    migrateSalesFromOverrides,
+    recoverSalesFromSnapshot
   };
 })();
