@@ -124,15 +124,18 @@
   }
 
   async function mergeFromCompanies(sourceId, targetId, targetEntry, targetRow = null) {
+    await window.TCompanies?.ensureManualById?.(targetId, targetRow);
     const patch = entryToPatch(targetEntry);
     if (Object.keys(patch).length) await upsert(targetId, patch, targetRow);
-    if (!window.TCompanies?.isManualCompanyId?.(sourceId)) {
+    if (window.TCompanies?.isManualCompanyId?.(sourceId)) {
+      await window.TCompanies?.deleteManual?.(sourceId);
+    } else {
       await hide(sourceId);
     }
   }
 
   async function upsert(companyId, patch, row = null) {
-    if (row) await window.TCompanies?.ensureManual?.(row);
+    await window.TCompanies?.ensureManualById?.(companyId, row);
     const safePatch = sanitizePatch(patch);
     const result = await window.TSupabase.upsertSalesManagement(companyId, safePatch);
     setLocal(companyId, result ?? safePatch);

@@ -44,6 +44,21 @@
     return upsertManual(row);
   }
 
+  function resolveManualRow(companyId, rowHint = null) {
+    if (!isManualCompanyId(companyId)) return rowHint;
+    if (rowHint && isManualRow(rowHint)) return rowHint;
+    const custom = window.TClientAdmin?.getCustomCompanies?.().find((r) => r.companyId === companyId);
+    if (custom) return custom;
+    const stateRow = window.state?.rows?.find((r) => r.companyId === companyId);
+    if (stateRow) return stateRow;
+    return { companyId, companyName: companyId, companyNameKo: companyId };
+  }
+
+  async function ensureManualById(companyId, rowHint = null) {
+    if (!isManualCompanyId(companyId)) return null;
+    return upsertManual(resolveManualRow(companyId, rowHint));
+  }
+
   async function migrateFromOverrides() {
     return window.TSupabase.migrateCustomCompaniesFromOverrides();
   }
@@ -55,6 +70,8 @@
     upsertManual,
     deleteManual,
     ensureManual,
+    resolveManualRow,
+    ensureManualById,
     migrateFromOverrides
   };
 })();
