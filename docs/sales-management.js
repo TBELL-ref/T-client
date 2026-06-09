@@ -156,7 +156,7 @@
     }
     return {
       ...row,
-      userHidden: sm.isHidden || Boolean(row.userHidden),
+      userHidden: sm.isHidden,
       isRecommended: sm.isHidden ? false : sm.isRecommended,
       isCandidate: sm.isHidden ? false : sm.isCandidate,
       pipelineStage: sm.pipelineStage,

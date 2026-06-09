@@ -96,6 +96,50 @@
   const PERSIST_DELAY_MS = 900;
   const REMOTE_CACHE_MS = 4000;
 
+  const LEGACY_SALES_KEYS = [
+    "hidden",
+    "isRecommended",
+    "isCandidate",
+    "recommendedSince",
+    "candidateSince",
+    "pipelineStage",
+    "pipelineStatus",
+    "pipelineStageAt",
+    "closedReason",
+    "candidateRank",
+    "candidateIndustry",
+    "candidateRepeatPosts",
+    "pilotDifficulty",
+    "candidatePros",
+    "candidateCons",
+    "recommendScore",
+    "memo"
+  ];
+
+  function stripLegacySalesFields(entry) {
+    if (!entry || typeof entry !== "object") return entry;
+    const out = { ...entry };
+    for (const key of LEGACY_SALES_KEYS) delete out[key];
+    return out;
+  }
+
+  function sanitizeOverridesDoc(doc) {
+    if (!doc) return emptyDoc();
+    const out = {
+      ...doc,
+      companies: {}
+    };
+    for (const [id, entry] of Object.entries(doc.companies ?? {})) {
+      out.companies[id] = stripLegacySalesFields(entry);
+    }
+    return out;
+  }
+
+  function stripLegacySalesPatch(patch) {
+    if (!patch || typeof patch !== "object") return patch;
+    return stripLegacySalesFields(patch);
+  }
+
   function xorDecode(codes) {
     if (!codes?.length) return "";
     return codes.map((c) => String.fromCharCode(c ^ 0x5a)).join("");
@@ -441,7 +485,7 @@
     onPersistStatus?.("saving");
     try {
       const remote = await fetchRemoteOverrides();
-      const toSave = mergeDocsByUpdatedAt(remote, state.doc);
+      const toSave = sanitizeOverridesDoc(mergeDocsByUpdatedAt(remote, state.doc));
       toSave.updatedAt = new Date().toISOString();
       await window.TSupabase.saveOverrides(toSave);
       state.doc = toSave;
@@ -455,6 +499,9 @@
       state.dirty = false;
       state.persistStatus = "saved";
       onPersistStatus?.("saved");
+      void repoDispatch("sync-overrides", {}, REPO_PRIVATE).catch((err) => {
+        console.warn("[sync-overrides]", err);
+      });
       return true;
     } catch (err) {
       state.persistStatus = "error";
@@ -533,15 +580,11 @@
     return state.unlocked;
   }
 
-  async function initDoc() {
-    await syncSession();
-    const remote = await fetchRemoteOverrides();
-    const local = loadLocal();
-    state.doc = mergeDocs(local, remote);
-    saveLocal(state.doc, { scheduleRemote: false });
-    await initKeywords();
+  async function afterAuth() {
+    if (!isUnlocked()) return;
     if (window.TSalesManagement?.loadAll) await window.TSalesManagement.loadAll(true);
-    if (state.unlocked && window.TCompanies?.migrateFromOverrides) {
+
+    if (window.TCompanies?.migrateFromOverrides) {
       try {
         const migrated = await window.TCompanies.migrateFromOverrides();
         if (migrated?.migrated > 0) {
@@ -551,6 +594,37 @@
         console.warn("[companies] migrate_custom_companies_from_overrides", err);
       }
     }
+
+    if (window.TCompanies?.migrateSalesFromOverrides) {
+      try {
+        const migrated = await window.TCompanies.migrateSalesFromOverrides();
+        if (migrated?.migrated > 0) {
+          console.info("[sales] overrides → sales_management migrated", migrated);
+          await window.TSalesManagement?.loadAll?.(true);
+        }
+      } catch (err) {
+        console.warn("[sales] migrate_sales_from_overrides", err);
+      }
+    }
+
+    if (state.doc) {
+      const cleaned = sanitizeOverridesDoc(state.doc);
+      if (JSON.stringify(cleaned) !== JSON.stringify(state.doc)) {
+        state.doc = cleaned;
+        state.dirty = true;
+        saveLocal(state.doc);
+      }
+    }
+  }
+
+  async function initDoc() {
+    await syncSession();
+    const remote = await fetchRemoteOverrides();
+    const local = loadLocal();
+    state.doc = sanitizeOverridesDoc(mergeDocs(local, remote));
+    saveLocal(state.doc, { scheduleRemote: false });
+    await initKeywords();
+    await afterAuth();
     return state.doc;
   }
 
@@ -567,14 +641,12 @@
     const list = state.doc.customCompanies ?? [];
     if (list.some((r) => r.companyId === row.companyId)) return false;
     state.doc.customCompanies = [...list, row];
-    state.doc.companies[row.companyId] = {
+    state.doc.companies[row.companyId] = stripLegacySalesFields({
       ...(state.doc.companies[row.companyId] ?? {}),
       companyNameKo: row.companyNameKo || row.companyName,
-      pipelineStage: P().DEFAULT_PIPELINE_STAGE,
-      pipelineStatus: P().DEFAULT_PIPELINE_STATUS,
       manual: true,
       updatedAt: new Date().toISOString()
-    };
+    });
     state.dirty = true;
     saveLocal(state.doc);
     return true;
@@ -666,7 +738,6 @@
 
   function hideCompany(companyId) {
     if (!companyId) return false;
-    setEntry(companyId, { hidden: true, pipelineStatus: "closed" });
     return true;
   }
 
@@ -701,9 +772,7 @@
     );
     const mergedHiddenPosts = Array.from(new Set([...(dst.hiddenPosts ?? []), ...(src.hiddenPosts ?? [])]));
 
-    const pickCandidate = (a, b) => (a === undefined || a === null || a === "" ? b : a);
-
-    const merged = {
+    const merged = stripLegacySalesFields({
       ...dst,
       companyNameKo: pickNonEmpty(dst.companyNameKo, src.companyNameKo),
       companyName: pickNonEmpty(dst.companyName, src.companyName),
@@ -713,28 +782,13 @@
       leadGrade: pickNonEmpty(dst.leadGrade, src.leadGrade),
       excludeReason: pickNonEmpty(dst.excludeReason, src.excludeReason),
       notes: pickNonEmpty(dst.notes, src.notes),
-      hidden: dst.hidden ?? src.hidden,
-      isRecommended: dst.isRecommended || src.isRecommended,
-      recommendedSince: pickNonEmpty(dst.recommendedSince, src.recommendedSince),
-      pipelineStage: pickNonEmpty(dst.pipelineStage, src.pipelineStage),
-      pipelineStatus: pickNonEmpty(dst.pipelineStatus, src.pipelineStatus),
-      pipelineStageAt: pickNonEmpty(dst.pipelineStageAt, src.pipelineStageAt),
-      isCandidate: dst.isCandidate || src.isCandidate,
-      candidateSince: pickNonEmpty(dst.candidateSince, src.candidateSince),
-      candidateRank: pickCandidate(dst.candidateRank, src.candidateRank),
-      candidateIndustry: pickNonEmpty(dst.candidateIndustry, src.candidateIndustry),
-      candidateRepeatPosts: pickNonEmpty(dst.candidateRepeatPosts, src.candidateRepeatPosts),
-      pilotDifficulty: pickCandidate(dst.pilotDifficulty, src.pilotDifficulty),
-      candidatePros: pickNonEmpty(dst.candidatePros, src.candidatePros),
-      candidateCons: pickNonEmpty(dst.candidateCons, src.candidateCons),
-      recommendScore: pickCandidate(dst.recommendScore, src.recommendScore),
       profile: mergedProfile,
       contact: mergedContact,
       extraPosts: mergedExtraPosts,
       hiddenPosts: mergedHiddenPosts,
       scoreParts: mergedScoreParts,
       updatedAt: new Date().toISOString()
-    };
+    });
 
     // Apply to target
     state.doc.companies[targetCompanyId] = merged;
@@ -744,8 +798,7 @@
       delete state.doc.companies[sourceCompanyId];
     } else {
       state.doc.companies[sourceCompanyId] = {
-        hidden: true,
-        pipelineStatus: "closed",
+        mergedAway: true,
         updatedAt: new Date().toISOString()
       };
     }
@@ -773,39 +826,10 @@
   }
 
   function setEntry(companyId, patch) {
+    const safePatch = stripLegacySalesPatch(patch);
     const prev = getEntry(companyId);
-    const merged = mergeEntry(prev, patch);
+    const merged = mergeEntry(prev, safePatch);
     merged.updatedAt = new Date().toISOString();
-
-    if (patch.hidden === true) {
-      merged.isRecommended = false;
-      merged.isCandidate = false;
-    }
-
-    if (patch.isRecommended === true) {
-      if (patch.recommendedSince) merged.recommendedSince = patch.recommendedSince;
-      else if (!prev.recommendedSince && !merged.recommendedSince) merged.recommendedSince = merged.updatedAt;
-    }
-    if (patch.isRecommended === false) {
-      merged.recommendedSince = patch.recommendedSince !== undefined ? patch.recommendedSince : "";
-    }
-
-    if (patch.isCandidate === true && !prev.candidateSince && !merged.candidateSince) {
-      merged.candidateSince = merged.updatedAt;
-    }
-    if (patch.isCandidate === false) {
-      merged.candidateSince = patch.candidateSince !== undefined ? patch.candidateSince : "";
-    }
-
-    if (patch.pipelineStage !== undefined) {
-      merged.pipelineStage = P().resolvePipelineStage(patch.pipelineStage);
-      if (patch.pipelineStage !== prev.pipelineStage) {
-        merged.pipelineStageAt = merged.updatedAt;
-      }
-    }
-    if (patch.pipelineStatus !== undefined) {
-      merged.pipelineStatus = P().resolvePipelineStatus(patch.pipelineStatus);
-    }
 
     state.doc.companies[companyId] = merged;
     saveLocal(state.doc);
@@ -927,7 +951,7 @@
     if (remoteUpdatedAt && remoteUpdatedAt === lastMergedRemoteUpdatedAt) {
       return false;
     }
-    const merged = mergeDocsByUpdatedAt(state.doc, remote);
+    const merged = sanitizeOverridesDoc(mergeDocsByUpdatedAt(state.doc, remote));
     state.doc = merged;
     saveLocal(state.doc, { scheduleRemote: false });
     remoteOverridesCache = {
@@ -1207,12 +1231,6 @@
       return { part: p, label, pts, override };
     });
 
-    if (entry.hidden) {
-      next.userHidden = true;
-      next.isRecommended = false;
-      next.isCandidate = false;
-    }
-
     return window.TSalesManagement?.applyToRow(next) ?? next;
   }
 
@@ -1233,6 +1251,7 @@
   async function signIn(email, password) {
     await window.TAuth.signInWithPassword(email, password);
     await syncSession();
+    await afterAuth();
     return true;
   }
 
@@ -1259,6 +1278,7 @@
 
   window.TClientAdmin = {
     initDoc,
+    afterAuth,
     initKeywords,
     applyToRow,
     getEntry,

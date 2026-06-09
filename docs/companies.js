@@ -63,6 +63,10 @@
     return window.TSupabase.migrateCustomCompaniesFromOverrides();
   }
 
+  async function migrateSalesFromOverrides() {
+    return window.TSupabase.migrateSalesFromOverrides();
+  }
+
   window.TCompanies = {
     isManualCompanyId,
     isManualRow,
@@ -72,6 +76,7 @@
     ensureManual,
     resolveManualRow,
     ensureManualById,
-    migrateFromOverrides
+    migrateFromOverrides,
+    migrateSalesFromOverrides
   };
 })();

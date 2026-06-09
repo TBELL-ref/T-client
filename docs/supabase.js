@@ -59,6 +59,7 @@
     deleteManualCompany: (companyId) =>
       rpc("delete_manual_company", { p_company_id: companyId }, { auth: true }),
     migrateCustomCompaniesFromOverrides: () => rpc("migrate_custom_companies_from_overrides", {}, { auth: true }),
+    migrateSalesFromOverrides: () => rpc("migrate_sales_from_overrides", {}, { auth: true }),
     saveKeywords: (doc) => rpc("save_keywords_doc", { doc }, { auth: true })
   };
 })();

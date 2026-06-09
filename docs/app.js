@@ -1008,7 +1008,7 @@ function buildManualCompanyRow({ companyNameKo, domain = "", bizNo = "", profile
     scoreReason: "manual",
     salesStage: "new",
     contactSecured: "no",
-    pipelineStage: "candidate",
+    pipelineStage: "candidate_pool",
     pipelineStatus: "active",
     pipelineStageAt: "",
     email: "",
@@ -2110,14 +2110,14 @@ function renderDetailBody(row, edit, admin = false) {
           </div>
         </div>
         <div class="inline-row"><span class="inline-label">제외</span>${inlineInput("edit-exclude", e.excludeReason ?? row.excludeReason ?? "")}</div>
-        <div class="inline-row span-2"><span class="inline-label">메모</span>${inlineInput("edit-notes", e.notes ?? row.manualNotes ?? "")}</div>
+        <div class="inline-row span-2"><span class="inline-label">메모</span>${inlineInput("edit-notes", row.salesMemo ?? row.manualNotes ?? "")}</div>
       </div>`
     : "";
 
   const pipelineBlock = edit
     ? `<div class="detail-form-grid cols-2">
-        <div class="inline-row"><span class="inline-label">단계</span>${pipelineStageSelect("edit-pipeline-stage", e.pipelineStage || pipeline.pipelineStage)}</div>
-        <div class="inline-row"><span class="inline-label">상태</span>${pipelineStatusSelect("edit-pipeline-status", e.pipelineStatus || pipeline.pipelineStatus)}</div>
+        <div class="inline-row"><span class="inline-label">단계</span>${pipelineStageSelect("edit-pipeline-stage", pipeline.pipelineStage)}</div>
+        <div class="inline-row"><span class="inline-label">상태</span>${pipelineStatusSelect("edit-pipeline-status", pipeline.pipelineStatus)}</div>
         <div class="inline-row span-2"><span class="inline-label">종결 사유</span>${closedReasonSelect("edit-closed-reason", row.closedReason ?? "")}</div>
       </div>`
     : `<div class="pipeline-detail-summary">${renderPipelineSummary(row)}${
@@ -2494,6 +2494,7 @@ async function submitAddPostAsync() {
       await window.TCompanies.ensureManual(row);
     }
 
+    await window.TClientAdmin.flushPersist?.();
     reloadRowsWithAdmin();
     refreshViews();
     closeAddPostModal();
@@ -2577,6 +2578,14 @@ function deletePostFromCompany(row, postUrl, isManualPost) {
     showToast("삭제할 수 없습니다.", "error");
     return;
   }
+
+  void (async () => {
+    try {
+      await window.TClientAdmin.flushPersist?.();
+    } catch (err) {
+      showToast(err.message || "저장 실패", "error");
+    }
+  })();
 
   const editMode = state.detailEdit;
   closeDetail();
@@ -3231,6 +3240,7 @@ function bindAdmin() {
       setAdminUi(true);
       setAdminStatus("");
       closeAdminPopover();
+      reloadRowsWithAdmin();
       showToast("로그인되었습니다.");
       refreshViews();
     } catch (err) {
@@ -3312,6 +3322,10 @@ function bindAdmin() {
     }
     await window.TClientAdmin.syncSession();
     setAdminUi(window.TClientAdmin.isUnlocked());
+    if (window.TClientAdmin.isUnlocked()) {
+      await window.TClientAdmin.afterAuth?.();
+      reloadRowsWithAdmin();
+    }
     refreshViews();
   });
 
