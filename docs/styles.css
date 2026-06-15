@@ -1708,7 +1708,8 @@ button {
   color: var(--accent);
 }
 
-.admin-badge.crawl-busy {
+.admin-badge.crawl-busy,
+.admin-badge.notion-busy {
   background: #fff4e5;
   color: #b45309;
   border: 1px solid var(--accent-muted);

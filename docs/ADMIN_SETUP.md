@@ -5,7 +5,7 @@
 1. User enters admin password in **관리** popup (validated by SHA-256 hash in `admin.js`).
 2. Browser calls GitHub `repository_dispatch` with **two embedded Fine-grained PATs** (XOR in `admin.js`).
 3. **TBELL-ref/T-client** (`PUBLIC_REPO_TOKEN`): `save-overrides`, `save-keywords`, `enrich-company`.
-4. **meowdule/T-client** (`PRIVATE_REPO_TOKEN`): `sync-keywords`, `trigger-collect` → Lead Collector.
+4. **meowdule/T-client** (`PRIVATE_REPO_TOKEN`): `sync-keywords`, `sync-notion`, `trigger-collect` → Admin Console / Lead Collector.
 
 ## One-time embed (after both tokens are in `private-t-client/.env`)
 
@@ -34,6 +34,8 @@ Never commit `.env`.
 | TBELL-ref/T-client | `ADMIN_SAVE_KEY` | Admin UI password |
 | meowdule/T-client | `ADMIN_SAVE_KEY` | Validate private dispatches |
 | meowdule/T-client | `GH_PAT` | Publish snapshot (CI only) |
+| meowdule/T-client | `NOTION_API_KEY` | Notion integration token (`sync-notion`) |
+| meowdule/T-client | `NOTION_DATABASE_ID` | Notion DB id (optional; default in mapping) |
 
 Browser embed tokens are separate from `GH_PAT`.
 

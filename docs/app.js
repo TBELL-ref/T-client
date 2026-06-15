@@ -2971,7 +2971,7 @@ function setAdminUi(unlocked, { passwordSetup = false } = {}) {
   byId("adminLoginForm")?.classList.toggle("hidden", unlocked || passwordSetup);
   byId("adminPasswordSetupForm")?.classList.toggle("hidden", !passwordSetup);
   document.querySelectorAll(".admin-only").forEach((el) => el.classList.toggle("hidden", !unlocked));
-  updateCrawlUi();
+  updateAdminJobUi();
 }
 
 function showPasswordSetupUi(show = true) {
@@ -2983,6 +2983,8 @@ function showPasswordSetupUi(show = true) {
     byId("adminNewPassword")?.focus();
   }
 }
+
+let notionSyncWasRunning = false;
 
 async function updateCrawlUi() {
   const badge = byId("crawlStatusBadge");
@@ -3008,6 +3010,50 @@ async function updateCrawlUi() {
     if (startBtn) startBtn.disabled = false;
     if (openBtn) openBtn.disabled = false;
   }
+}
+
+async function updateNotionSyncUi() {
+  const badge = byId("notionSyncStatusBadge");
+  const syncBtn = byId("adminNotionSyncBtn");
+  if (!badge) return;
+  try {
+    const status = await window.TClientAdmin?.getNotionSyncStatus?.();
+    const busy = status?.status === "running";
+    badge.classList.toggle("hidden", !busy);
+    if (busy) {
+      const who = status.requestedByEmail ? ` · ${status.requestedByEmail}` : "";
+      badge.textContent = `노션 동기화 중${who}`;
+      badge.title = status.message || "Notion DB를 T-client에 반영 중입니다";
+    }
+    if (syncBtn) {
+      syncBtn.disabled = busy;
+      syncBtn.title = busy ? "Notion 동기화 진행 중입니다" : "";
+    }
+    if (notionSyncWasRunning && !busy) {
+      if (status?.status === "error") {
+        showToast(status.message || "Notion 동기화에 실패했습니다.", "error");
+      } else {
+        await window.TSalesManagement?.loadAll?.(true);
+        const changed = await window.TClientAdmin?.mergeRemoteOverrides?.();
+        reloadRowsWithAdmin();
+        refreshViews();
+        if (changed && state.detailRow) paintDetailModal();
+        showToast(status?.message || "Notion 동기화가 완료되었습니다.");
+      }
+    }
+    notionSyncWasRunning = busy;
+  } catch {
+    badge.classList.add("hidden");
+    if (syncBtn) {
+      syncBtn.disabled = false;
+      syncBtn.title = "";
+    }
+  }
+}
+
+async function updateAdminJobUi() {
+  await updateCrawlUi();
+  await updateNotionSyncUi();
 }
 
 function closeAdminPopover() {
@@ -3187,7 +3233,7 @@ function bindCrawlModal() {
       const status = await window.TClientAdmin.getCrawlStatus();
       if (status?.busy) {
         showToast("현재 크롤링 진행 중입니다.", "error");
-        await updateCrawlUi();
+        await updateAdminJobUi();
         return;
       }
       await window.TClientAdmin.flushPersist();
@@ -3195,10 +3241,10 @@ function bindCrawlModal() {
       await window.TClientAdmin.triggerCollect({ siteIds, usePlaywright, collectFocus });
       closeCrawlModal();
       showToast("크롤링이 시작되었습니다. 완료 시 이메일로 안내합니다.");
-      await updateCrawlUi();
+      await updateAdminJobUi();
     } catch (err) {
       showToast(err.message || String(err), "error");
-      await updateCrawlUi();
+      await updateAdminJobUi();
     } finally {
       if (startBtn) startBtn.disabled = false;
     }
@@ -3297,6 +3343,34 @@ function bindAdmin() {
     }
   });
 
+  byId("adminNotionSyncBtn")?.addEventListener("click", async () => {
+    if (!window.TClientAdmin?.isUnlocked?.()) {
+      showToast("로그인이 필요합니다.", "error");
+      return;
+    }
+    const syncBtn = byId("adminNotionSyncBtn");
+    if (syncBtn) syncBtn.disabled = true;
+    showToast("Notion 동기화 요청 중…");
+    try {
+      const status = await window.TClientAdmin.getNotionSyncStatus();
+      if (status?.status === "running") {
+        showToast("Notion 동기화 진행 중입니다.", "error");
+        await updateNotionSyncUi();
+        return;
+      }
+      await window.TClientAdmin.triggerNotionSync();
+      closeAdminPopover();
+      notionSyncWasRunning = true;
+      showToast("Notion 동기화가 시작되었습니다. 완료되면 자동으로 새로고침됩니다.");
+      await updateNotionSyncUi();
+    } catch (err) {
+      showToast(err.message || String(err), "error");
+      await updateNotionSyncUi();
+    } finally {
+      if (syncBtn) syncBtn.disabled = false;
+    }
+  });
+
   bindCrawlModal();
 
   window.TAuth.onAuthStateChange(async (event) => {
@@ -3356,8 +3430,8 @@ async function boot() {
     if (window.location.hash.includes("type=recovery")) {
       showPasswordSetupUi(true);
     }
-    await updateCrawlUi();
-    setInterval(updateCrawlUi, 60000);
+    await updateAdminJobUi();
+    setInterval(updateAdminJobUi, 30000);
     setInterval(async () => {
       if (document.hidden) return;
       if (!window.TClientAdmin?.isUnlocked?.()) return;

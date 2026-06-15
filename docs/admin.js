@@ -345,6 +345,23 @@
     return window.TSupabase.getCrawlStatus();
   }
 
+  async function getNotionSyncStatus() {
+    return window.TSupabase.getNotionSyncStatus();
+  }
+
+  async function triggerNotionSync() {
+    const status = await getNotionSyncStatus();
+    if (status?.status === "running") {
+      const who = status.requestedByEmail ? ` (요청: ${status.requestedByEmail})` : "";
+      throw new Error(`Notion 동기화 진행 중입니다${who}`);
+    }
+
+    const email = state.userEmail;
+    if (!email) throw new Error("로그인이 필요합니다.");
+
+    return repoDispatch("sync-notion", { email }, REPO_PRIVATE);
+  }
+
   function loadCrawlSitePrefs() {
     try {
       const raw = localStorage.getItem(LS_CRAWL_SITES);
@@ -1321,6 +1338,8 @@
     getUserEmail: () => state.userEmail,
     lock,
     getCrawlStatus,
+    getNotionSyncStatus,
+    triggerNotionSync,
     saveToGitHub,
     flushPersist,
     persistToDb,
