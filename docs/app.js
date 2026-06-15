@@ -89,6 +89,21 @@ function pipelineStatusBadge(row) {
   return `<span class="pipeline-badge pipeline-status pipeline-status-${pipelineStatus}" title="상태: ${escapeAttr(label)}">${escapeHtml(label)}</span>`;
 }
 
+function pipelineCombinedCell(row) {
+  return `<div class="pipeline-combined">${pipelineStageBadge(row)}${pipelineStatusBadge(row)}</div>`;
+}
+
+function candidateOpinionText(row) {
+  const memo = `${row.memo ?? row.salesMemo ?? ""}`.trim();
+  if (memo) return memo;
+  const pros = `${row.candidatePros ?? ""}`.trim();
+  const cons = `${row.candidateCons ?? ""}`.trim();
+  const parts = [];
+  if (pros) parts.push(pros);
+  if (cons) parts.push(cons);
+  return parts.length ? parts.join(" · ") : "-";
+}
+
 function pipelineSelectOptions(kind, selected) {
   const P = pipelineLabels();
   const list = kind === "stage" ? P.PIPELINE_STAGES ?? [] : P.PIPELINE_STATUSES ?? [];
@@ -152,7 +167,7 @@ function getRecommendedRows() {
     .filter((row) => row.isRecommended && !row.userHidden)
     .filter((row) => {
       if (!q) return true;
-      const hay = `${displayName(row)} ${candidateIndustryLabel(row)} ${row.candidatePros ?? ""} ${row.candidateCons ?? ""}`.toLowerCase();
+      const hay = `${displayName(row)} ${candidateIndustryLabel(row)} ${candidateOpinionText(row)}`.toLowerCase();
       return hay.includes(q);
     });
 }
@@ -1977,12 +1992,9 @@ function renderCandidatesTable() {
             <th>업종</th>
             <th>반복공고</th>
             <th>파일럿 난이도</th>
-            <th>주요 장점</th>
-            <th>주요 단점</th>
+            <th>의견</th>
             <th>추천 점수</th>
-            <th>단계</th>
-            <th>상태</th>
-            <th>추천 등록</th>
+            <th>단계 · 상태</th>
             <th></th>
           </tr>
         </thead>
@@ -2003,12 +2015,9 @@ function renderCandidatesTable() {
               <td>${escapeHtml(candidateIndustryLabel(row))}</td>
               <td>${escapeHtml(candidateRepeatLabel(row))}</td>
               <td>${renderStarRating(row.pilotDifficulty, 3)}</td>
-              <td class="cell-prose">${escapeHtml(row.candidatePros || "-")}</td>
-              <td class="cell-prose">${escapeHtml(row.candidateCons || "-")}</td>
+              <td class="cell-prose">${escapeHtml(candidateOpinionText(row))}</td>
               <td>${renderStarRating(row.recommendScore, 5)}</td>
-              <td>${pipelineStageBadge(row)}</td>
-              <td>${pipelineStatusBadge(row)}</td>
-              <td>${formatDate(row.recommendedSince || row.candidateSince)}</td>
+              <td class="cell-pipeline">${pipelineCombinedCell(row)}</td>
               <td><button type="button" class="btn-detail" data-cand-detail="${idx}">상세</button></td>
             </tr>`
             )

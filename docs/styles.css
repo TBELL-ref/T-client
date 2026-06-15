@@ -3778,9 +3778,20 @@ tbody tr.row-manual {
 }
 
 .candidate-table .cell-prose {
-  max-width: 220px;
+  max-width: 280px;
   line-height: 1.45;
   white-space: normal;
+}
+
+.candidate-table .cell-pipeline {
+  min-width: 88px;
+}
+
+.pipeline-combined {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 .candidate-read-table th {
