@@ -124,6 +124,17 @@
     return "normal";
   }
 
+  function isRecommendedLead(row = {}) {
+    if (row.userHidden || row.isHidden) return false;
+    return Boolean(row.isRecommended);
+  }
+
+  function isInProgressLead(row = {}) {
+    if (row.userHidden || row.isHidden) return false;
+    const stage = resolvePipelineStage(row.pipelineStage ?? row.stage);
+    return isInProgressStage(stage);
+  }
+
   function poolClassLabel(cls) {
     return POOL_CLASS_LABEL[cls] ?? cls;
   }
@@ -169,12 +180,13 @@
     return { pipelineStage: stage, pipelineStatus: status, closedReason };
   }
 
+  /** Notion 추천 DB·is_recommended — 파이프라인 단계와 무관하게 추천 탭에 표시 */
   function rowMatchesRecommendedTab(row) {
-    return poolClassOf(row) === "recommended";
+    return isRecommendedLead(row);
   }
 
   function rowMatchesInProgressTab(row) {
-    return poolClassOf(row) === "in_progress";
+    return isInProgressLead(row);
   }
 
   /** Pipeline 후보 단계 + 아직 추천/진행/숨김 아님 (액션 KPI·버킷용). */
@@ -209,6 +221,8 @@
     resolveClosedReason,
     isInProgressStage,
     poolClassOf,
+    isRecommendedLead,
+    isInProgressLead,
     poolClassLabel,
     pipelineStageLabel,
     pipelineStatusLabel,

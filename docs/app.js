@@ -1944,12 +1944,12 @@ function renderQualityKpi(summary) {
 
 function computeActionKpi() {
   const active = activeLeadRows();
-  const poolOf = (r) => poolClassOf(r);
+  const P = pipelineLabels();
   return {
     total: active.length,
-    recommended: active.filter((r) => poolOf(r) === "recommended").length,
-    inProgress: active.filter((r) => poolOf(r) === "in_progress").length,
-    candidate: active.filter((r) => pipelineLabels().rowMatchesCandidatePool?.(r) ?? poolClassOf(r) === "normal").length,
+    recommended: active.filter((r) => P.rowMatchesRecommendedTab?.(r)).length,
+    inProgress: active.filter((r) => P.rowMatchesInProgressTab?.(r)).length,
+    candidate: active.filter((r) => P.rowMatchesCandidatePool?.(r) ?? poolClassOf(r) === "normal").length,
     contractWon: active.filter((r) => {
       const { pipelineStatus, closedReason } = resolveRowPipeline(r);
       return pipelineStatus === "closed" && closedReason === "contract_won";
@@ -3148,7 +3148,7 @@ function paintMetaBanner() {
     state.snapshotGeneratedAt ||
     state.userOverridesAppliedAt ||
     null;
-  meta.innerHTML = `<strong>T-client</strong><span>${formatDate(generatedAt)} 갱신</span><span>회사 ${companies} · 공고 ${posts} · 추천 ${state.rows.filter((r) => poolClassOf(r) === "recommended").length}</span>`;
+  meta.innerHTML = `<strong>T-client</strong><span>${formatDate(generatedAt)} 갱신</span><span>회사 ${companies} · 공고 ${posts} · 추천 ${state.rows.filter((r) => pipelineLabels().rowMatchesRecommendedTab?.(r)).length}</span>`;
 }
 
 function bindTabs() {
