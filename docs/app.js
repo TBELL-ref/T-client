@@ -2520,9 +2520,7 @@ function paintDetailModal() {
     });
   }
   void hydrateDetailExtras(row);
-  const toggle = byId("detailNewToggle");
-  const wrap = byId("detailNewToggleWrap");
-  if (toggle && wrap) wrap.classList.add("hidden");
+  void window.TDetailPanel?.syncNewToggle?.(row);
   hydrateIcons(byId("detailDrawer"));
   if (window.TDetailPanel) window.TDetailPanel.renderBody = renderDetailBody;
 }
@@ -2536,6 +2534,7 @@ async function openDetail(row, edit = false) {
   if (window.TClientAdmin?.isUnlocked?.()) {
     try {
       await window.TCompanyUserState.markViewed(row.companyId);
+      refreshViews();
     } catch {
       /* migration 013 */
     }
@@ -3690,6 +3689,7 @@ window.renderDetailTitleHtml = renderDetailTitleHtml;
 window.refreshDetailAdminButtons = refreshDetailAdminButtons;
 window.openAdminPopover = openAdminPopover;
 window.deleteCompany = deleteCompany;
+window.refreshViews = refreshViews;
 window.TClientView = {
   sortRows,
   passesFilters,

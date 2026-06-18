@@ -25,15 +25,24 @@
     return Boolean(window.TClientAdmin?.isUnlocked?.());
   }
 
-  /** 추천·진행이 아닌 활성 회사 = 신규 탭·배지 */
+  /** 추천·진행이 아닌 활성 회사 = 신규 풀 후보 */
   function isNewPool(row) {
     const pool = poolClassOf(row);
     return pool !== "recommended" && pool !== "in_progress" && pool !== "hidden";
   }
 
+  /** 로그인: 계정별 미열람·신규 표시 on. 비로그인: 직전 크롤 신규만 */
+  function isRowAccountNew(row) {
+    if (!isNewPool(row)) return false;
+    if (isLoggedIn()) {
+      return window.TCompanyUserState?.isAccountNew?.(row.companyId) ?? true;
+    }
+    return Boolean(row.isNewFromLastCrawl);
+  }
+
   function newBadge(row) {
-    if (!isNewPool(row)) return "";
-    return `<span class="badge badge-new" title="추천·진행 외 일반 리드">신규</span>`;
+    if (!isRowAccountNew(row)) return "";
+    return `<span class="badge badge-new" title="${isLoggedIn() ? "아직 열지 않은 회사" : "직전 크롤 신규"}">신규</span>`;
   }
 
   function isMainTab(row) {
@@ -49,7 +58,7 @@
   }
 
   function rowMatchesNewTab(row) {
-    return isMainTab(row) && isNewPool(row);
+    return isMainTab(row) && isRowAccountNew(row);
   }
 
   function rowMatchesRecommendedTab(row) {
@@ -206,7 +215,9 @@
         ? `<p class="empty-state-actions"><button type="button" class="btn-primary btn-sm" data-switch-tab="leads">회사 전체 보기 (${total})</button></p>`
         : "";
     const hints = {
-      new: "추천·진행이 아닌 일반 리드가 여기 표시됩니다.<br /><span class=\"muted\">파이프라인을 테스트 진행 이상으로 올리면 「진행」 탭으로, 분류를 추천으로 두면 「추천」 탭으로 이동합니다.</span>",
+      new: isLoggedIn()
+        ? "아직 상세를 열지 않은 일반 리드가 여기 표시됩니다.<br /><span class=\"muted\">회사를 열면 이 계정의 신규 목록에서 빠집니다. 상세 헤더 「신규 표시」로 다시 넣을 수 있습니다.</span>"
+        : "직전 크롤에서 새로 들어온 일반 리드가 여기 표시됩니다.<br /><span class=\"muted\">로그인하면 계정별로 「아직 열지 않은 회사」만 표시됩니다.</span>",
       recommended: "추천 분류 회사가 없습니다.<br /><span class=\"muted\">회사 상세 → 수정 → 분류 「추천」. 파이프라인이 테스트 진행 이상이면 「진행」 탭에 표시됩니다.</span>",
       in_progress: "진행 중인 회사가 없습니다.<br /><span class=\"muted\">파이프라인 단계를 「테스트 진행」 이상으로 설정하세요.</span>"
     };
@@ -333,9 +344,13 @@
   async function syncNewToggle(row) {
     const wrap = byId("detailNewToggleWrap");
     const toggle = byId("detailNewToggle");
-    if (!wrap || !toggle) return;
-    wrap.classList.add("hidden");
-    toggle.checked = isNewPool(row);
+    if (!wrap || !toggle || !row) return;
+    if (!isLoggedIn()) {
+      wrap.classList.add("hidden");
+      return;
+    }
+    wrap.classList.remove("hidden");
+    toggle.checked = window.TCompanyUserState?.isAccountNew?.(row.companyId) ?? true;
   }
 
   async function open(row, edit = false) {
@@ -433,19 +448,34 @@
       if (!requireAdmin()) return;
       if (window.__TCLIENT_DETAIL_ROW) window.deleteCompany?.(window.__TCLIENT_DETAIL_ROW);
     });
+    byId("detailNewToggle")?.addEventListener("change", async (e) => {
+      if (!isLoggedIn()) return;
+      const row = window.__TCLIENT_DETAIL_ROW;
+      if (!row?.companyId) return;
+      const isNew = Boolean(e.target.checked);
+      try {
+        await window.TCompanyUserState.setNewState(row.companyId, isNew);
+        window.TDetailPanel?.refreshTabs?.();
+        if (typeof window.refreshViews === "function") window.refreshViews();
+      } catch (err) {
+        console.warn("[user-state] setNewState failed", err);
+        e.target.checked = !isNew;
+      }
+    });
   }
 
   window.TDetailPanel = {
     poolClassOf,
     poolClassBadge,
     poolClassLabel,
-    isAccountNew: isNewPool,
+    isAccountNew: isRowAccountNew,
     newBadge,
     rowMatchesNewTab,
     rowMatchesRecommendedTab,
     rowMatchesInProgressTab,
     rowMatchesExcludedTab,
     renderTabPanels,
+    syncNewToggle,
     refreshTabs: () => renderTabPanels(window.__TCLIENT_ACTIVE_TAB ?? "in_progress"),
     open,
     close,
