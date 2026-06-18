@@ -199,9 +199,15 @@
     const patch = mergeSalesPatchForMerge(targetRow, sourceRow, targetEntry);
     if (Object.keys(patch).length) await upsert(targetId, patch, targetRow);
     if (window.TCompanies?.isManualCompanyId?.(sourceId)) {
-      await window.TCompanies?.deleteManual?.(sourceId);
+      try {
+        await window.TCompanies?.ensureManualById?.(sourceId, sourceRow);
+        await window.TCompanies?.deleteManual?.(sourceId);
+      } catch (err) {
+        const msg = `${err?.message ?? ""}`;
+        if (!/manual company not found/i.test(msg)) throw err;
+      }
     } else {
-      await hide(sourceId);
+      await hide(sourceId, sourceRow);
     }
   }
 
