@@ -35,6 +35,7 @@
       recommendScoreReason: raw.recommendScoreReason ?? raw.recommend_score_reason ?? "",
       pilotDifficultyReason: raw.pilotDifficultyReason ?? raw.pilot_difficulty_reason ?? "",
       evaluationNotes: raw.evaluationNotes ?? raw.evaluation_notes ?? "",
+      notionPriority: Number.parseInt(`${raw.notionPriority ?? raw.notion_priority ?? 0}`, 10) || 0,
       updatedAt: raw.updatedAt ?? ""
     };
   }
@@ -250,6 +251,7 @@
       candidateSince: sm.candidateSince,
       pipelineStageAt: sm.pipelineStageAt,
       salesMemo: sm.memo,
+      notionPriority: sm.notionPriority,
       manualNotes: sm.memo || row.manualNotes,
       testStartedAt: sm.testStartedAt,
       testEndedAt: sm.testEndedAt,

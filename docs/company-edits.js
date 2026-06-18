@@ -112,6 +112,12 @@
       for (const companyId of ids) {
         const entry = state.map[companyId];
         if (!entry) continue;
+        if (window.TCompanies?.isManualCompanyId?.(companyId)) {
+          const rowHint =
+            window.state?.rows?.find((r) => r.companyId === companyId) ??
+            window.TClientAdmin?.getCustomCompanies?.().find((r) => r.companyId === companyId);
+          await window.TCompanies.ensureManualById(companyId, rowHint);
+        }
         await window.TSupabase.upsertCompanyEdit(companyId, entryToPatch(entry));
       }
       return true;
@@ -153,10 +159,16 @@
   }
 
   async function remove(companyId) {
+    clearTimeout(state.persistTimer);
+    state.persistTimer = null;
     delete state.map[companyId];
     state.dirty.delete(companyId);
     if (window.TClientAdmin?.isUnlocked?.()) {
-      await window.TSupabase.deleteCompanyEdit(companyId);
+      try {
+        await window.TSupabase.deleteCompanyEdit(companyId);
+      } catch (err) {
+        if (!/not found/i.test(`${err?.message ?? ""}`)) throw err;
+      }
     }
   }
 

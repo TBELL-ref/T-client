@@ -1063,7 +1063,7 @@ async function resolveCompanyForManualPost(url, bizNo) {
   try {
     await window.TCompanies.upsertManual(row);
   } catch (err) {
-    window.TClientAdmin.removeCustomCompany(row.companyId);
+    await window.TClientAdmin.removeCustomCompany(row.companyId);
     throw err;
   }
   return { row, created: true, enrichProfile };
@@ -1130,6 +1130,11 @@ function companyNameById(id) {
 
 function priorityValue(row) {
   return Number.parseInt(`${row.priorityScore ?? 0}`, 10) || 0;
+}
+
+function notionPriorityValue(row) {
+  const n = Number.parseInt(`${row.notionPriority ?? 0}`, 10);
+  return Number.isFinite(n) && n > 0 ? n : Number.MAX_SAFE_INTEGER;
 }
 
 function hasFailedPosts(row) {
@@ -1760,8 +1765,13 @@ function rowIsNew(row) {
 function sortRows(rows) {
   const mode = byId("sort")?.value || "priority";
   const list = [...rows];
+  const useNotionPriority = state.activeTab === "recommended" || state.activeTab === "in_progress";
 
   list.sort((a, b) => {
+    if (useNotionPriority) {
+      const rankDiff = notionPriorityValue(a) - notionPriorityValue(b);
+      if (rankDiff !== 0) return rankDiff;
+    }
     if (mode === "priority") {
       const sa = pipelineLabels().stageOrder?.(a.pipelineStage) ?? 0;
       const sb = pipelineLabels().stageOrder?.(b.pipelineStage) ?? 0;
@@ -2617,7 +2627,7 @@ async function submitAddCompanyAsync() {
       await window.TSalesManagement?.upsert?.(row.companyId, { pipelineStage: "candidate", pipelineStatus: "pending" }, row);
     }
   } catch (err) {
-    window.TClientAdmin.removeCustomCompany(row.companyId);
+    await window.TClientAdmin.removeCustomCompany(row.companyId);
     showToast(err.message || "회사 등록 실패", "error");
     return;
   }
@@ -2773,17 +2783,21 @@ async function deleteCompanyAsync(row) {
   if (!window.confirm(`「${name}」 회사를 DB에서 완전히 삭제할까요?\n삭제 후에는 복구할 수 없습니다.`)) return;
 
   try {
-    admin.markCompanyDeleted(row.companyId);
-    if (admin.isCustomCompany?.(row.companyId)) {
-      admin.removeCustomCompany(row.companyId);
+    const companyId = row.companyId;
+    await admin.markCompanyDeleted(companyId);
+    if (window.TCompanies?.isManualCompanyId?.(companyId)) {
+      try {
+        await window.TCompanies.deleteManual(companyId);
+      } catch (err) {
+        if (!/not found/i.test(`${err.message ?? ""}`)) throw err;
+      }
     }
     try {
-      await window.TCompanies.deleteCompany(row.companyId);
+      await window.TCompanies.deleteCompany(companyId);
     } catch (err) {
       if (!/not found/i.test(`${err.message ?? ""}`)) throw err;
     }
-    window.TSalesManagement?.removeLocal?.(row.companyId);
-    await admin.flushPersist?.();
+    window.TSalesManagement?.removeLocal?.(companyId);
   } catch (err) {
     showToast(err.message || "삭제 실패", "error");
     return;

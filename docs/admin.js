@@ -745,11 +745,11 @@
     return true;
   }
 
-  function removeCustomCompany(companyId) {
+  async function removeCustomCompany(companyId) {
     if (!isCustomCompany(companyId)) return false;
     state.doc.customCompanies = (state.doc.customCompanies ?? []).filter((r) => r.companyId !== companyId);
-    void window.TCompanyEdits?.remove?.(companyId);
-    state.dirty = true;
+    await window.TCompanyEdits?.remove?.(companyId);
+    state.dirty = Boolean(window.TCompanyEdits?.isDirty?.());
     saveLocal(state.doc, { scheduleRemote: false });
     return true;
   }
@@ -758,10 +758,11 @@
     return false;
   }
 
-  function markCompanyDeleted(companyId) {
+  async function markCompanyDeleted(companyId) {
     if (!companyId) return false;
-    void window.TCompanyEdits?.remove?.(companyId);
+    await window.TCompanyEdits?.remove?.(companyId);
     state.doc.customCompanies = (state.doc.customCompanies ?? []).filter((r) => r.companyId !== companyId);
+    state.dirty = Boolean(window.TCompanyEdits?.isDirty?.());
     return true;
   }
 
