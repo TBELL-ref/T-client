@@ -1,5 +1,5 @@
 /**
- * Sales management — relational DB layer (replaces overrides JSON for pipeline/pool/eval).
+ * Sales management — relational DB layer (pipeline/pool/eval/test).
  */
 (function () {
   const state = {
@@ -14,8 +14,8 @@
       isRecommended: Boolean(raw.isRecommended),
       isCandidate: Boolean(raw.isCandidate),
       isHidden: Boolean(raw.isHidden),
-      pipelineStage: P?.resolvePipelineStage?.(pipe.pipelineStage ?? raw.pipelineStage) ?? "candidate_pool",
-      pipelineStatus: P?.resolvePipelineStatus?.(pipe.pipelineStatus ?? raw.pipelineStatus) ?? "active",
+      pipelineStage: P?.resolvePipelineStage?.(pipe.pipelineStage ?? raw.pipelineStage) ?? "candidate",
+      pipelineStatus: P?.resolvePipelineStatus?.(pipe.pipelineStatus ?? raw.pipelineStatus) ?? "pending",
       closedReason: P?.resolveClosedReason?.(pipe.closedReason ?? raw.closedReason) ?? "",
       recommendScore: Number.parseInt(`${raw.recommendScore ?? 0}`, 10) || 0,
       pilotDifficulty: Number.parseInt(`${raw.pilotDifficulty ?? 0}`, 10) || 0,
@@ -28,6 +28,13 @@
       candidateSince: raw.candidateSince ?? "",
       pipelineStageAt: raw.pipelineStageAt ?? "",
       memo: raw.memo ?? "",
+      testStartedAt: raw.testStartedAt ?? raw.test_started_at ?? null,
+      testEndedAt: raw.testEndedAt ?? raw.test_ended_at ?? null,
+      testPeriodLabel: raw.testPeriodLabel ?? raw.test_period_label ?? "",
+      testNotes: raw.testNotes ?? raw.test_notes ?? "",
+      recommendScoreReason: raw.recommendScoreReason ?? raw.recommend_score_reason ?? "",
+      pilotDifficultyReason: raw.pilotDifficultyReason ?? raw.pilot_difficulty_reason ?? "",
+      evaluationNotes: raw.evaluationNotes ?? raw.evaluation_notes ?? "",
       updatedAt: raw.updatedAt ?? ""
     };
   }
@@ -80,10 +87,11 @@
     if (!row) return {};
     const P = window.TPipeline;
     const hidden = Boolean(row.userHidden);
+    const pool = P?.poolClassOf?.(row) ?? "normal";
     return sanitizePatch({
       isHidden: hidden,
-      isRecommended: hidden ? false : Boolean(row.isRecommended),
-      isCandidate: hidden ? false : Boolean(row.isCandidate),
+      isRecommended: hidden ? false : pool === "recommended",
+      isCandidate: false,
       pipelineStage: P?.resolvePipelineStage?.(row.pipelineStage) ?? row.pipelineStage,
       pipelineStatus: P?.resolvePipelineStatus?.(row.pipelineStatus) ?? row.pipelineStatus,
       closedReason: row.closedReason ?? "",
@@ -97,7 +105,14 @@
       recommendedSince: row.recommendedSince ?? "",
       candidateSince: row.candidateSince ?? "",
       pipelineStageAt: row.pipelineStageAt ?? "",
-      memo: row.salesMemo ?? row.manualNotes ?? entry.notes ?? ""
+      memo: row.salesMemo ?? row.manualNotes ?? entry.notes ?? "",
+      testStartedAt: row.testStartedAt ?? "",
+      testEndedAt: row.testEndedAt ?? "",
+      testPeriodLabel: row.testPeriodLabel ?? "",
+      testNotes: row.testNotes ?? "",
+      recommendScoreReason: row.recommendScoreReason ?? "",
+      pilotDifficultyReason: row.pilotDifficultyReason ?? "",
+      evaluationNotes: row.evaluationNotes ?? ""
     });
   }
 
@@ -114,7 +129,7 @@
     return sanitizePatch({
       isHidden: Boolean(t.isHidden),
       isRecommended: t.isHidden ? false : Boolean(t.isRecommended) || Boolean(s.isRecommended),
-      isCandidate: t.isHidden ? false : Boolean(t.isCandidate) || Boolean(s.isCandidate),
+      isCandidate: false,
       pipelineStage: pickNonEmpty(t.pipelineStage, s.pipelineStage),
       pipelineStatus: pickNonEmpty(t.pipelineStatus, s.pipelineStatus),
       closedReason: pickNonEmpty(t.closedReason, s.closedReason),
@@ -128,7 +143,9 @@
       recommendedSince: pickNonEmpty(t.recommendedSince, s.recommendedSince),
       candidateSince: pickNonEmpty(t.candidateSince, s.candidateSince),
       pipelineStageAt: pickNonEmpty(t.pipelineStageAt, s.pipelineStageAt),
-      memo: memos.join("\n---\n")
+      memo: memos.join("\n---\n"),
+      testPeriodLabel: pickNonEmpty(t.testPeriodLabel, s.testPeriodLabel),
+      testNotes: pickNonEmpty(t.testNotes, s.testNotes)
     });
   }
 
@@ -137,7 +154,6 @@
       {
         userHidden: entry.hidden,
         isRecommended: entry.isRecommended,
-        isCandidate: entry.isCandidate,
         pipelineStage: entry.pipelineStage,
         pipelineStatus: entry.pipelineStatus,
         closedReason: entry.closedReason,
@@ -151,7 +167,14 @@
         recommendedSince: entry.recommendedSince,
         candidateSince: entry.candidateSince,
         pipelineStageAt: entry.pipelineStageAt,
-        salesMemo: entry.memo ?? entry.notes
+        salesMemo: entry.memo ?? entry.notes,
+        testStartedAt: entry.testStartedAt,
+        testEndedAt: entry.testEndedAt,
+        testPeriodLabel: entry.testPeriodLabel,
+        testNotes: entry.testNotes,
+        recommendScoreReason: entry.recommendScoreReason,
+        pilotDifficultyReason: entry.pilotDifficultyReason,
+        evaluationNotes: entry.evaluationNotes
       },
       entry
     );
@@ -206,7 +229,7 @@
       ...row,
       userHidden: sm.isHidden,
       isRecommended: sm.isHidden ? false : sm.isRecommended,
-      isCandidate: sm.isHidden ? false : sm.isCandidate,
+      isCandidate: false,
       pipelineStage: sm.pipelineStage,
       pipelineStatus: sm.pipelineStatus,
       closedReason: sm.closedReason,
@@ -221,8 +244,19 @@
       candidateSince: sm.candidateSince,
       pipelineStageAt: sm.pipelineStageAt,
       salesMemo: sm.memo,
-      manualNotes: sm.memo || row.manualNotes
+      manualNotes: sm.memo || row.manualNotes,
+      testStartedAt: sm.testStartedAt,
+      testEndedAt: sm.testEndedAt,
+      testPeriodLabel: sm.testPeriodLabel,
+      testNotes: sm.testNotes,
+      recommendScoreReason: sm.recommendScoreReason,
+      pilotDifficultyReason: sm.pilotDifficultyReason,
+      evaluationNotes: sm.evaluationNotes
     };
+  }
+
+  function removeLocal(companyId) {
+    if (companyId) delete state.map[companyId];
   }
 
   window.TSalesManagement = {
@@ -233,6 +267,7 @@
     mergeFromCompanies,
     entryToPatch,
     applyToRow,
-    normalizeEntry
+    normalizeEntry,
+    removeLocal
   };
 })();

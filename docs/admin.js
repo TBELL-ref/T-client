@@ -190,14 +190,23 @@
 
   async function fetchRemoteKeywords() {
     try {
-      const doc = await window.TSupabase.getKeywordsDoc();
+      const keywords = await window.TSupabase.getConfigKeywords();
       return {
-        version: doc?.version ?? 1,
-        updatedAt: doc?.updatedAt ?? null,
-        keywords: Array.isArray(doc?.keywords) ? doc.keywords : []
+        version: 1,
+        updatedAt: new Date().toISOString(),
+        keywords: Array.isArray(keywords) ? keywords : []
       };
     } catch {
-      return emptyKeywordsDoc();
+      try {
+        const doc = await window.TSupabase.getKeywordsDoc();
+        return {
+          version: doc?.version ?? 1,
+          updatedAt: doc?.updatedAt ?? null,
+          keywords: Array.isArray(doc?.keywords) ? doc.keywords : []
+        };
+      } catch {
+        return emptyKeywordsDoc();
+      }
     }
   }
 
@@ -528,22 +537,10 @@
     state.persistStatus = "saving";
     onPersistStatus?.("saving");
     try {
-      const remote = await fetchRemoteOverrides();
-      const toSave = sanitizeOverridesDoc(mergeDocsByUpdatedAt(remote, state.doc));
-      toSave.updatedAt = new Date().toISOString();
-      await window.TSupabase.saveOverrides(toSave);
-      state.doc = toSave;
-      localStorage.setItem(LS_KEY, JSON.stringify(toSave));
-      remoteOverridesCache = {
-        doc: toSave,
-        fetchedAt: Date.now(),
-        updatedAt: toSave.updatedAt
-      };
-      lastMergedRemoteUpdatedAt = toSave.updatedAt;
-      state.dirty = false;
+      await window.TCompanyEdits?.flushDirty?.();
+      state.dirty = Boolean(window.TCompanyEdits?.isDirty?.());
       state.persistStatus = "saved";
       onPersistStatus?.("saved");
-      scheduleSyncOverridesDispatch(toSave);
       return true;
     } catch (err) {
       state.persistStatus = "error";
@@ -561,9 +558,8 @@
   async function persistKeywordsToDb() {
     if (!isUnlocked()) return false;
     const merged = applyKeywordEdits(getActiveKeywordLabels());
-    const doc = { version: 1, updatedAt: new Date().toISOString(), keywords: merged };
-    await window.TSupabase.saveKeywords(doc);
-    state.keywordsDoc = doc;
+    await window.TSupabase.saveConfigKeywords(merged);
+    state.keywordsDoc = { version: 1, updatedAt: new Date().toISOString(), keywords: merged };
     return true;
   }
 
@@ -624,6 +620,7 @@
 
   async function afterAuth() {
     if (!isUnlocked()) return;
+    if (window.TCompanyEdits?.loadAll) await window.TCompanyEdits.loadAll(true);
     if (window.TSalesManagement?.loadAll) await window.TSalesManagement.loadAll(true);
 
     if (window.TCompanies?.migrateFromOverrides) {
@@ -635,6 +632,16 @@
       } catch (err) {
         console.warn("[companies] migrate_custom_companies_from_overrides", err);
       }
+    }
+
+    try {
+      const migrated = await window.TCompanyEdits?.migrateFromOverridesDoc?.();
+      if (migrated?.migrated > 0) {
+        console.info("[company-edits] overrides JSON → relational migrated", migrated);
+        await window.TCompanyEdits.loadAll(true);
+      }
+    } catch (err) {
+      console.warn("[company-edits] migrate_overrides_doc_to_relational", err);
     }
 
     if (window.TCompanies?.migrateSalesFromOverrides) {
@@ -660,30 +667,22 @@
     }
 
     await window.TSalesManagement?.loadAll?.(true);
-
-    if (state.doc) {
-      const cleaned = sanitizeOverridesDoc(state.doc);
-      if (JSON.stringify(cleaned) !== JSON.stringify(state.doc)) {
-        state.doc = cleaned;
-        state.dirty = true;
-        saveLocal(state.doc);
-      }
-    }
+    await window.TCompanyEdits?.loadAll?.(true);
   }
 
   async function initDoc() {
     await syncSession();
-    const remote = await fetchRemoteOverrides();
+    state.doc = emptyDoc();
     const local = loadLocal();
-    state.doc = mergeDocs(local, remote);
-    saveLocal(state.doc, { scheduleRemote: false });
+    state.doc.customCompanies = local.customCompanies ?? [];
+    if (window.TCompanyEdits?.loadAll) await window.TCompanyEdits.loadAll(true);
     await initKeywords();
     await afterAuth();
     return state.doc;
   }
 
   function getEntry(companyId) {
-    return state.doc?.companies[companyId] ?? {};
+    return window.TCompanyEdits?.getEntryShape(companyId) ?? {};
   }
 
   function getCustomCompanies() {
@@ -695,14 +694,11 @@
     const list = state.doc.customCompanies ?? [];
     if (list.some((r) => r.companyId === row.companyId)) return false;
     state.doc.customCompanies = [...list, row];
-    state.doc.companies[row.companyId] = stripLegacySalesFields({
-      ...(state.doc.companies[row.companyId] ?? {}),
+    setEntry(row.companyId, {
       companyNameKo: row.companyNameKo || row.companyName,
-      manual: true,
-      updatedAt: new Date().toISOString()
+      manual: true
     });
-    state.dirty = true;
-    saveLocal(state.doc);
+    saveLocal(state.doc, { scheduleRemote: false });
     return true;
   }
 
@@ -752,10 +748,38 @@
   function removeCustomCompany(companyId) {
     if (!isCustomCompany(companyId)) return false;
     state.doc.customCompanies = (state.doc.customCompanies ?? []).filter((r) => r.companyId !== companyId);
-    delete state.doc.companies[companyId];
-    state.doc.favorites = (state.doc.favorites ?? []).filter((id) => id !== companyId);
+    void window.TCompanyEdits?.remove?.(companyId);
     state.dirty = true;
-    saveLocal(state.doc);
+    saveLocal(state.doc, { scheduleRemote: false });
+    return true;
+  }
+
+  function isCompanyDeleted(companyId) {
+    return false;
+  }
+
+  function markCompanyDeleted(companyId) {
+    if (!companyId) return false;
+    void window.TCompanyEdits?.remove?.(companyId);
+    state.doc.customCompanies = (state.doc.customCompanies ?? []).filter((r) => r.companyId !== companyId);
+    return true;
+  }
+
+  function markPostDeleted(companyId, postUrl) {
+    if (!companyId || !postUrl) return false;
+    const entry = getEntry(companyId);
+    const key = window.TPostUrl?.postUrlKey(postUrl) ?? `${postUrl}`.toLowerCase();
+    const deletedPosts = [...(entry.deletedPosts ?? [])];
+    if (!deletedPosts.some((u) => (window.TPostUrl?.postUrlKey(u) ?? `${u}`.toLowerCase()) === key)) {
+      deletedPosts.push(window.TPostUrl?.normalizeInput(postUrl) || postUrl);
+    }
+    const extraPosts = (entry.extraPosts ?? []).filter(
+      (p) => (window.TPostUrl?.postUrlKey(p?.url) ?? `${p?.url}`.toLowerCase()) !== key
+    );
+    const hiddenPosts = (entry.hiddenPosts ?? []).filter(
+      (u) => (window.TPostUrl?.postUrlKey(u) ?? `${u}`.toLowerCase()) !== key
+    );
+    setEntry(companyId, { deletedPosts, extraPosts, hiddenPosts });
     return true;
   }
 
@@ -765,15 +789,10 @@
     const extraPosts = entry.extraPosts ?? [];
     const next = extraPosts.filter((p) => p?.url !== postUrl);
     if (next.length === extraPosts.length) return false;
-
-    state.doc.companies[companyId] = {
-      ...(state.doc.companies[companyId] ?? {}),
+    setEntry(companyId, {
       extraPosts: next,
-      hiddenPosts: (state.doc.companies[companyId]?.hiddenPosts ?? entry.hiddenPosts ?? []).filter((u) => u !== postUrl),
-      updatedAt: new Date().toISOString()
-    };
-    state.dirty = true;
-    saveLocal(state.doc);
+      hiddenPosts: (entry.hiddenPosts ?? []).filter((u) => u !== postUrl)
+    });
     return true;
   }
 
@@ -845,31 +864,19 @@
     });
 
     // Apply to target
-    state.doc.companies[targetCompanyId] = merged;
+    setEntry(targetCompanyId, merged);
 
     if (isCustomCompany(sourceCompanyId)) {
       state.doc.customCompanies = (state.doc.customCompanies ?? []).filter((r) => r.companyId !== sourceCompanyId);
-      delete state.doc.companies[sourceCompanyId];
-    } else {
-      state.doc.companies[sourceCompanyId] = {
-        mergedAway: true,
-        updatedAt: new Date().toISOString()
-      };
     }
-
-    state.dirty = true;
-    saveLocal(state.doc);
+    setEntry(sourceCompanyId, { mergedAway: true });
+    saveLocal(state.doc, { scheduleRemote: false });
     return true;
   }
 
   function setEntry(companyId, patch) {
-    const safePatch = stripLegacySalesPatch(patch);
-    const prev = getEntry(companyId);
-    const merged = mergeEntry(prev, safePatch);
-    merged.updatedAt = new Date().toISOString();
-
-    state.doc.companies[companyId] = merged;
-    saveLocal(state.doc);
+    window.TCompanyEdits?.setLocal(companyId, stripLegacySalesPatch(patch));
+    state.dirty = Boolean(window.TCompanyEdits?.isDirty?.());
   }
 
   function parseScoreReason(reason) {
@@ -983,26 +990,13 @@
   }
 
   async function mergeRemoteOverrides() {
-    const remote = await fetchRemoteOverrides({ force: true });
-    const remoteUpdatedAt = remote?.updatedAt ?? null;
-    if (remoteUpdatedAt && remoteUpdatedAt === lastMergedRemoteUpdatedAt) {
-      return false;
-    }
-    const merged = sanitizeOverridesDoc(mergeDocsByUpdatedAt(state.doc, remote));
-    state.doc = merged;
-    saveLocal(state.doc, { scheduleRemote: false });
-    remoteOverridesCache = {
-      doc: merged,
-      fetchedAt: Date.now(),
-      updatedAt: merged.updatedAt ?? remoteUpdatedAt
-    };
-    lastMergedRemoteUpdatedAt = remoteUpdatedAt;
+    await window.TCompanyEdits?.loadAll?.(true);
     return true;
   }
 
   async function fetchCompanyOverride(companyId) {
-    const remote = await fetchRemoteOverrides({ force: true });
-    return remote?.companies?.[companyId] ?? null;
+    await window.TCompanyEdits?.loadAll?.(true);
+    return window.TCompanyEdits?.get?.(companyId) ?? null;
   }
 
   async function waitForEnrichedProfile(companyId, bizNoDigits, options = {}) {
@@ -1024,12 +1018,9 @@
       }
       const remoteEntry = await fetchCompanyOverride(companyId);
       if (profileReady(remoteEntry?.profile)) {
-        state.doc.companies[companyId] = pickNewerEntry(
-          state.doc.companies[companyId] ?? {},
-          remoteEntry
-        );
+        setEntry(companyId, remoteEntry);
         saveLocal(state.doc, { scheduleRemote: false });
-        return { ok: true, profile: state.doc.companies[companyId].profile, source: "remote" };
+        return { ok: true, profile: getEntry(companyId).profile, source: "remote" };
       }
       onTick?.();
       await new Promise((r) => setTimeout(r, intervalMs));
@@ -1170,7 +1161,8 @@
     const entry = getEntry(row.companyId);
     const next = {
       ...row,
-      isManual: Boolean(row.isManual) || isCustomCompany(row.companyId)
+      isManual: Boolean(row.isManual) || isCustomCompany(row.companyId),
+      userFavorite: Boolean(entry.favorite)
     };
 
     if (entry.companyNameKo) next.companyNameKo = entry.companyNameKo;
@@ -1221,16 +1213,19 @@
     const hiddenPostUrls = new Set(
       (entry.hiddenPosts ?? []).map((u) => window.TPostUrl?.postUrlKey(u) ?? `${u}`.toLowerCase())
     );
+    const deletedPostUrls = new Set(
+      (entry.deletedPosts ?? []).map((u) => window.TPostUrl?.postUrlKey(u) ?? `${u}`.toLowerCase())
+    );
 
-    const isHidden = (postUrl) => {
+    const isPostRemoved = (postUrl) => {
       const key = window.TPostUrl?.postUrlKey(postUrl) ?? `${postUrl}`.toLowerCase();
-      return hiddenPostUrls.has(key);
+      return hiddenPostUrls.has(key) || deletedPostUrls.has(key);
     };
 
-    const basePosts = (row.posts ?? []).filter((p) => p?.url && !isHidden(p.url));
+    const basePosts = (row.posts ?? []).filter((p) => p?.url && !isPostRemoved(p.url));
 
     const extraPosts = (entry.extraPosts ?? [])
-      .filter((p) => p?.url && !isHidden(p.url))
+      .filter((p) => p?.url && !isPostRemoved(p.url))
       .map((p, i) => ({
         id: p.id || `manual_${i}`,
         title: p.title || "QA 공고",
@@ -1326,6 +1321,9 @@
     isCustomCompany,
     updateCustomCompany,
     removeCustomCompany,
+    isCompanyDeleted,
+    markCompanyDeleted,
+    markPostDeleted,
     hideCompany,
     hidePost,
     removeManualPost,
@@ -1365,7 +1363,7 @@
     getActiveKeywordLabels,
     addKeywordDraft,
     removeKeywordDraft,
-    isDirty: () => state.dirty,
+    isDirty: () => state.dirty || Boolean(window.TCompanyEdits?.isDirty?.()),
     getDoc: () => state.doc,
     SCORE_LABELS,
     TIER_LABEL

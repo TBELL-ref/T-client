@@ -39,6 +39,16 @@
     return window.TSupabase.deleteManualCompany(companyId);
   }
 
+  async function deleteCompany(companyId) {
+    if (!companyId) throw new Error("company_id가 필요합니다.");
+    return window.TSupabase.deleteCompany(companyId);
+  }
+
+  async function deleteJobPost(companyId, { url = "", jobPostId = "" } = {}) {
+    if (!companyId) throw new Error("company_id가 필요합니다.");
+    return window.TSupabase.deleteJobPost(companyId, url, jobPostId);
+  }
+
   async function ensureManual(row) {
     if (!isManualRow(row)) return null;
     return upsertManual(row);
@@ -77,6 +87,8 @@
     rowToPatch,
     upsertManual,
     deleteManual,
+    deleteCompany,
+    deleteJobPost,
     ensureManual,
     resolveManualRow,
     ensureManualById,

@@ -21,6 +21,11 @@
     <script defer src="./pipeline.js"></script>
     <script defer src="./companies.js"></script>
     <script defer src="./sales-management.js"></script>
+    <script defer src="./company-edits.js"></script>
+    <script defer src="./company-user-state.js"></script>
+    <script defer src="./company-files.js"></script>
+    <script defer src="./meeting-notes.js"></script>
+    <script defer src="./detail-panel.js"></script>
     <script defer src="./admin.js"></script>
     <script defer src="./app.js"></script>
   </head>
@@ -111,17 +116,20 @@
           </select>
           <select id="pipelineStage" class="select-pill" aria-label="단계">
             <option value="">단계 전체</option>
-            <option value="candidate_pool">후보군</option>
-            <option value="test_run">테스트 수행</option>
-            <option value="result_delivery">결과 전달</option>
+            <option value="candidate">후보</option>
+            <option value="test_in_progress">테스트 진행</option>
+            <option value="delivery">전달</option>
             <option value="proposal">제안</option>
-            <option value="contract_negotiation">계약 협의</option>
+            <option value="meeting">미팅</option>
+            <option value="contract">계약</option>
           </select>
           <select id="pipelineStatus" class="select-pill" aria-label="상태">
             <option value="">상태 전체</option>
-            <option value="active">진행중</option>
+            <option value="pending">대기</option>
+            <option value="active">진행</option>
             <option value="on_hold">보류</option>
             <option value="closed">종결</option>
+            <option value="excluded">제외</option>
           </select>
           <select id="contact" class="select-pill" aria-label="담당자">
             <option value="">담당자 전체</option>
@@ -148,9 +156,12 @@
 
       <div class="tabs-bar">
         <nav class="tabs" aria-label="보기 전환">
-          <button type="button" data-tab="candidates" class="tab active">추천</button>
+          <button type="button" data-tab="in_progress" class="tab active">진행</button>
+          <button type="button" data-tab="recommended" class="tab">추천</button>
+          <button type="button" data-tab="new" class="tab">신규</button>
           <button type="button" data-tab="leads" class="tab">회사</button>
           <button type="button" data-tab="posts" class="tab">전체 공고</button>
+          <button type="button" data-tab="excluded" class="tab">제외</button>
         </nav>
         <div class="tabs-bar-actions admin-only hidden">
           <button type="button" id="btnAddCompany" class="btn-admin-action">회사 추가</button>
@@ -159,45 +170,63 @@
       </div>
 
       <main class="main-panels">
-        <div id="candidates" class="panel"></div>
+        <div id="new" class="panel hidden"></div>
+        <div id="recommended" class="panel hidden"></div>
+        <div id="in_progress" class="panel"></div>
         <div id="leads" class="panel hidden"></div>
         <div id="posts" class="panel hidden"></div>
+        <div id="excluded" class="panel hidden"></div>
       </main>
     </div>
 
-    <div id="detailModal" class="modal hidden" aria-hidden="true">
-      <div class="modal-backdrop" data-close="1"></div>
-      <div class="modal-panel modal-panel-detail" role="dialog" aria-labelledby="detailTitle">
-        <header class="modal-header detail-modal-header">
-          <div class="detail-header-main">
-            <div id="detailHeaderChips" class="detail-header-chips"></div>
-            <h2 id="detailTitle" class="detail-header-title"></h2>
-            <p id="detailHeaderSub" class="detail-header-sub"></p>
+    <div id="detailDrawer" class="detail-drawer hidden" aria-hidden="true">
+      <div class="detail-drawer-backdrop" data-close-detail="1"></div>
+      <aside class="detail-drawer-panel" role="complementary" aria-labelledby="detailTitle">
+        <header class="detail-drawer-header">
+          <div class="drawer-header-top">
+            <div class="detail-header-main">
+              <h2 id="detailTitle" class="detail-header-title"></h2>
+              <div id="detailHeaderStats" class="drawer-stats-compact"></div>
+              <p id="detailHeaderSub" class="detail-header-sub"></p>
+              <div id="detailHeaderChips" class="detail-header-chips"></div>
+            </div>
+            <div class="drawer-header-actions">
+              <div class="drawer-quick-actions drawer-quick-actions-header">
+                <button type="button" id="detailEditBtn" class="drawer-action-btn" data-title-active="수정" title="수정">
+                  <span data-icon="pencil"></span>
+                  <span>수정</span>
+                </button>
+                <button type="button" id="detailMergeBtn" class="drawer-action-btn" data-title-active="병합" title="병합">
+                  <span data-icon="layers"></span>
+                  <span>병합</span>
+                </button>
+                <button type="button" id="detailDeleteBtn" class="drawer-action-btn drawer-action-danger" data-title-active="삭제" title="삭제">
+                  <span data-icon="trash"></span>
+                  <span>삭제</span>
+                </button>
+              </div>
+              <button type="button" class="drawer-close-btn" data-close-detail="1" aria-label="닫기">
+                <span data-icon="x"></span>
+              </button>
+            </div>
           </div>
-          <div class="modal-actions">
-            <button type="button" id="detailEditBtn" class="btn-icon-edit hidden" aria-label="수정" title="수정">
-              <span data-icon="pencil"></span>
-            </button>
-            <button type="button" id="detailMergeBtn" class="btn-icon-edit btn-icon-merge hidden" aria-label="병합" title="회사 병합">
-              <span data-icon="layers"></span>
-            </button>
-            <button type="button" id="detailDeleteBtn" class="btn-icon-delete hidden" aria-label="삭제" title="회사 삭제">
-              <span data-icon="trash"></span>
-            </button>
-            <button type="button" class="modal-close" data-close="1" aria-label="닫기">
-              <span data-icon="x"></span>
-            </button>
-          </div>
+          <label class="detail-new-toggle hidden" id="detailNewToggleWrap" title="신규 탭 표시">
+            <input type="checkbox" id="detailNewToggle" />
+            <span>신규 표시</span>
+          </label>
         </header>
-        <div id="detailBody" class="modal-body modal-body-detail"></div>
+        <div id="detailBody" class="detail-drawer-body"></div>
         <div id="detailLoading" class="detail-loading hidden" aria-hidden="true">
           <div class="detail-loading-inner">
             <div class="detail-spinner" aria-hidden="true"></div>
             <p id="detailLoadingText">처리 중…</p>
           </div>
         </div>
-      </div>
+      </aside>
     </div>
+
+    <!-- legacy id for scripts that reference detailModal -->
+    <div id="detailModal" class="hidden" aria-hidden="true" hidden></div>
 
     <div id="mergeModal" class="modal modal-stack hidden" aria-hidden="true">
       <div class="modal-backdrop" data-close-merge="1"></div>

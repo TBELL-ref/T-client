@@ -1,46 +1,70 @@
 /**
- * Sales pipeline — Stage / Status / Closed Reason (stored separately in sales_management).
+ * Sales pipeline — Stage / Status / Lead classification (v2).
+ * Legacy DB values are normalized on read; new codes are canonical in UI.
  */
 (function () {
   const PIPELINE_STAGES = [
-    "candidate_pool",
-    "test_run",
-    "result_delivery",
+    "candidate",
+    "test_in_progress",
+    "delivery",
     "proposal",
-    "contract_negotiation"
+    "meeting",
+    "contract"
   ];
 
   const PIPELINE_STAGE_LABEL = {
-    candidate_pool: "후보군",
-    test_run: "테스트 수행",
-    result_delivery: "결과 전달",
+    candidate: "후보",
+    test_in_progress: "테스트 진행",
+    delivery: "전달",
     proposal: "제안",
-    contract_negotiation: "계약 협의"
+    meeting: "미팅",
+    contract: "계약"
   };
 
   const PIPELINE_STAGE_ORDER = {
-    candidate_pool: 1,
-    test_run: 2,
-    result_delivery: 3,
+    candidate: 1,
+    test_in_progress: 2,
+    delivery: 3,
     proposal: 4,
-    contract_negotiation: 5
+    meeting: 5,
+    contract: 6
   };
+
+  /** Stages that imply "진행" classification (not 후보). */
+  const IN_PROGRESS_STAGES = new Set([
+    "test_in_progress",
+    "delivery",
+    "proposal",
+    "meeting",
+    "contract"
+  ]);
 
   const LEGACY_STAGE_MAP = {
-    candidate: "candidate_pool",
-    test_run: "test_run",
-    result_report: "result_delivery",
+    candidate_pool: "candidate",
+    candidate: "candidate",
+    test_run: "test_in_progress",
+    result_delivery: "delivery",
+    result_report: "delivery",
     proposal: "proposal",
-    contract_won: "contract_negotiation",
-    contract_failed: "contract_negotiation"
+    contract_negotiation: "contract",
+    contract_won: "contract",
+    contract_failed: "contract"
   };
 
-  const PIPELINE_STATUSES = ["active", "on_hold", "closed"];
+  const PIPELINE_STATUSES = ["pending", "active", "on_hold", "closed", "excluded"];
 
   const PIPELINE_STATUS_LABEL = {
-    active: "진행중",
+    pending: "대기",
+    active: "진행",
     on_hold: "보류",
-    closed: "종결"
+    closed: "종결",
+    excluded: "제외"
+  };
+
+  const LEGACY_STATUS_MAP = {
+    active: "active",
+    on_hold: "on_hold",
+    closed: "closed"
   };
 
   const CLOSED_REASONS = ["contract_won", "contract_failed", "no_response", "excluded", "other"];
@@ -53,8 +77,17 @@
     other: "기타"
   };
 
-  const DEFAULT_PIPELINE_STAGE = "candidate_pool";
-  const DEFAULT_PIPELINE_STATUS = "active";
+  const POOL_CLASSES = ["normal", "recommended", "in_progress", "hidden"];
+
+  const POOL_CLASS_LABEL = {
+    normal: "후보",
+    recommended: "추천",
+    in_progress: "진행",
+    hidden: "숨김"
+  };
+
+  const DEFAULT_PIPELINE_STAGE = "candidate";
+  const DEFAULT_PIPELINE_STATUS = "pending";
 
   function resolvePipelineStage(value) {
     const s = `${value ?? ""}`.trim();
@@ -65,12 +98,34 @@
 
   function resolvePipelineStatus(value) {
     const s = `${value ?? ""}`.trim();
-    return PIPELINE_STATUSES.includes(s) ? s : DEFAULT_PIPELINE_STATUS;
+    if (PIPELINE_STATUSES.includes(s)) return s;
+    if (LEGACY_STATUS_MAP[s]) return LEGACY_STATUS_MAP[s];
+    return DEFAULT_PIPELINE_STATUS;
   }
 
   function resolveClosedReason(value) {
     const s = `${value ?? ""}`.trim();
     return CLOSED_REASONS.includes(s) ? s : "";
+  }
+
+  function isInProgressStage(stage) {
+    return IN_PROGRESS_STAGES.has(resolvePipelineStage(stage));
+  }
+
+  /**
+   * Lead pool classification: 숨김 > 진행 > 추천 > 일반
+   * is_candidate is legacy-only — not used for UI classification.
+   */
+  function poolClassOf(row = {}) {
+    if (row.userHidden || row.isHidden) return "hidden";
+    const stage = resolvePipelineStage(row.pipelineStage ?? row.stage);
+    if (isInProgressStage(stage)) return "in_progress";
+    if (row.isRecommended) return "recommended";
+    return "normal";
+  }
+
+  function poolClassLabel(cls) {
+    return POOL_CLASS_LABEL[cls] ?? cls;
   }
 
   function pipelineStageLabel(stage) {
@@ -98,36 +153,71 @@
 
     const rawStage = `${record.pipelineStage ?? record.stage ?? ""}`.trim();
     if (rawStage === "contract_won") {
-      stage = "contract_negotiation";
+      stage = "contract";
       status = "closed";
       closedReason = closedReason || "contract_won";
     } else if (rawStage === "contract_failed") {
-      stage = "contract_negotiation";
+      stage = "contract";
       status = "closed";
       closedReason = closedReason || "contract_failed";
     }
 
+    if (status === "excluded" || closedReason === "excluded") {
+      status = "excluded";
+    }
+
     return { pipelineStage: stage, pipelineStatus: status, closedReason };
+  }
+
+  function rowMatchesRecommendedTab(row) {
+    return poolClassOf(row) === "recommended";
+  }
+
+  function rowMatchesInProgressTab(row) {
+    return poolClassOf(row) === "in_progress";
+  }
+
+  /** Pipeline 후보 단계 + 아직 추천/진행/숨김 아님 (액션 KPI·버킷용). */
+  function rowMatchesCandidatePool(row) {
+    return poolClassOf(row) === "normal";
+  }
+
+  function rowMatchesExcludedTab(row) {
+    if (!row) return false;
+    if (row.userHidden || row.isHidden) return true;
+    if (row.excluded) return true;
+    return false;
   }
 
   window.TPipeline = {
     PIPELINE_STAGES,
     PIPELINE_STAGE_LABEL,
     PIPELINE_STAGE_ORDER,
+    IN_PROGRESS_STAGES,
     LEGACY_STAGE_MAP,
     PIPELINE_STATUSES,
     PIPELINE_STATUS_LABEL,
+    LEGACY_STATUS_MAP,
     CLOSED_REASONS,
     CLOSED_REASON_LABEL,
+    POOL_CLASSES,
+    POOL_CLASS_LABEL,
     DEFAULT_PIPELINE_STAGE,
     DEFAULT_PIPELINE_STATUS,
     resolvePipelineStage,
     resolvePipelineStatus,
     resolveClosedReason,
+    isInProgressStage,
+    poolClassOf,
+    poolClassLabel,
     pipelineStageLabel,
     pipelineStatusLabel,
     closedReasonLabel,
     stageOrder,
-    normalizePipelineRecord
+    normalizePipelineRecord,
+    rowMatchesRecommendedTab,
+    rowMatchesInProgressTab,
+    rowMatchesCandidatePool,
+    rowMatchesExcludedTab
   };
 })();
