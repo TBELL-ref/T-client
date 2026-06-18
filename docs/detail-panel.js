@@ -70,6 +70,7 @@
   }
 
   function isListable(row) {
+    if (window.TClientView?.isListableLead) return window.TClientView.isListableLead(row);
     if (row.userHidden) return false;
     return (row.posts?.length ?? 0) > 0;
   }

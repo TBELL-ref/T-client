@@ -1199,10 +1199,20 @@ function isShelvedLead(row) {
   return false;
 }
 
-/** 목록·집계 공통: 숨김(병합) 제외 + 공고 1건 이상 */
+/** 공고 없어도 Notion·수동·sales_management 회사는 목록에 표시 */
+function rowHasListablePresence(row) {
+  if (!row) return false;
+  if ((row.posts?.length ?? 0) > 0) return true;
+  if (row.isManual) return true;
+  if (row.hasSalesManagement) return true;
+  if (`${row.dedupeGroupKey ?? ""}`.startsWith("notion:")) return true;
+  return false;
+}
+
+/** 목록·집계 공통: 숨김(병합) 제외 + 표시 가능 회사 */
 function isListableLead(row) {
   if (row.userHidden) return false;
-  return (row.posts?.length ?? 0) > 0;
+  return rowHasListablePresence(row);
 }
 
 /** 진행·추천·신규·회사 탭: 제외/숨김 제외 */
@@ -3708,6 +3718,8 @@ window.TClientView = {
   renderCompanyTable,
   renderCompanyCell,
   listableLeadRows,
+  rowHasListablePresence,
+  isListableLead,
   isMainTabLead,
   isShelvedLead,
   excludedTabRows
