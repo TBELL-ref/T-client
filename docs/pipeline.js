@@ -118,6 +118,7 @@
    */
   function poolClassOf(row = {}) {
     if (row.userHidden || row.isHidden) return "hidden";
+    if ((row.posts?.length ?? 0) === 0) return "hidden";
     const stage = resolvePipelineStage(row.pipelineStage ?? row.stage);
     if (isInProgressStage(stage)) return "in_progress";
     if (row.isRecommended) return "recommended";
@@ -197,6 +198,7 @@
 
   function rowMatchesExcludedTab(row) {
     if (!row) return false;
+    if ((row.posts?.length ?? 0) === 0) return true;
     if (row.userHidden || row.isHidden) return true;
     if (row.excluded) return true;
     return false;

@@ -12,7 +12,7 @@ const state = {
   activePreset: "",
   activeTab: "in_progress",
   detailRow: null,
-  detailEdit: false,
+  detailEditSections: {},
   mergeSourceRow: null,
   filtersOpen: false,
   tableSort: { column: "priorityScore", direction: "desc" },
@@ -322,21 +322,54 @@ function parseStarSelect(raw) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function detailCard(title, body, extraClass = "", { icon = "fileText", open = true, flat = false } = {}) {
+function isSectionEdit(key) {
+  return Boolean(state.detailEditSections[key]);
+}
+
+function setSectionEdit(key, on) {
+  if (!key) return;
+  if (on) state.detailEditSections[key] = true;
+  else delete state.detailEditSections[key];
+}
+
+function clearSectionEdits() {
+  state.detailEditSections = {};
+}
+
+function detailSectionCard(title, body, sectionKey, extraClass = "", { icon = "fileText", open = true, flat = false, editable = true } = {}) {
+  const admin = window.TClientAdmin?.isUnlocked?.();
+  const editing = sectionKey && isSectionEdit(sectionKey);
+  const actions =
+    admin && editable && sectionKey
+      ? `<div class="detail-section-actions">${editing
+          ? `<button type="button" class="btn-ghost btn-sm" data-section-cancel="${escapeAttr(sectionKey)}">취소</button>
+             <button type="button" class="btn-primary btn-sm" data-section-save="${escapeAttr(sectionKey)}">저장</button>`
+          : `<button type="button" class="btn-ghost btn-sm" data-section-edit="${escapeAttr(sectionKey)}">수정</button>`}</div>`
+      : "";
+
   if (flat) {
-    return `<section class="detail-block detail-block-flat drawer-edit-panel ${extraClass}">
-      <h4 class="detail-block-title">${escapeHtml(title)}</h4>
+    return `<section class="detail-block detail-block-flat drawer-edit-panel${editing ? " is-section-edit" : ""} ${extraClass}">
+      <div class="detail-block-head-row">
+        <h4 class="detail-block-title">${escapeHtml(title)}</h4>
+        ${actions}
+      </div>
       <div class="detail-block-content">${body}</div>
     </section>`;
   }
-  return `<details class="drawer-section ${extraClass}"${open ? " open" : ""}>
+
+  return `<details class="drawer-section ${extraClass}${editing ? " is-section-edit" : ""}"${open ? " open" : ""}>
     <summary class="drawer-section-head">
       <span class="drawer-section-icon" aria-hidden="true">${iconSvg(icon, 18)}</span>
       <span class="drawer-section-title">${escapeHtml(title)}</span>
+      ${actions}
       <span class="drawer-section-chevron" aria-hidden="true">+</span>
     </summary>
     <div class="drawer-section-body">${body}</div>
   </details>`;
+}
+
+function detailCard(title, body, extraClass = "", opts = {}) {
+  return detailSectionCard(title, body, "", extraClass, { ...opts, editable: false });
 }
 
 function drawerStatRow(label, value) {
@@ -384,7 +417,22 @@ function detailKvGrid(rows) {
     .join("")}</dl>`;
 }
 
-function renderProfileSection(row, edit = false, p = {}, domain = "", admin = false) {
+function renderProfileEnrichStrip(p, admin) {
+  if (!admin) return "";
+  return `
+      <div class="bizno-fetch-row bizno-fetch-row-compact">
+        <div class="inline-row bizno-fetch-line">
+          <span class="inline-label">사업자번호</span>
+          <div class="bizno-fetch-controls">
+            ${inlineInput("edit-prof-bizno", p.bizNo ?? "", "text", "000-00-00000")}
+            <button type="button" class="btn-primary btn-sm" id="btn-enrich-bizno">정보 자동 수집</button>
+          </div>
+        </div>
+        <p class="enrich-bizno-status muted" id="enrich-bizno-status">관리자 전용 · bizno.net에서 업종·규모·홈페이지를 가져옵니다.</p>
+      </div>`;
+}
+
+function renderProfileSection(row, sectionEdit = false, p = {}, domain = "", admin = false) {
   const fields = [
     ["서비스명", "edit-prof-service", p.serviceName || p.service_name],
     ["서비스 주소", "edit-prof-service-url", p.serviceUrl || p.service_url],
@@ -399,26 +447,15 @@ function renderProfileSection(row, edit = false, p = {}, domain = "", admin = fa
     ["종업원", "edit-prof-emp", p.employeeCount],
     ["홈페이지", "edit-prof-home", p.homepage],
     ["산업분류", "edit-prof-industry", p.industrySummary]
-  ].filter(([, , v]) => edit || `${v ?? ""}`.trim());
+  ].filter(([, , v]) => sectionEdit || `${v ?? ""}`.trim());
 
-  if (!fields.length && !edit) return `<p class="muted">사업자·업종 정보 없음</p>`;
+  if (!fields.length && !sectionEdit && !admin) return `<p class="muted">사업자·업종 정보 없음</p>`;
 
-  if (edit) {
-    const enrichBlock = admin
-      ? `
-      <div class="bizno-fetch-row">
-        <div class="inline-row bizno-fetch-line">
-          <span class="inline-label">사업자번호</span>
-          <div class="bizno-fetch-controls">
-            ${inlineInput("edit-prof-bizno", p.bizNo ?? "", "text", "000-00-00000")}
-            <button type="button" class="btn-primary btn-sm" id="btn-enrich-bizno">정보 자동 수집</button>
-          </div>
-        </div>
-        <p class="enrich-bizno-status muted" id="enrich-bizno-status">관리자 전용 · 서버(bizno.net)에서 업종·규모·홈페이지를 가져옵니다.</p>
-      </div>`
-      : "";
-    const tableFields = admin ? fields.filter(([, id]) => id !== "edit-prof-bizno") : fields;
-    return `${enrichBlock}<div class="detail-form-grid">${tableFields
+  const enrichStrip = renderProfileEnrichStrip(p, admin);
+
+  if (sectionEdit) {
+    const tableFields = fields.filter(([, id]) => id !== "edit-prof-bizno");
+    return `${enrichStrip}<div class="detail-form-grid">${tableFields
       .map(([label, id, val]) => {
         const wide = id === "edit-prof-industry" || id === "edit-prof-home" || id === "edit-prof-service-url";
         return `<div class="inline-row${wide ? " span-2" : ""}"><span class="inline-label">${escapeHtml(label)}</span>${inlineInput(id, val, id.includes("home") || id.includes("service-url") ? "url" : "text")}</div>`;
@@ -426,7 +463,9 @@ function renderProfileSection(row, edit = false, p = {}, domain = "", admin = fa
       .join("")}</div>`;
   }
 
-  return `<dl class="detail-kv detail-kv-profile">${fields
+  if (!fields.length) return `${enrichStrip}<p class="muted">사업자·업종 정보 없음</p>`;
+
+  return `${enrichStrip}<dl class="detail-kv detail-kv-profile">${fields
     .map(([label, , val]) => {
       const v = `${val ?? ""}`.trim();
       const cell =
@@ -518,21 +557,21 @@ function setDetailLoading(show, text = "처리 중…") {
   byId("detailDrawer")?.classList.toggle("drawer-busy", show);
 }
 
-function finishDetailSave(companyId, { toastMessage = "정상 저장되었습니다.", exitEdit = true } = {}) {
+function finishDetailSave(companyId, { toastMessage = "정상 저장되었습니다.", exitSection = null } = {}) {
+  if (exitSection) setSectionEdit(exitSection, false);
   reloadRowsWithAdmin();
   refreshViews();
   const row = state.rows.find((r) => r.companyId === companyId);
   if (!row) return;
   state.detailRow = row;
-  if (exitEdit) state.detailEdit = false;
   window.__TCLIENT_DETAIL_ROW = row;
-  window.__TCLIENT_DETAIL_EDIT = state.detailEdit;
+  window.__TCLIENT_DETAIL_EDIT = Object.keys(state.detailEditSections).length > 0;
   paintDetailModal();
   if (toastMessage) showToast(toastMessage);
 }
 
 function saveAndRefreshDetail(companyId) {
-  finishDetailSave(companyId, { exitEdit: state.detailEdit, toastMessage: "" });
+  finishDetailSave(companyId, { toastMessage: "" });
 }
 
 function setEnrichBiznoStatus(msg, isError = false) {
@@ -568,21 +607,23 @@ function fillProfileForm(profile) {
 
 async function applyEnrichedProfile(row, profile) {
   fillProfileForm(profile);
-  window.TClientAdmin.setEntry(row.companyId, {
+  const patch = {
     profile,
-    domain: profile.domain || undefined
-  });
+    domain: profile.domain || undefined,
+    ...(profile.companyNameLegal ? { companyNameKo: profile.companyNameLegal } : {})
+  };
+  window.TClientAdmin.setEntry(row.companyId, patch);
+  await window.TClientAdmin.flushPersist?.();
   reloadRowsWithAdmin();
   const updated = state.rows.find((r) => r.companyId === row.companyId) ?? row;
   if (window.TClientAdmin.recalculateCompanyScore) {
     window.TClientAdmin.recalculateCompanyScore(updated);
+    await window.TClientAdmin.flushPersist?.();
     reloadRowsWithAdmin();
   }
   refreshViews();
-  state.detailRow = state.rows.find((r) => r.companyId === row.companyId) ?? updated;
-  paintDetailModal();
-  setEnrichBiznoStatus("수집 완료 · DB에 자동 저장됩니다.");
-  showToast("회사 정보 수집이 완료되었습니다.");
+  setEnrichBiznoStatus("수집 완료 · 저장되었습니다.");
+  finishDetailSave(row.companyId, { exitSection: null, toastMessage: "회사 정보 수집이 완료되었습니다." });
 }
 
 async function waitForServerEnrich(row, bizNo, digits) {
@@ -668,7 +709,7 @@ async function runRecalcScore(row) {
     const result = window.TClientAdmin.recalculateCompanyScore(fresh);
     finishDetailSave(row.companyId, {
       toastMessage: `점수 재집계 완료 (${result.score}점 · ${result.grade}등급)`,
-      exitEdit: false
+      exitSection: null
     });
   } catch (err) {
     showToast(err.message || "재집계 실패", "error");
@@ -678,62 +719,91 @@ async function runRecalcScore(row) {
   }
 }
 
-function bindDetailEdits(row) {
+async function saveDetailSection(row, section) {
   const cid = row.companyId;
+  const pool = document.querySelector('input[name="edit-pool-class"]:checked')?.value ?? "normal";
+  const prevSm = window.TSalesManagement?.get(cid) ?? {};
 
-  byId("btn-enrich-bizno")?.addEventListener("click", () => runEnrichBizNo(row));
+  const salesPatch = (fields) => fields;
 
-  byId("detail-save-all")?.addEventListener("click", async () => {
-    const parts = {};
-    document.querySelectorAll(".score-part-input").forEach((inp) => {
-      const v = inp.value.trim();
-      if (v !== "") parts[inp.dataset.scorePart] = v;
-    });
-    const total = byId("edit-score-total")?.value.trim() ?? "";
-    if (total !== "") parts._total = total;
+  const persistCompany = async (overridePatch, sales = null) => {
+    if (sales && window.TClientAdmin.isUnlocked()) {
+      await window.TSalesManagement.upsert(cid, sales, row);
+    }
+    if (overridePatch && Object.keys(overridePatch).length) {
+      window.TClientAdmin.setEntry(cid, overridePatch);
+    }
+    await window.TClientAdmin.flushPersist?.();
+    finishDetailSave(cid, { exitSection: section, toastMessage: "저장되었습니다." });
+  };
 
-    const pool = document.querySelector('input[name="edit-pool-class"]:checked')?.value ?? "normal";
-    const prevSm = window.TSalesManagement?.get(cid) ?? {};
-
-    const salesPatch = {
-      isHidden: pool === "hidden",
-      isRecommended: pool === "recommended",
-      isCandidate: false,
-      recommendedSince:
-        pool === "recommended"
-          ? prevSm.recommendedSince || new Date().toISOString()
-          : "",
-      candidateSince: "",
-      pipelineStage: byId("edit-pipeline-stage")?.value ?? "",
-      pipelineStatus: byId("edit-pipeline-status")?.value ?? "",
-      closedReason: byId("edit-closed-reason")?.value ?? "",
-      candidateRank: parseStarSelect(byId("edit-cand-rank")?.value),
-      candidateIndustry: byId("edit-cand-industry")?.value.trim(),
-      candidateRepeatPosts: byId("edit-cand-repeat")?.value.trim(),
-      pilotDifficulty: parseStarSelect(byId("edit-cand-pilot")?.value),
-      candidatePros: byId("edit-cand-pros")?.value.trim(),
-      candidateCons: byId("edit-cand-cons")?.value.trim(),
-      recommendScore: parseStarSelect(byId("edit-cand-score")?.value),
-      recommendScoreReason: byId("edit-recommend-reason")?.value.trim(),
-      pilotDifficultyReason: byId("edit-pilot-reason")?.value.trim(),
-      evaluationNotes: byId("edit-eval-notes")?.value.trim(),
-      testStartedAt: byId("edit-test-started")?.value ? `${byId("edit-test-started").value}T00:00:00Z` : "",
-      testEndedAt: byId("edit-test-ended")?.value ? `${byId("edit-test-ended").value}T00:00:00Z` : "",
-      testPeriodLabel: byId("edit-test-period")?.value.trim(),
-      testNotes: byId("edit-test-notes")?.value.trim(),
-      memo: byId("edit-notes")?.value.trim()
-    };
-
-    const overridePatch = {
-      companyNameKo: byId("edit-name-ko")?.value.trim(),
-      companyTier: byId("edit-tier")?.value,
-      leadGrade: byId("edit-grade")?.value,
-      excludeReason: byId("edit-exclude")?.value.trim(),
-      contact: {
-        name: byId("edit-contact-name")?.value.trim(),
-        email: byId("edit-contact-email")?.value.trim(),
-        phone: byId("edit-contact-phone")?.value.trim()
+  if (section === "summary") {
+    await persistCompany(
+      {
+        companyNameKo: byId("edit-name-ko")?.value.trim(),
+        companyTier: byId("edit-tier")?.value,
+        leadGrade: byId("edit-grade")?.value,
+        excludeReason: byId("edit-exclude")?.value.trim()
       },
+      salesPatch({
+        isHidden: pool === "hidden",
+        isRecommended: pool === "recommended",
+        isCandidate: false,
+        recommendedSince: pool === "recommended" ? prevSm.recommendedSince || new Date().toISOString() : "",
+        candidateSince: "",
+        memo: byId("edit-notes")?.value.trim()
+      })
+    );
+    return;
+  }
+
+  if (section === "sales") {
+    await persistCompany(
+      {
+        contact: {
+          name: byId("edit-contact-name")?.value.trim(),
+          email: byId("edit-contact-email")?.value.trim(),
+          phone: byId("edit-contact-phone")?.value.trim()
+        }
+      },
+      salesPatch({
+        pipelineStage: byId("edit-pipeline-stage")?.value ?? "",
+        pipelineStatus: byId("edit-pipeline-status")?.value ?? "",
+        closedReason: byId("edit-closed-reason")?.value ?? ""
+      })
+    );
+    return;
+  }
+
+  if (section === "test") {
+    await persistCompany(
+      null,
+      salesPatch({
+        testStartedAt: byId("edit-test-started")?.value ? `${byId("edit-test-started").value}T00:00:00Z` : "",
+        testEndedAt: byId("edit-test-ended")?.value ? `${byId("edit-test-ended").value}T00:00:00Z` : "",
+        testPeriodLabel: byId("edit-test-period")?.value.trim(),
+        testNotes: byId("edit-test-notes")?.value.trim()
+      })
+    );
+    return;
+  }
+
+  if (section === "eval") {
+    await persistCompany(
+      null,
+      salesPatch({
+        recommendScore: parseStarSelect(byId("edit-cand-score")?.value),
+        pilotDifficulty: parseStarSelect(byId("edit-cand-pilot")?.value),
+        recommendScoreReason: byId("edit-recommend-reason")?.value.trim(),
+        pilotDifficultyReason: byId("edit-pilot-reason")?.value.trim(),
+        evaluationNotes: byId("edit-eval-notes")?.value.trim()
+      })
+    );
+    return;
+  }
+
+  if (section === "profile") {
+    await persistCompany({
       profile: {
         serviceName: byId("edit-prof-service")?.value.trim(),
         serviceUrl: byId("edit-prof-service-url")?.value.trim(),
@@ -748,11 +818,26 @@ function bindDetailEdits(row) {
         homepage: byId("edit-prof-home")?.value.trim(),
         industrySummary: byId("edit-prof-industry")?.value.trim()
       },
-      domain: byId("edit-prof-domain")?.value.trim(),
-      scoreParts: parts
-    };
+      domain: byId("edit-prof-domain")?.value.trim()
+    });
+    return;
+  }
 
+  if (section === "score") {
+    const parts = {};
+    document.querySelectorAll(".score-part-input").forEach((inp) => {
+      const v = inp.value.trim();
+      if (v !== "") parts[inp.dataset.scorePart] = v;
+    });
+    const total = byId("edit-score-total")?.value.trim() ?? "";
+    if (total !== "") parts._total = total;
+    await persistCompany({ scoreParts: parts });
+    return;
+  }
+
+  if (section === "posts") {
     const postUrl = byId("edit-post-url")?.value.trim();
+    const overridePatch = {};
     if (postUrl) {
       overridePatch.extraPosts = [
         ...(window.TClientAdmin.getEntry(cid).extraPosts ?? []),
@@ -764,17 +849,45 @@ function bindDetailEdits(row) {
         }
       ];
     }
+    await persistCompany(overridePatch);
+    return;
+  }
 
-    try {
-      if (window.TClientAdmin.isUnlocked()) {
-        await window.TSalesManagement.upsert(cid, salesPatch, row);
+  if (section === "files" || section === "meetings") {
+    finishDetailSave(cid, { exitSection: section, toastMessage: "" });
+  }
+}
+
+function bindDetailSectionEdits(row) {
+  byId("btn-enrich-bizno")?.addEventListener("click", () => runEnrichBizNo(row));
+  byId("btn-recalc-score")?.addEventListener("click", () => runRecalcScore(row));
+
+  byId("detailBody")?.querySelectorAll(".detail-section-actions button").forEach((btn) => {
+    btn.addEventListener("click", (e) => e.stopPropagation());
+  });
+
+  byId("detailBody")?.querySelectorAll("[data-section-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setSectionEdit(btn.dataset.sectionEdit, true);
+      paintDetailModal();
+    });
+  });
+
+  byId("detailBody")?.querySelectorAll("[data-section-cancel]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setSectionEdit(btn.dataset.sectionCancel, false);
+      paintDetailModal();
+    });
+  });
+
+  byId("detailBody")?.querySelectorAll("[data-section-save]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await saveDetailSection(row, btn.dataset.sectionSave);
+      } catch (err) {
+        showToast(err.message || "저장 실패", "error");
       }
-      window.TClientAdmin.setEntry(cid, overridePatch);
-      await window.TClientAdmin.flushPersist?.();
-      finishDetailSave(cid, { exitEdit: true, toastMessage: "정상 저장되었습니다." });
-    } catch (err) {
-      showToast(err.message || "저장 실패", "error");
-    }
+    });
   });
 }
 
@@ -1179,20 +1292,25 @@ function toggleFilterAdvanced(force) {
   state.filtersOpen = open;
 }
 
-function resetFilters() {
+function resetTabFilters() {
   byId("search").value = "";
   ["grade", "pipelineStage", "pipelineStatus", "contact", "exclude", "tier"].forEach((id) => {
     const el = byId(id);
     if (el) el.value = "";
   });
-  const sortEl = byId("sort");
-  if (sortEl) sortEl.value = "priority";
   state.activePreset = "";
   state.leadsPage = 1;
   state.postsPage = 1;
   state.excludedPage = 1;
+  toggleFilterAdvanced(false);
   syncCustomSelects();
   renderPresets();
+}
+
+function resetFilters() {
+  resetTabFilters();
+  const sortEl = byId("sort");
+  if (sortEl) sortEl.value = "priority";
   refreshViews();
 }
 
@@ -1230,9 +1348,9 @@ function excludedTabRows() {
   return state.rows.filter(isShelvedLead);
 }
 
-/** KPI·배너·등급 분포: 활성(제외 아님) 리드만 */
+/** KPI·배너·등급 분포: 활성(제외·숨김 아님) 리드만 */
 function isActiveLead(row) {
-  return isListableLead(row) && !row.excluded;
+  return isListableLead(row) && !isShelvedLead(row);
 }
 
 function listableLeadRows() {
@@ -1725,7 +1843,52 @@ function bindPortfolioMap() {
 }
 
 function highlightActionKpiCards() {
-  /* portfolio matrix uses bottom quadrant KPI highlight via is-highlight class in render */
+  const tabKpiIds = {
+    leads: ["total", "candidate"],
+    recommended: ["recommended"],
+    in_progress: ["inProgress", "contractWon"],
+    excluded: ["excluded"]
+  };
+  const activeIds = new Set(tabKpiIds[state.activeTab] ?? []);
+  byId("dashboard")?.querySelectorAll("[data-kpi-id]").forEach((card) => {
+    card.classList.toggle("kpi-card-active", activeIds.has(card.dataset.kpiId));
+  });
+}
+
+const ACTION_KPI_TAB_MAP = {
+  total: "leads",
+  candidate: "leads",
+  recommended: "recommended",
+  inProgress: "in_progress",
+  contractWon: "in_progress",
+  excluded: "excluded"
+};
+
+const ACTION_KPI_TAB_LABEL = {
+  leads: "회사",
+  recommended: "추천",
+  in_progress: "진행",
+  excluded: "제외"
+};
+
+function bindActionKpiCards() {
+  const dash = byId("dashboard");
+  if (!dash || dash.dataset.kpiBound === "1") return;
+  dash.dataset.kpiBound = "1";
+  dash.addEventListener("click", (e) => {
+    const card = e.target?.closest?.("[data-kpi-id]");
+    if (!card) return;
+    const tabId = ACTION_KPI_TAB_MAP[card.dataset.kpiId];
+    if (tabId) switchTab(tabId, { resetFilters: true });
+  });
+  dash.addEventListener("keydown", (e) => {
+    const card = e.target?.closest?.("[data-kpi-id]");
+    if (!card || (e.key !== "Enter" && e.key !== " ")) return;
+    const tabId = ACTION_KPI_TAB_MAP[card.dataset.kpiId];
+    if (!tabId) return;
+    e.preventDefault();
+    switchTab(tabId, { resetFilters: true });
+  });
 }
 
 function passesFilters(row) {
@@ -1969,14 +2132,20 @@ function renderActionKpiCards(kpi) {
   ];
 
   return `<div class="action-kpi-grid">${cards
-    .map(
-      (c) => `
-    <div class="kpi-card kpi-card-${c.tone}" data-kpi-id="${c.id}">
+    .map((c) => {
+      const tabId = ACTION_KPI_TAB_MAP[c.id];
+      const tabLabel = tabId ? ACTION_KPI_TAB_LABEL[tabId] : "";
+      const clickClass = tabId ? " kpi-card-clickable" : "";
+      const clickAttrs = tabId
+        ? ` role="button" tabindex="0" title="${escapeAttr(`${tabLabel} 탭으로 이동`)}"`
+        : "";
+      return `
+    <div class="kpi-card kpi-card-${c.tone}${clickClass}" data-kpi-id="${c.id}"${clickAttrs}>
       <span class="kpi-card-icon" aria-hidden="true">${iconSvg(c.icon, 20)}</span>
       <span class="kpi-card-value">${c.value}</span>
       <span class="kpi-card-label">${escapeHtml(c.label)}</span>
-    </div>`
-    )
+    </div>`;
+    })
     .join("")}</div>`;
 }
 
@@ -2141,20 +2310,19 @@ function detailStat(label, value, extraClass = "") {
   return detailMetric(label, value, extraClass);
 }
 
-function refreshDetailAdminButtons(edit = state.detailEdit) {
+function refreshDetailAdminButtons() {
   const admin = Boolean(window.TClientAdmin?.isUnlocked?.());
   const specs = [
-    { id: "detailEditBtn", lockedTitle: "관리자 로그인 후 수정 (우측 상단 관리자)" },
     { id: "detailMergeBtn", lockedTitle: "관리자 로그인 후 병합" },
     { id: "detailDeleteBtn", lockedTitle: "관리자 로그인 후 삭제" }
   ];
+  byId("detailEditBtn")?.classList.add("hidden");
   for (const spec of specs) {
     const btn = byId(spec.id);
     if (!btn) continue;
     btn.classList.remove("hidden");
     btn.classList.toggle("is-locked", !admin);
     btn.title = admin ? btn.dataset.titleActive || btn.title : spec.lockedTitle;
-    if (spec.id === "detailEditBtn") btn.classList.toggle("active", Boolean(edit && admin));
   }
 }
 
@@ -2186,23 +2354,30 @@ function paintDetailHeader(row) {
   if (stats) {
     stats.innerHTML = renderDrawerStatsCompact(row);
   }
-  refreshDetailAdminButtons(state.detailEdit);
+  refreshDetailAdminButtons();
   hydrateIcons(byId("detailDrawer"));
 }
 
-function renderDetailBody(row, edit, admin = false) {
+function renderDetailBody(row, admin = false) {
   const e = window.TClientAdmin?.getEntry(row.companyId) ?? {};
   const p = { ...(row.profile ?? {}), ...(e.profile ?? {}) };
   const c = row.contact ?? {};
   const pipeline = resolveRowPipeline(row);
   const tierVal = e.companyTier || row.companyTier || "";
   const email = c.email || row.email || "";
-
-  const statsRow = "";
-
   const pool = poolClassOf(row);
 
-  const classifyBlock = edit
+  const editSummary = isSectionEdit("summary");
+  const editSales = isSectionEdit("sales");
+  const editTest = isSectionEdit("test");
+  const editEval = isSectionEdit("eval");
+  const editProfile = isSectionEdit("profile");
+  const editScore = isSectionEdit("score");
+  const editPosts = isSectionEdit("posts");
+  const editFiles = isSectionEdit("files");
+  const editMeetings = isSectionEdit("meetings");
+
+  const summaryBlock = editSummary
     ? `<div class="drawer-edit-form detail-form-grid">
         <div class="drawer-field"><label class="drawer-field-label" for="edit-name-ko">회사명</label>${inlineInput("edit-name-ko", e.companyNameKo || row.companyNameKo)}</div>
         <div class="drawer-field"><label class="drawer-field-label" for="edit-tier">규모</label>${inlineSelect("edit-tier", tierVal, [
@@ -2229,9 +2404,16 @@ function renderDetailBody(row, edit, admin = false) {
         <div class="drawer-field"><label class="drawer-field-label" for="edit-exclude">제외 사유</label>${inlineInput("edit-exclude", e.excludeReason ?? row.excludeReason ?? "")}</div>
         <div class="drawer-field drawer-field-wide"><label class="drawer-field-label" for="edit-notes">메모</label>${inlineInput("edit-notes", row.salesMemo ?? row.manualNotes ?? "")}</div>
       </div>`
-    : "";
+    : detailKvGrid([
+        ["회사명", `<strong>${escapeHtml(displayName(row))}</strong>`],
+        ["규모", escapeHtml(tierLabelKo(tierVal))],
+        ["등급", escapeHtml(row.leadGrade || "-")],
+        ["분류", escapeHtml(poolClassLabel(pool))],
+        ["제외", escapeHtml(row.excludeReason || "—")],
+        ["메모", escapeHtml(row.salesMemo ?? row.manualNotes ?? "—")]
+      ]);
 
-  const pipelineBlock = edit
+  const pipelineBlock = editSales
     ? `<div class="detail-form-grid cols-2">
         <div class="inline-row"><span class="inline-label">단계</span>${pipelineStageSelect("edit-pipeline-stage", pipeline.pipelineStage)}</div>
         <div class="inline-row"><span class="inline-label">상태</span>${pipelineStatusSelect("edit-pipeline-status", pipeline.pipelineStatus)}</div>
@@ -2243,7 +2425,7 @@ function renderDetailBody(row, edit, admin = false) {
           : ""
       }${row.pipelineStageAt ? `<p class="muted pipeline-stage-at">단계 변경: ${escapeHtml(formatDate(row.pipelineStageAt))}</p>` : ""}</div>`;
 
-  const contactBlock = edit
+  const contactBlock = editSales
     ? `<div class="detail-form-grid">
         <div class="inline-row"><span class="inline-label">이름</span>${inlineInput("edit-contact-name", c.name ?? "")}</div>
         <div class="inline-row"><span class="inline-label">이메일</span>${inlineInput("edit-contact-email", email, "email")}</div>
@@ -2255,7 +2437,7 @@ function renderDetailBody(row, edit, admin = false) {
         ["전화", c.phone ? escapeHtml(c.phone) : '<span class="muted">—</span>']
       ]);
 
-  const evalBlock = edit
+  const evalBlock = editEval
     ? `<div class="detail-form-grid cols-2">
         <div class="inline-row"><span class="inline-label">추천 점수</span>${inlineSelect("edit-cand-score", scoreSelectValue(row.recommendScore), [["","(선택)"],["5","★★★★★"],["4","★★★★☆"],["3","★★★☆☆"],["2","★★☆☆☆"],["1","★☆☆☆☆"]])}</div>
         <div class="inline-row"><span class="inline-label">파일럿 난이도</span>${inlineSelect("edit-cand-pilot", scoreSelectValue(row.pilotDifficulty), [["","(선택)"],["1","★☆☆"],["2","★★☆"],["3","★★★"]])}</div>
@@ -2270,7 +2452,7 @@ function renderDetailBody(row, edit, admin = false) {
         ${row.pilotDifficultyReason ? `<p class="detail-prose"><strong>파일럿 근거</strong> ${escapeHtml(row.pilotDifficultyReason)}</p>` : ""}
       </div>`;
 
-  const testBlock = edit
+  const testBlock = editTest
     ? `<div class="detail-form-grid cols-2">
         <div class="inline-row"><span class="inline-label">시작일</span>${inlineInput("edit-test-started", (row.testStartedAt ?? "").slice(0, 10), "date")}</div>
         <div class="inline-row"><span class="inline-label">종료일</span>${inlineInput("edit-test-ended", (row.testEndedAt ?? "").slice(0, 10), "date")}</div>
@@ -2284,7 +2466,7 @@ function renderDetailBody(row, edit, admin = false) {
         ["메모", escapeHtml(row.testNotes || "-")]
       ])}</div>`;
 
-  const filesPlaceholder = edit && admin
+  const filesPlaceholder = editFiles && admin
     ? `<div class="detail-files-section" data-company-files="${escapeAttr(row.companyId)}">
         <div class="detail-form-grid cols-2 file-add-row">
           <div class="inline-row"><span class="inline-label">제목</span>${inlineInput("edit-file-title", "", "text", "결과보고서")}</div>
@@ -2294,7 +2476,7 @@ function renderDetailBody(row, edit, admin = false) {
         <div class="file-list-wrap"><p class="muted">파일 목록 로딩…</p></div>
       </div>`
     : `<div class="detail-files-section" data-company-files="${escapeAttr(row.companyId)}"><p class="muted">결과보고서 목록 로딩…</p></div>`;
-  const meetingsPlaceholder = edit && admin
+  const meetingsPlaceholder = editMeetings && admin
     ? `<div class="detail-meetings-section" data-company-meetings="${escapeAttr(row.companyId)}">
         <div class="detail-form-grid cols-2 meeting-add-row">
           <div class="inline-row"><span class="inline-label">일시</span><input type="datetime-local" id="edit-meeting-at" class="inline-field" /></div>
@@ -2308,7 +2490,7 @@ function renderDetailBody(row, edit, admin = false) {
       </div>`
     : `<div class="detail-meetings-section" data-company-meetings="${escapeAttr(row.companyId)}"><p class="muted">미팅 기록 로딩…</p></div>`;
 
-  const postsBlock = edit
+  const postsBlock = editPosts
     ? `<div class="detail-table-wrap">
         <table class="detail-table detail-table-compact">
           <thead><tr><th>공고</th><th>출처</th><th></th></tr></thead>
@@ -2366,26 +2548,41 @@ function renderDetailBody(row, edit, admin = false) {
       : `<p class="muted detail-empty-hint">등록된 공고가 없습니다.</p>`;
 
   const sections = [];
-  const flat = edit;
-  if (edit && classifyBlock) sections.push(detailCard("요약", classifyBlock, "detail-block-form", { icon: "building", open: true, flat: true }));
-  sections.push(detailCard("영업 관리", edit ? pipelineBlock + contactBlock : `<div class="detail-split">${pipelineBlock}${contactBlock}</div>`, "", { icon: "briefcase", open: true, flat }));
+  sections.push(detailSectionCard("요약", summaryBlock, "summary", "detail-block-form", { icon: "building", open: true, flat: true }));
+  sections.push(
+    detailSectionCard(
+      "영업 관리",
+      `<div class="detail-split">${pipelineBlock}${contactBlock}</div>`,
+      "sales",
+      "",
+      { icon: "briefcase", open: true, flat: true }
+    )
+  );
   if (window.TPipeline?.isInProgressStage?.(pipeline.pipelineStage) || testPeriodDisplay(row)) {
-    sections.push(detailCard("테스트 · 진행", testBlock, "", { icon: "target", open: true, flat }));
+    sections.push(detailSectionCard("테스트 · 진행", testBlock, "test", "", { icon: "target", open: true, flat: true }));
   }
-  sections.push(detailCard("추천 평가", evalBlock, "detail-block-warm", { icon: "star", open: true, flat }));
-  sections.push(detailCard("결과보고서", filesPlaceholder, "", { icon: "fileText", open: false, flat }));
-  sections.push(detailCard("미팅 기록", meetingsPlaceholder, "", { icon: "users", open: false, flat }));
-  sections.push(detailCard(`공고 · ${row.posts.length}건`, postsBlock, "", { icon: "building", open: false, flat }));
-  sections.push(detailCard("점수 근거", renderScoreSection(row, edit, admin), "detail-block-muted", { icon: "chart", open: false, flat }));
-  sections.push(detailCard("프로필", renderProfileSection(row, edit, p, e.domain || row.domain || "", admin), "", { icon: "layers", open: false, flat }));
+  sections.push(detailSectionCard("추천 평가", evalBlock, "eval", "detail-block-warm", { icon: "star", open: true, flat: true }));
+  sections.push(detailSectionCard("결과보고서", filesPlaceholder, "files", "", { icon: "fileText", open: false, flat: true }));
+  sections.push(detailSectionCard("미팅 기록", meetingsPlaceholder, "meetings", "", { icon: "users", open: false, flat: true }));
+  sections.push(detailSectionCard(`공고 · ${row.posts.length}건`, postsBlock, "posts", "", { icon: "building", open: false, flat: true }));
+  sections.push(
+    detailSectionCard("점수 근거", renderScoreSection(row, editScore, admin), "score", "detail-block-muted", { icon: "chart", open: false, flat: true })
+  );
+  sections.push(
+    detailSectionCard("프로필", renderProfileSection(row, editProfile, p, e.domain || row.domain || "", admin), "profile", "", {
+      icon: "layers",
+      open: false,
+      flat: true
+    })
+  );
 
+  const anyEdit = Object.keys(state.detailEditSections).length > 0;
   return `
-    <div class="detail-shell${edit ? " is-edit" : ""}">
+    <div class="detail-shell${anyEdit ? " is-edit" : ""}">
       <p class="drawer-section-label drawer-menu-label">MENU</p>
       ${sections.join("")}
     </div>
-    ${row.excludeReason ? `<p class="warn detail-warn">제외 사유: ${escapeHtml(row.excludeReason)}</p>` : ""}
-    ${edit ? `<footer class="detail-footer detail-footer-sticky"><button type="button" class="btn-ghost btn-sm" id="detail-cancel-edit">취소</button><button type="button" class="btn-primary" id="detail-save-all">변경 저장</button></footer>` : ""}`;
+    ${row.excludeReason ? `<p class="warn detail-warn">제외 사유: ${escapeHtml(row.excludeReason)}</p>` : ""}`;
 }
 
 function tierLabelKo(tier) {
@@ -2400,7 +2597,8 @@ async function hydrateDetailExtras(row) {
   const filesListEl = filesEl?.querySelector(".file-list-wrap") ?? filesEl;
   const meetListEl = meetEl?.querySelector(".meeting-list-wrap") ?? meetEl;
   const admin = window.TClientAdmin?.isUnlocked?.();
-  const edit = state.detailEdit && admin;
+  const editFiles = isSectionEdit("files") && admin;
+  const editMeetings = isSectionEdit("meetings") && admin;
 
   function renderFileList(files) {
     if (!filesListEl) return;
@@ -2409,14 +2607,14 @@ async function hydrateDetailExtras(row) {
           .map(
             (f) =>
               `<li><a class="link" href="${escapeAttr(f.fileUrl)}" target="_blank" rel="noreferrer">${escapeHtml(f.title || window.TCompanyFiles.FILE_TYPE_LABEL[f.fileType] || "파일")}</a> <span class="muted">${escapeHtml(formatDate(f.uploadedAt))}</span>${
-                edit
+                editFiles
                   ? ` <button type="button" class="btn-ghost btn-sm file-del-btn" data-file-id="${escapeAttr(f.id)}">삭제</button>`
                   : ""
               }</li>`
           )
           .join("")}</ul>`
       : `<p class="muted">등록된 파일이 없습니다.${admin ? " 수정 모드에서 URL을 추가하세요." : ""}</p>`;
-    if (edit) {
+    if (editFiles) {
       filesListEl.querySelectorAll(".file-del-btn").forEach((btn) => {
         btn.addEventListener("click", async () => {
           try {
@@ -2439,14 +2637,14 @@ async function hydrateDetailExtras(row) {
               `<li><strong>${escapeHtml(formatDate(n.meetingAt) || "일시 미정")}</strong> ${escapeHtml(n.location ? `· ${n.location}` : "")}<div>${escapeHtml(n.summary || "")}</div>${
                 n.nextAction ? `<div class="muted">다음: ${escapeHtml(n.nextAction)}</div>` : ""
               }${
-                edit
+                editMeetings
                   ? ` <button type="button" class="btn-ghost btn-sm meeting-del-btn" data-note-id="${escapeAttr(n.id)}">삭제</button>`
                   : ""
               }</li>`
           )
           .join("")}</ul>`
       : '<p class="muted">미팅 기록이 없습니다.</p>';
-    if (edit) {
+    if (editMeetings) {
       meetListEl.querySelectorAll(".meeting-del-btn").forEach((btn) => {
         btn.addEventListener("click", async () => {
           try {
@@ -2476,7 +2674,7 @@ async function hydrateDetailExtras(row) {
     if (meetListEl) meetListEl.innerHTML = '<p class="muted">미팅 기록을 불러오지 못했습니다. (migration 013 필요)</p>';
   }
 
-  if (edit) {
+  if (editMeetings) {
     byId("meeting-add-btn")?.addEventListener("click", async () => {
       const at = byId("edit-meeting-at")?.value;
       try {
@@ -2528,17 +2726,11 @@ function paintDetailModal() {
   if (!row) return;
   setDetailLoading(false);
   const admin = window.TClientAdmin?.isUnlocked();
-  const edit = state.detailEdit && admin;
   paintDetailHeader(row);
-  byId("detailBody").innerHTML = renderDetailBody(row, edit, admin);
-  if (admin) byId("btn-recalc-score")?.addEventListener("click", () => runRecalcScore(row));
-  if (edit) {
-    bindDetailEdits(row);
+  byId("detailBody").innerHTML = renderDetailBody(row, admin);
+  if (admin) {
+    bindDetailSectionEdits(row);
     window.TUiSelect?.init(byId("detailDrawer"));
-    byId("detail-cancel-edit")?.addEventListener("click", () => {
-      state.detailEdit = false;
-      paintDetailModal();
-    });
   }
   void hydrateDetailExtras(row);
   void window.TDetailPanel?.syncNewToggle?.(row);
@@ -2546,11 +2738,14 @@ function paintDetailModal() {
   if (window.TDetailPanel) window.TDetailPanel.renderBody = renderDetailBody;
 }
 
-async function openDetail(row, edit = false) {
+async function openDetail(row, sectionToEdit = null) {
   state.detailRow = row;
-  state.detailEdit = edit && window.TClientAdmin?.isUnlocked();
+  clearSectionEdits();
+  if (sectionToEdit && window.TClientAdmin?.isUnlocked?.()) {
+    setSectionEdit(sectionToEdit, true);
+  }
   window.__TCLIENT_DETAIL_ROW = row;
-  window.__TCLIENT_DETAIL_EDIT = state.detailEdit;
+  window.__TCLIENT_DETAIL_EDIT = Object.keys(state.detailEditSections).length > 0;
   hidePortfolioPopover();
   if (window.TClientAdmin?.isUnlocked?.()) {
     try {
@@ -2570,7 +2765,7 @@ async function openDetail(row, edit = false) {
 
 function closeDetail() {
   state.detailRow = null;
-  state.detailEdit = false;
+  clearSectionEdits();
   window.__TCLIENT_DETAIL_ROW = null;
   window.__TCLIENT_DETAIL_EDIT = false;
   hidePortfolioPopover();
@@ -2580,42 +2775,55 @@ function closeDetail() {
   document.body.classList.remove("detail-drawer-open");
 }
 
-function openAddCompanyModal() {
+function openAddLeadModal() {
   if (!window.TClientAdmin?.isUnlocked()) {
     showToast("관리자 로그인이 필요합니다.", "error");
     return;
   }
-  const modal = byId("addCompanyModal");
-  byId("add-co-name").value = "";
-  byId("add-co-domain").value = "";
-  byId("add-co-bizno").value = "";
+  const modal = byId("addLeadModal");
+  byId("add-lead-post-url").value = "";
+  byId("add-lead-name").value = "";
+  byId("add-lead-bizno").value = "";
+  byId("add-lead-domain").value = "";
+  syncAddLeadNoPostHint();
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden", "false");
-  byId("add-co-name")?.focus();
+  byId("add-lead-post-url")?.focus();
   hydrateIcons(modal);
 }
 
-function closeAddCompanyModal() {
-  const modal = byId("addCompanyModal");
+function closeAddLeadModal() {
+  const modal = byId("addLeadModal");
   modal?.classList.add("hidden");
   modal?.setAttribute("aria-hidden", "true");
 }
 
-function submitAddCompany() {
-  void submitAddCompanyAsync();
+function syncAddLeadNoPostHint() {
+  const url = normalizePostUrlInput(byId("add-lead-post-url")?.value);
+  byId("add-lead-no-post-hint")?.classList.toggle("hidden", Boolean(url));
 }
 
-async function submitAddCompanyAsync() {
-  const name = byId("add-co-name")?.value.trim();
-  if (!name) {
-    showToast("회사명을 입력하세요.", "error");
+function submitAddLead() {
+  void submitAddLeadAsync();
+}
+
+async function submitAddLeadAsync() {
+  const url = normalizePostUrlInput(byId("add-lead-post-url")?.value);
+  const name = byId("add-lead-name")?.value.trim();
+  const bizNo = byId("add-lead-bizno")?.value.trim();
+  const domain = byId("add-lead-domain")?.value.trim();
+
+  if (url) {
+    await submitManualPostAsync(url, bizNo);
     return;
   }
-  const row = buildManualCompanyRow({
-    companyNameKo: name,
-    domain: byId("add-co-domain")?.value.trim(),
-    bizNo: byId("add-co-bizno")?.value.trim()
-  });
+
+  if (!name) {
+    showToast("회사명 또는 공고 URL을 입력하세요.", "error");
+    return;
+  }
+
+  const row = buildManualCompanyRow({ companyNameKo: name, domain, bizNo });
   if (!window.TClientAdmin.addCustomCompany(row)) {
     showToast("이미 등록된 회사입니다.", "error");
     return;
@@ -2624,7 +2832,11 @@ async function submitAddCompanyAsync() {
     await window.TCompanies.upsertManual(row);
     await window.TClientAdmin.flushPersist?.();
     if (window.TClientAdmin.isUnlocked()) {
-      await window.TSalesManagement?.upsert?.(row.companyId, { pipelineStage: "candidate", pipelineStatus: "pending" }, row);
+      await window.TSalesManagement?.upsert?.(
+        row.companyId,
+        { isHidden: true, isRecommended: false, pipelineStage: "candidate", pipelineStatus: "pending" },
+        row
+      );
     }
   } catch (err) {
     await window.TClientAdmin.removeCustomCompany(row.companyId);
@@ -2633,41 +2845,12 @@ async function submitAddCompanyAsync() {
   }
   reloadRowsWithAdmin();
   refreshViews();
-  closeAddCompanyModal();
-  showToast("회사가 추가되었습니다.");
-  openDetail(state.rows.find((r) => r.companyId === row.companyId) ?? row, true);
+  closeAddLeadModal();
+  showToast("회사가 추가되었습니다. 공고가 없어 숨김 분류로 등록됩니다.");
+  openDetail(state.rows.find((r) => r.companyId === row.companyId) ?? row, "profile");
 }
 
-function openAddPostModal() {
-  if (!window.TClientAdmin?.isUnlocked()) {
-    showToast("관리자 로그인이 필요합니다.", "error");
-    return;
-  }
-  const modal = byId("addPostModal");
-  byId("add-post-url").value = "";
-  byId("add-post-bizno").value = "";
-  modal.classList.remove("hidden");
-  modal.setAttribute("aria-hidden", "false");
-  byId("add-post-url")?.focus();
-  hydrateIcons(modal);
-}
-
-function closeAddPostModal() {
-  const modal = byId("addPostModal");
-  modal?.classList.add("hidden");
-  modal?.setAttribute("aria-hidden", "true");
-}
-
-function submitAddPost() {
-  void submitAddPostAsync();
-}
-
-async function submitAddPostAsync() {
-  const url = normalizePostUrlInput(byId("add-post-url")?.value);
-  if (!url) {
-    showToast("공고 URL을 입력하세요.", "error");
-    return;
-  }
+async function submitManualPostAsync(url, bizNoRaw = "") {
   try {
     new URL(url);
   } catch {
@@ -2686,9 +2869,9 @@ async function submitAddPostAsync() {
       await window.TClientAdmin.flushPersist?.();
       reloadRowsWithAdmin();
       refreshViews();
-      closeAddPostModal();
+      closeAddLeadModal();
       showToast(`숨김 처리됐던 공고를 복원했습니다: ${displayName(conflict.row)}`);
-      openDetail(conflict.row, false);
+      openDetail(conflict.row);
       return;
     }
     const name = displayName(conflict.row);
@@ -2696,18 +2879,19 @@ async function submitAddPostAsync() {
     const hint =
       stored.toLowerCase() !== url.toLowerCase() ? " (동일 공고 — URL 형식만 다름)" : "";
     showToast(`이미 등록된 공고입니다: ${name}${hint}`, "error");
-    openDetail(conflict.row, false);
+    openDetail(conflict.row);
     return;
   }
 
-  const bizNo = byId("add-post-bizno")?.value.trim();
+  const bizNo = bizNoRaw || byId("add-lead-bizno")?.value.trim();
   const digits = normalizeBizNoDigits(bizNo);
   if (bizNo && digits.length !== 10) {
     showToast("사업자번호 10자리를 입력하세요.", "error");
     return;
   }
 
-  byId("add-post-submit").disabled = true;
+  const submitBtn = byId("add-lead-submit");
+  if (submitBtn) submitBtn.disabled = true;
   try {
     const { row, created, enrichProfile } = await resolveCompanyForManualPost(url, bizNo);
     if (!row) {
@@ -2753,7 +2937,7 @@ async function submitAddPostAsync() {
     await window.TClientAdmin.flushPersist?.();
     reloadRowsWithAdmin();
     refreshViews();
-    closeAddPostModal();
+    closeAddLeadModal();
 
     if (bizNo && !enrichProfile && !findCompanyByBizNo(bizNo)) {
       showToast("공고가 추가됐습니다. bizno.net에서 회사를 찾지 못해 이름은 수동 등록 상태입니다.");
@@ -2764,9 +2948,9 @@ async function submitAddPostAsync() {
     }
 
     const target = state.rows.find((r) => r.companyId === row.companyId) ?? row;
-    openDetail(target, true);
+    openDetail(target, "posts");
   } finally {
-    byId("add-post-submit").disabled = false;
+    if (submitBtn) submitBtn.disabled = false;
   }
 }
 
@@ -2945,7 +3129,7 @@ async function confirmMergeToTargetAsync(targetId) {
     return;
   }
 
-  const editMode = state.detailEdit;
+  const editSections = { ...state.detailEditSections };
   closeMergeModal();
   reloadRowsWithAdmin();
   refreshViews();
@@ -2953,7 +3137,8 @@ async function confirmMergeToTargetAsync(targetId) {
   const target = state.rows.find((r) => r.companyId === targetId);
   if (target) {
     state.detailRow = target;
-    state.detailEdit = editMode;
+    state.detailEditSections = editSections;
+    window.__TCLIENT_DETAIL_EDIT = Object.keys(editSections).length > 0;
     paintDetailModal();
   } else {
     closeDetail();
@@ -2991,35 +3176,23 @@ function bindMergeModal() {
   });
 }
 
-function bindAddPostModal() {
-  const modal = byId("addPostModal");
+function bindAddLeadModal() {
+  const modal = byId("addLeadModal");
   if (!modal) return;
-  byId("btnAddPost")?.addEventListener("click", openAddPostModal);
-  byId("add-post-submit")?.addEventListener("click", submitAddPost);
-  modal.querySelectorAll("[data-close-add-post]").forEach((el) => {
-    el.addEventListener("click", (e) => {
-      e.stopPropagation();
-      closeAddPostModal();
-    });
-  });
-  byId("add-post-url")?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") submitAddPost();
-  });
-}
-
-function bindAddCompanyModal() {
-  const modal = byId("addCompanyModal");
-  if (!modal) return;
-  byId("btnAddCompany")?.addEventListener("click", openAddCompanyModal);
-  byId("add-co-submit")?.addEventListener("click", submitAddCompany);
+  byId("btnAddLead")?.addEventListener("click", openAddLeadModal);
+  byId("add-lead-submit")?.addEventListener("click", submitAddLead);
+  byId("add-lead-post-url")?.addEventListener("input", syncAddLeadNoPostHint);
   modal.querySelectorAll("[data-close-add]").forEach((el) => {
     el.addEventListener("click", (e) => {
       e.stopPropagation();
-      closeAddCompanyModal();
+      closeAddLeadModal();
     });
   });
-  byId("add-co-name")?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") submitAddCompany();
+  byId("add-lead-post-url")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitAddLead();
+  });
+  byId("add-lead-name")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitAddLead();
   });
 }
 
@@ -3151,25 +3324,32 @@ function paintMetaBanner() {
   meta.innerHTML = `<strong>T-client</strong><span>${formatDate(generatedAt)} 갱신</span><span>회사 ${companies} · 공고 ${posts} · 추천 ${state.rows.filter((r) => pipelineLabels().rowMatchesRecommendedTab?.(r)).length}</span>`;
 }
 
-function bindTabs() {
+function switchTab(tabId, { resetFilters: shouldReset = false } = {}) {
   const tabIds = ["in_progress", "recommended", "new", "leads", "posts", "excluded"];
-  document.querySelectorAll(".tabs .tab").forEach((btn) => {
+  if (!tabIds.includes(tabId)) return;
+  if (shouldReset) resetTabFilters();
+  document.querySelectorAll(".tabs-bar .tab").forEach((b) => {
+    b.classList.toggle("active", b.dataset.tab === tabId);
+  });
+  state.activeTab = tabId;
+  window.__TCLIENT_ACTIVE_TAB = tabId;
+  state.leadsPage = 1;
+  state.newPage = 1;
+  state.postsPage = 1;
+  state.excludedPage = 1;
+  tabIds.forEach((id) => byId(id)?.classList.add("hidden"));
+  byId(tabId)?.classList.remove("hidden");
+  const toolbar = document.querySelector(".toolbar");
+  const tabular = tabId === "recommended" || tabId === "new" || tabId === "in_progress";
+  toolbar?.classList.toggle("toolbar-candidates", tabular);
+  if (tabular && state.filtersOpen) toggleFilterAdvanced(false);
+  refreshViews();
+}
+
+function bindTabs() {
+  document.querySelectorAll(".tabs-bar .tab").forEach((btn) => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".tabs .tab").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      state.activeTab = btn.dataset.tab;
-      window.__TCLIENT_ACTIVE_TAB = state.activeTab;
-      state.leadsPage = 1;
-      state.newPage = 1;
-      state.postsPage = 1;
-      state.excludedPage = 1;
-      tabIds.forEach((id) => byId(id)?.classList.add("hidden"));
-      byId(btn.dataset.tab)?.classList.remove("hidden");
-      const toolbar = document.querySelector(".toolbar");
-      const tabular = state.activeTab === "recommended" || state.activeTab === "new" || state.activeTab === "in_progress";
-      toolbar?.classList.toggle("toolbar-candidates", tabular);
-      if (tabular && state.filtersOpen) toggleFilterAdvanced(false);
-      refreshViews();
+      switchTab(btn.dataset.tab, { resetFilters: true });
     });
   });
 }
@@ -3218,7 +3398,81 @@ function showPasswordSetupUi(show = true) {
   }
 }
 
-let notionSyncWasRunning = false;
+let notionSyncUi = { triggeredAt: 0, sawRunning: false, watchTimer: null };
+
+function clearNotionSyncWatch() {
+  if (notionSyncUi.watchTimer) {
+    clearTimeout(notionSyncUi.watchTimer);
+    notionSyncUi.watchTimer = null;
+  }
+}
+
+function scheduleNotionSyncWatch() {
+  clearNotionSyncWatch();
+  const tick = async () => {
+    if (!notionSyncUi.triggeredAt) return;
+    await updateNotionSyncUi();
+    if (notionSyncUi.triggeredAt) {
+      notionSyncUi.watchTimer = setTimeout(tick, 4000);
+    }
+  };
+  notionSyncUi.watchTimer = setTimeout(tick, 4000);
+}
+
+async function updateNotionSyncUi() {
+  const badge = byId("notionSyncStatusBadge");
+  const syncBtn = byId("adminNotionSyncBtn");
+  if (!badge) return;
+  try {
+    const status = await window.TClientAdmin?.getNotionSyncStatus?.();
+    const busy = status?.status === "running";
+
+    badge.classList.toggle("hidden", !busy);
+    if (busy) {
+      const who = status.requestedByEmail ? ` · ${status.requestedByEmail}` : "";
+      badge.textContent = `노션 동기화 중${who}`;
+      badge.title = status.message || "Notion DB를 T-client에 반영 중입니다";
+      notionSyncUi.sawRunning = true;
+    }
+    if (syncBtn) {
+      syncBtn.disabled = busy;
+      syncBtn.title = busy ? "Notion 동기화 진행 중입니다" : "";
+    }
+
+    if (notionSyncUi.triggeredAt && Date.now() - notionSyncUi.triggeredAt > 180000) {
+      notionSyncUi.triggeredAt = 0;
+      notionSyncUi.sawRunning = false;
+      clearNotionSyncWatch();
+      showToast("Notion 동기화 응답이 지연되고 있습니다. 잠시 후 다시 확인해 주세요.", "error");
+      return;
+    }
+
+    if (notionSyncUi.triggeredAt && notionSyncUi.sawRunning && !busy) {
+      const finishedAt = status?.finishedAt ? Date.parse(status.finishedAt) : Date.now();
+      if (finishedAt >= notionSyncUi.triggeredAt - 5000) {
+        if (status?.status === "error") {
+          showToast(status.message || "Notion 동기화에 실패했습니다.", "error");
+        } else {
+          await window.TSalesManagement?.loadAll?.(true);
+          const changed = await window.TClientAdmin?.mergeRemoteOverrides?.();
+          reloadRowsWithAdmin();
+          refreshViews();
+          if (changed && state.detailRow) paintDetailModal();
+          showToast(status?.message || "Notion 동기화가 완료되었습니다.");
+        }
+        notionSyncUi.triggeredAt = 0;
+        notionSyncUi.sawRunning = false;
+        clearNotionSyncWatch();
+      }
+    }
+  } catch {
+    badge.classList.add("hidden");
+    if (syncBtn) {
+      syncBtn.disabled = false;
+      syncBtn.title = "";
+    }
+  }
+}
 
 async function updateCrawlUi() {
   const badge = byId("crawlStatusBadge");
@@ -3243,45 +3497,6 @@ async function updateCrawlUi() {
     badge.classList.add("hidden");
     if (startBtn) startBtn.disabled = false;
     if (openBtn) openBtn.disabled = false;
-  }
-}
-
-async function updateNotionSyncUi() {
-  const badge = byId("notionSyncStatusBadge");
-  const syncBtn = byId("adminNotionSyncBtn");
-  if (!badge) return;
-  try {
-    const status = await window.TClientAdmin?.getNotionSyncStatus?.();
-    const busy = status?.status === "running";
-    badge.classList.toggle("hidden", !busy);
-    if (busy) {
-      const who = status.requestedByEmail ? ` · ${status.requestedByEmail}` : "";
-      badge.textContent = `노션 동기화 중${who}`;
-      badge.title = status.message || "Notion DB를 T-client에 반영 중입니다";
-    }
-    if (syncBtn) {
-      syncBtn.disabled = busy;
-      syncBtn.title = busy ? "Notion 동기화 진행 중입니다" : "";
-    }
-    if (notionSyncWasRunning && !busy) {
-      if (status?.status === "error") {
-        showToast(status.message || "Notion 동기화에 실패했습니다.", "error");
-      } else {
-        await window.TSalesManagement?.loadAll?.(true);
-        const changed = await window.TClientAdmin?.mergeRemoteOverrides?.();
-        reloadRowsWithAdmin();
-        refreshViews();
-        if (changed && state.detailRow) paintDetailModal();
-        showToast(status?.message || "Notion 동기화가 완료되었습니다.");
-      }
-    }
-    notionSyncWasRunning = busy;
-  } catch {
-    badge.classList.add("hidden");
-    if (syncBtn) {
-      syncBtn.disabled = false;
-      syncBtn.title = "";
-    }
   }
 }
 
@@ -3584,7 +3799,6 @@ function bindAdmin() {
     }
     const syncBtn = byId("adminNotionSyncBtn");
     if (syncBtn) syncBtn.disabled = true;
-    showToast("Notion 동기화 요청 중…");
     try {
       const status = await window.TClientAdmin.getNotionSyncStatus();
       if (status?.status === "running") {
@@ -3594,9 +3808,10 @@ function bindAdmin() {
       }
       await window.TClientAdmin.triggerNotionSync();
       closeAdminPopover();
-      notionSyncWasRunning = true;
-      showToast("Notion 동기화가 시작되었습니다. 완료되면 자동으로 새로고침됩니다.");
-      await updateNotionSyncUi();
+      notionSyncUi.triggeredAt = Date.now();
+      notionSyncUi.sawRunning = false;
+      showToast("Notion 동기화를 시작했습니다. 완료되면 자동으로 새로고침됩니다.");
+      scheduleNotionSyncWatch();
     } catch (err) {
       showToast(err.message || String(err), "error");
       await updateNotionSyncUi();
@@ -3666,8 +3881,7 @@ async function boot() {
 
     bindModal();
     bindMergeModal();
-    bindAddCompanyModal();
-    bindAddPostModal();
+    bindAddLeadModal();
     bindAdmin();
     refreshDetailAdminButtons();
     if (window.location.hash.includes("type=recovery")) {
@@ -3692,12 +3906,13 @@ async function boot() {
     }, 90000);
     renderPresets();
     bindTabs();
+    bindActionKpiCards();
     byId("filterToggleBtn")?.addEventListener("click", () => toggleFilterAdvanced());
     byId("filterResetBtn")?.addEventListener("click", resetFilters);
     document.querySelector(".toolbar")?.classList.toggle("toolbar-candidates", ["new", "recommended", "in_progress"].includes(state.activeTab));
     const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
     if (tabFromUrl && byId(tabFromUrl)) {
-      document.querySelector(`.tabs .tab[data-tab="${tabFromUrl}"]`)?.click();
+      switchTab(tabFromUrl, { resetFilters: false });
     }
     window.TUiSelect?.init();
     refreshViews();

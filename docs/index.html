@@ -155,19 +155,25 @@
       </section>
 
       <div class="tabs-bar">
-        <nav class="tabs" aria-label="보기 전환">
-          <button type="button" data-tab="in_progress" class="tab active">진행</button>
-          <button type="button" data-tab="recommended" class="tab">추천</button>
-          <button type="button" data-tab="new" class="tab">신규</button>
-          <button type="button" data-tab="leads" class="tab">회사</button>
-          <button type="button" data-tab="posts" class="tab">전체 공고</button>
-          <button type="button" data-tab="excluded" class="tab">제외</button>
+        <nav class="tabs-group tabs-group-primary" aria-label="파이프라인">
+          <div class="tabs tabs-pill">
+            <button type="button" data-tab="in_progress" class="tab active">진행</button>
+            <button type="button" data-tab="recommended" class="tab">추천</button>
+            <button type="button" data-tab="new" class="tab">신규</button>
+          </div>
         </nav>
-        <div class="tabs-bar-actions admin-only hidden">
-          <button type="button" id="btnAddCompany" class="btn-admin-action">회사 추가</button>
-          <button type="button" id="btnAddPost" class="btn-admin-action btn-admin-action-secondary">공고 추가</button>
-        </div>
+        <nav class="tabs-group tabs-group-secondary" aria-label="목록">
+          <div class="tabs tabs-pill">
+            <button type="button" data-tab="leads" class="tab">회사</button>
+            <button type="button" data-tab="posts" class="tab">전체 공고</button>
+            <button type="button" data-tab="excluded" class="tab">제외</button>
+          </div>
+        </nav>
       </div>
+
+      <button type="button" id="btnAddLead" class="fab-add admin-only hidden" title="회사·공고 추가" aria-label="회사·공고 추가">
+        <span data-icon="plus"></span>
+      </button>
 
       <main class="main-panels">
         <div id="new" class="panel hidden"></div>
@@ -255,49 +261,28 @@
       </div>
     </div>
 
-    <div id="addCompanyModal" class="modal hidden" aria-hidden="true">
+    <div id="addLeadModal" class="modal hidden" aria-hidden="true">
       <div class="modal-backdrop" data-close-add="1"></div>
-      <div class="modal-panel modal-panel-sm" role="dialog" aria-labelledby="addCompanyTitle">
+      <div class="modal-panel modal-panel-sm" role="dialog" aria-labelledby="addLeadTitle">
         <header class="modal-header">
-          <h2 id="addCompanyTitle">회사 추가</h2>
+          <h2 id="addLeadTitle">회사 · 공고 추가</h2>
           <button type="button" class="modal-close" data-close-add="1" aria-label="닫기">
             <span data-icon="x"></span>
           </button>
         </header>
         <div class="modal-body">
-          <p class="muted add-company-hint">크롤링되지 않은 회사를 직접 등록합니다. 추가 후 상세에서 프로필·공고를 입력할 수 있습니다.</p>
+          <p class="muted add-company-hint">공고 URL만 입력해도 등록됩니다. 공고 없이 회사만 등록하면 <strong>숨김</strong> 분류로 저장됩니다.</p>
           <div class="inline-grid">
-            <div class="inline-row"><span class="inline-label">회사명</span><input type="text" id="add-co-name" class="inline-field" placeholder="(주)예시테크" required /></div>
-            <div class="inline-row"><span class="inline-label">도메인</span><input type="text" id="add-co-domain" class="inline-field" placeholder="example.com" /></div>
-            <div class="inline-row"><span class="inline-label">사업자번호</span><input type="text" id="add-co-bizno" class="inline-field" placeholder="000-00-00000" /></div>
+            <div class="inline-row"><span class="inline-label">공고 URL</span><input type="url" id="add-lead-post-url" class="inline-field" placeholder="https://... (선택)" /></div>
+            <div class="inline-row"><span class="inline-label">회사명</span><input type="text" id="add-lead-name" class="inline-field" placeholder="(주)예시테크" /></div>
+            <div class="inline-row"><span class="inline-label">사업자번호</span><input type="text" id="add-lead-bizno" class="inline-field" placeholder="000-00-00000 (선택)" /></div>
+            <div class="inline-row"><span class="inline-label">도메인</span><input type="text" id="add-lead-domain" class="inline-field" placeholder="example.com (선택)" /></div>
           </div>
+          <p id="add-lead-no-post-hint" class="add-lead-warn hidden">공고 URL 없이 등록하면 해당 회사는 숨김 분류로 저장됩니다.</p>
         </div>
         <footer class="detail-footer">
           <button type="button" class="btn-ghost btn-sm" data-close-add="1">취소</button>
-          <button type="button" class="btn-primary" id="add-co-submit">추가</button>
-        </footer>
-      </div>
-    </div>
-
-    <div id="addPostModal" class="modal hidden" aria-hidden="true">
-      <div class="modal-backdrop" data-close-add-post="1"></div>
-      <div class="modal-panel modal-panel-sm" role="dialog" aria-labelledby="addPostTitle">
-        <header class="modal-header">
-          <h2 id="addPostTitle">공고 추가</h2>
-          <button type="button" class="modal-close" data-close-add-post="1" aria-label="닫기">
-            <span data-icon="x"></span>
-          </button>
-        </header>
-        <div class="modal-body">
-          <p class="muted add-company-hint">공고 URL만 입력해도 등록됩니다. 사업자번호를 넣으면 기존 회사에 연결하거나 새 회사 프로필에 반영합니다.</p>
-          <div class="inline-grid">
-            <div class="inline-row"><span class="inline-label">공고 URL</span><input type="url" id="add-post-url" class="inline-field" placeholder="https://..." required /></div>
-            <div class="inline-row"><span class="inline-label">사업자번호</span><input type="text" id="add-post-bizno" class="inline-field" placeholder="000-00-00000 (선택)" /></div>
-          </div>
-        </div>
-        <footer class="detail-footer">
-          <button type="button" class="btn-ghost btn-sm" data-close-add-post="1">취소</button>
-          <button type="button" class="btn-primary" id="add-post-submit">추가</button>
+          <button type="button" class="btn-primary" id="add-lead-submit">추가</button>
         </footer>
       </div>
     </div>

@@ -367,12 +367,15 @@
     setDrawerOpen(false);
   }
 
-  async function paint(row, edit) {
+  async function paint(row, sectionToEdit = null) {
     row = row ?? window.__TCLIENT_DETAIL_ROW;
     if (!row) return;
     const admin = window.TClientAdmin?.isUnlocked?.();
-    edit = Boolean(edit && admin);
-    window.__TCLIENT_DETAIL_EDIT = edit;
+    if (typeof window.openDetail === "function") {
+      await window.openDetail(row, sectionToEdit);
+      return;
+    }
+    window.__TCLIENT_DETAIL_EDIT = Boolean(sectionToEdit && admin);
 
     const svc = V().serviceName?.(row) ?? "";
     if (typeof window.paintDetailHeader === "function") {
@@ -403,12 +406,12 @@
       }
     }
     if (typeof window.refreshDetailAdminButtons === "function") {
-      window.refreshDetailAdminButtons(window.__TCLIENT_DETAIL_EDIT);
+      window.refreshDetailAdminButtons();
     }
 
     const body = byId("detailBody");
     if (body) {
-      body.innerHTML = window.TDetailPanel?.renderBody?.(row, edit, admin) ?? "<p class='muted'>상세 로딩…</p>";
+      body.innerHTML = window.TDetailPanel?.renderBody?.(row, admin) ?? "<p class='muted'>상세 로딩…</p>";
     }
     await syncNewToggle(row);
     window.TUiSelect?.init?.(byId("detailDrawer"));
@@ -428,14 +431,6 @@
       window.openAdminPopover?.();
       return false;
     }
-    byId("detailEditBtn")?.addEventListener("click", () => {
-      if (!requireAdmin()) return;
-      const row = window.__TCLIENT_DETAIL_ROW;
-      if (!row) return;
-      const nextEdit = !window.__TCLIENT_DETAIL_EDIT;
-      if (window.openDetail) window.openDetail(row, nextEdit);
-      else paint(row, nextEdit);
-    });
     byId("detailMergeBtn")?.addEventListener("click", () => {
       if (!requireAdmin()) return;
       if (window.__TCLIENT_DETAIL_ROW) window.openMergeModal?.(window.__TCLIENT_DETAIL_ROW);
