@@ -244,7 +244,7 @@
     const panel = byId(panelId);
     panel?.querySelectorAll("[data-switch-tab]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        document.querySelector(`.tabs .tab[data-tab="${btn.dataset.switchTab}"]`)?.click();
+        document.querySelector(`.tabs-bar .tab[data-tab="${btn.dataset.switchTab}"]`)?.click();
       });
     });
   }
@@ -258,7 +258,7 @@
       leads: rows.filter((r) => isMainTab(r)).length,
       excluded: rows.filter((r) => rowMatchesExcludedTab(r)).length
     };
-    document.querySelectorAll(".tabs .tab[data-tab]").forEach((btn) => {
+  document.querySelectorAll(".tabs-bar .tab[data-tab]").forEach((btn) => {
       const id = btn.dataset.tab;
       const n = counts[id];
       const base = btn.dataset.tabLabel || btn.textContent.replace(/\s*\d+$/, "").trim();

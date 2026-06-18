@@ -98,6 +98,7 @@
             <div class="search-row-sort">
               <select id="sort" class="select-pill" aria-label="정렬">
                 <option value="priority">우선순위순</option>
+                <option value="notion">Notion No.순</option>
                 <option value="grade">등급순</option>
                 <option value="new">신규 추가순</option>
                 <option value="recent">최근 등록순</option>
@@ -198,14 +199,18 @@
             </div>
             <div class="drawer-header-actions">
               <div class="drawer-quick-actions drawer-quick-actions-header">
-                <button type="button" id="detailEditBtn" class="drawer-action-btn" data-title-active="수정" title="수정">
-                  <span data-icon="pencil"></span>
-                  <span>수정</span>
-                </button>
                 <button type="button" id="detailMergeBtn" class="drawer-action-btn" data-title-active="병합" title="병합">
                   <span data-icon="layers"></span>
                   <span>병합</span>
                 </button>
+                <button type="button" id="detailEditBtn" class="drawer-action-btn" data-title-active="요약 수정" title="요약 수정">
+                  <span data-icon="pencil"></span>
+                  <span>수정</span>
+                </button>
+                <div id="detailSummaryEditActions" class="detail-summary-edit-actions hidden">
+                  <button type="button" id="detail-summary-cancel" class="drawer-action-btn">취소</button>
+                  <button type="button" id="detail-summary-save" class="drawer-action-btn drawer-action-primary">저장</button>
+                </div>
                 <button type="button" id="detailDeleteBtn" class="drawer-action-btn drawer-action-danger" data-title-active="삭제" title="삭제">
                   <span data-icon="trash"></span>
                   <span>삭제</span>

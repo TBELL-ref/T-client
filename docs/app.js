@@ -385,6 +385,9 @@ function renderDrawerStatsCompact(row) {
   if (row.leadGrade) {
     items.push(`<span class="drawer-stat-chip drawer-stat-grade grade-${row.leadGrade}">${row.leadGrade}</span>`);
   }
+  if (row.notionPriority > 0) {
+    items.push(`<span class="drawer-stat-chip">No. ${escapeHtml(String(row.notionPriority))}</span>`);
+  }
   items.push(`<span class="drawer-stat-chip">공고 ${row.posts.length}</span>`);
   items.push(`<span class="drawer-stat-chip">담당 ${row.contactSecured === "yes" ? "확보" : "미확보"}</span>`);
   const classLabel = poolClassLabel(pool);
@@ -858,36 +861,81 @@ async function saveDetailSection(row, section) {
   }
 }
 
-function bindDetailSectionEdits(row) {
-  byId("btn-enrich-bizno")?.addEventListener("click", () => runEnrichBizNo(row));
-  byId("btn-recalc-score")?.addEventListener("click", () => runRecalcScore(row));
+function bindDetailHeaderEdits() {
+  const drawer = byId("detailDrawer");
+  if (!drawer || drawer.dataset.headerEditBound === "1") return;
+  drawer.dataset.headerEditBound = "1";
 
-  byId("detailBody")?.querySelectorAll(".detail-section-actions button").forEach((btn) => {
-    btn.addEventListener("click", (e) => e.stopPropagation());
+  byId("detailEditBtn")?.addEventListener("click", () => {
+    if (!window.TClientAdmin?.isUnlocked?.()) {
+      window.openAdminPopover?.();
+      return;
+    }
+    setSectionEdit("summary", true);
+    paintDetailModal();
   });
 
-  byId("detailBody")?.querySelectorAll("[data-section-edit]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      setSectionEdit(btn.dataset.sectionEdit, true);
+  byId("detail-summary-cancel")?.addEventListener("click", () => {
+    setSectionEdit("summary", false);
+    paintDetailModal();
+  });
+
+  byId("detail-summary-save")?.addEventListener("click", async () => {
+    const row = state.detailRow;
+    if (!row) return;
+    try {
+      await saveDetailSection(row, "summary");
+    } catch (err) {
+      showToast(err.message || "저장 실패", "error");
+    }
+  });
+}
+
+function bindDetailSectionEdits() {
+  const body = byId("detailBody");
+  if (!body || body.dataset.sectionBound === "1") return;
+  body.dataset.sectionBound = "1";
+
+  body.addEventListener("click", async (e) => {
+    const row = state.detailRow;
+    if (!row) return;
+
+    if (e.target?.closest?.(".detail-section-actions button")) {
+      e.stopPropagation();
+    }
+
+    const editBtn = e.target?.closest?.("[data-section-edit]");
+    if (editBtn) {
+      setSectionEdit(editBtn.dataset.sectionEdit, true);
       paintDetailModal();
-    });
-  });
+      return;
+    }
 
-  byId("detailBody")?.querySelectorAll("[data-section-cancel]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      setSectionEdit(btn.dataset.sectionCancel, false);
+    const cancelBtn = e.target?.closest?.("[data-section-cancel]");
+    if (cancelBtn) {
+      setSectionEdit(cancelBtn.dataset.sectionCancel, false);
       paintDetailModal();
-    });
-  });
+      return;
+    }
 
-  byId("detailBody")?.querySelectorAll("[data-section-save]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+    const saveBtn = e.target?.closest?.("[data-section-save]");
+    if (saveBtn) {
       try {
-        await saveDetailSection(row, btn.dataset.sectionSave);
+        await saveDetailSection(row, saveBtn.dataset.sectionSave);
       } catch (err) {
         showToast(err.message || "저장 실패", "error");
       }
-    });
+      return;
+    }
+
+    if (e.target?.closest?.("#btn-enrich-bizno")) {
+      void runEnrichBizNo(row);
+      return;
+    }
+
+    if (e.target?.closest?.("#btn-recalc-score")) {
+      void runRecalcScore(row);
+    }
   });
 }
 
@@ -1928,13 +1976,16 @@ function rowIsNew(row) {
 function sortRows(rows) {
   const mode = byId("sort")?.value || "priority";
   const list = [...rows];
-  const useNotionPriority = state.activeTab === "recommended" || state.activeTab === "in_progress";
 
   list.sort((a, b) => {
-    if (useNotionPriority) {
+    if (mode === "notion") {
       const rankDiff = notionPriorityValue(a) - notionPriorityValue(b);
       if (rankDiff !== 0) return rankDiff;
+      const byScore = priorityValue(b) - priorityValue(a);
+      if (byScore !== 0) return byScore;
+      return displayName(a).localeCompare(displayName(b), "ko");
     }
+
     if (mode === "priority") {
       const sa = pipelineLabels().stageOrder?.(a.pipelineStage) ?? 0;
       const sb = pipelineLabels().stageOrder?.(b.pipelineStage) ?? 0;
@@ -2312,18 +2363,21 @@ function detailStat(label, value, extraClass = "") {
 
 function refreshDetailAdminButtons() {
   const admin = Boolean(window.TClientAdmin?.isUnlocked?.());
+  const summaryEditing = isSectionEdit("summary");
   const specs = [
     { id: "detailMergeBtn", lockedTitle: "관리자 로그인 후 병합" },
+    { id: "detailEditBtn", lockedTitle: "관리자 로그인 후 요약 수정" },
     { id: "detailDeleteBtn", lockedTitle: "관리자 로그인 후 삭제" }
   ];
-  byId("detailEditBtn")?.classList.add("hidden");
   for (const spec of specs) {
     const btn = byId(spec.id);
     if (!btn) continue;
-    btn.classList.remove("hidden");
+    btn.classList.toggle("hidden", !admin || (summaryEditing && spec.id === "detailEditBtn"));
     btn.classList.toggle("is-locked", !admin);
+    btn.classList.toggle("is-active", summaryEditing && spec.id === "detailEditBtn");
     btn.title = admin ? btn.dataset.titleActive || btn.title : spec.lockedTitle;
   }
+  byId("detailSummaryEditActions")?.classList.toggle("hidden", !admin || !summaryEditing);
 }
 
 function renderDetailTitleHtml(row) {
@@ -2409,6 +2463,7 @@ function renderDetailBody(row, admin = false) {
         ["규모", escapeHtml(tierLabelKo(tierVal))],
         ["등급", escapeHtml(row.leadGrade || "-")],
         ["분류", escapeHtml(poolClassLabel(pool))],
+        ...(row.notionPriority > 0 ? [["Notion No.", escapeHtml(String(row.notionPriority))]] : []),
         ["제외", escapeHtml(row.excludeReason || "—")],
         ["메모", escapeHtml(row.salesMemo ?? row.manualNotes ?? "—")]
       ]);
@@ -2548,39 +2603,38 @@ function renderDetailBody(row, admin = false) {
       : `<p class="muted detail-empty-hint">등록된 공고가 없습니다.</p>`;
 
   const sections = [];
-  sections.push(detailSectionCard("요약", summaryBlock, "summary", "detail-block-form", { icon: "building", open: true, flat: true }));
   sections.push(
     detailSectionCard(
       "영업 관리",
       `<div class="detail-split">${pipelineBlock}${contactBlock}</div>`,
       "sales",
       "",
-      { icon: "briefcase", open: true, flat: true }
+      { icon: "briefcase", open: true }
     )
   );
   if (window.TPipeline?.isInProgressStage?.(pipeline.pipelineStage) || testPeriodDisplay(row)) {
-    sections.push(detailSectionCard("테스트 · 진행", testBlock, "test", "", { icon: "target", open: true, flat: true }));
+    sections.push(detailSectionCard("테스트 · 진행", testBlock, "test", "", { icon: "target", open: false }));
   }
-  sections.push(detailSectionCard("추천 평가", evalBlock, "eval", "detail-block-warm", { icon: "star", open: true, flat: true }));
-  sections.push(detailSectionCard("결과보고서", filesPlaceholder, "files", "", { icon: "fileText", open: false, flat: true }));
-  sections.push(detailSectionCard("미팅 기록", meetingsPlaceholder, "meetings", "", { icon: "users", open: false, flat: true }));
-  sections.push(detailSectionCard(`공고 · ${row.posts.length}건`, postsBlock, "posts", "", { icon: "building", open: false, flat: true }));
+  sections.push(detailSectionCard("추천 평가", evalBlock, "eval", "detail-block-warm", { icon: "star", open: false }));
+  sections.push(detailSectionCard("결과보고서", filesPlaceholder, "files", "", { icon: "fileText", open: false }));
+  sections.push(detailSectionCard("미팅 기록", meetingsPlaceholder, "meetings", "", { icon: "users", open: false }));
+  sections.push(detailSectionCard(`공고 · ${row.posts.length}건`, postsBlock, "posts", "", { icon: "building", open: false }));
   sections.push(
-    detailSectionCard("점수 근거", renderScoreSection(row, editScore, admin), "score", "detail-block-muted", { icon: "chart", open: false, flat: true })
+    detailSectionCard("점수 근거", renderScoreSection(row, editScore, admin), "score", "detail-block-muted", { icon: "chart", open: false })
   );
   sections.push(
     detailSectionCard("프로필", renderProfileSection(row, editProfile, p, e.domain || row.domain || "", admin), "profile", "", {
       icon: "layers",
-      open: false,
-      flat: true
+      open: false
     })
   );
 
   const anyEdit = Object.keys(state.detailEditSections).length > 0;
+  const summaryPanel = `<section class="detail-summary-panel${editSummary ? " is-editing" : ""}">${summaryBlock}</section>`;
   return `
     <div class="detail-shell${anyEdit ? " is-edit" : ""}">
-      <p class="drawer-section-label drawer-menu-label">MENU</p>
-      ${sections.join("")}
+      ${summaryPanel}
+      <div class="detail-menu-sections">${sections.join("")}</div>
     </div>
     ${row.excludeReason ? `<p class="warn detail-warn">제외 사유: ${escapeHtml(row.excludeReason)}</p>` : ""}`;
 }
@@ -2729,7 +2783,6 @@ function paintDetailModal() {
   paintDetailHeader(row);
   byId("detailBody").innerHTML = renderDetailBody(row, admin);
   if (admin) {
-    bindDetailSectionEdits(row);
     window.TUiSelect?.init(byId("detailDrawer"));
   }
   void hydrateDetailExtras(row);
@@ -3200,6 +3253,8 @@ function bindModal() {
   window.TDetailPanel.renderBody = renderDetailBody;
   window.TDetailPanel.bind?.();
   window.openMergeModal = openMergeModal;
+  bindDetailHeaderEdits();
+  bindDetailSectionEdits();
   byId("detailBody")?.addEventListener("click", (e) => {
     const btn = e.target?.closest?.(".post-delete-btn");
     if (!btn || !state.detailRow || !window.TClientAdmin?.isUnlocked()) return;
@@ -3385,6 +3440,7 @@ function setAdminUi(unlocked, { passwordSetup = false } = {}) {
   byId("adminPasswordSetupForm")?.classList.toggle("hidden", !passwordSetup);
   document.querySelectorAll(".admin-only").forEach((el) => el.classList.toggle("hidden", !unlocked));
   refreshDetailAdminButtons();
+  hydrateIcons(byId("btnAddLead"));
   updateAdminJobUi();
 }
 
