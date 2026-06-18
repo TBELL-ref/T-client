@@ -1994,7 +1994,7 @@ button {
 }
 
 #mergeModal.modal-stack {
-  z-index: 1100;
+  z-index: 1350;
 }
 
 body.merge-open {
@@ -4558,6 +4558,17 @@ body.detail-drawer-open .app {
 .tag-blue {
   background: #dbeafe;
   color: #1d4ed8;
+}
+
+.detail-drawer.drawer-backstack {
+  z-index: 1100;
+  pointer-events: none;
+}
+
+.detail-drawer.drawer-backstack .detail-drawer-backdrop {
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: none;
 }
 
 .drawer-backstack .detail-drawer-panel {

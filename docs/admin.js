@@ -1223,9 +1223,16 @@
     };
 
     const basePosts = (row.posts ?? []).filter((p) => p?.url && !isPostRemoved(p.url));
+    const basePostUrls = new Set(
+      basePosts.map((p) => window.TPostUrl?.postUrlKey(p.url) ?? `${p.url}`.toLowerCase())
+    );
 
     const extraPosts = (entry.extraPosts ?? [])
       .filter((p) => p?.url && !isPostRemoved(p.url))
+      .filter((p) => {
+        const key = window.TPostUrl?.postUrlKey(p.url) ?? `${p.url}`.toLowerCase();
+        return !basePostUrls.has(key);
+      })
       .map((p, i) => ({
         id: p.id || `manual_${i}`,
         title: p.title || "QA 공고",

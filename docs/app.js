@@ -770,6 +770,7 @@ function bindDetailEdits(row) {
         await window.TSalesManagement.upsert(cid, salesPatch, row);
       }
       window.TClientAdmin.setEntry(cid, overridePatch);
+      await window.TClientAdmin.flushPersist?.();
       finishDetailSave(cid, { exitEdit: true, toastMessage: "정상 저장되었습니다." });
     } catch (err) {
       showToast(err.message || "저장 실패", "error");
@@ -2612,6 +2613,9 @@ async function submitAddCompanyAsync() {
   try {
     await window.TCompanies.upsertManual(row);
     await window.TClientAdmin.flushPersist?.();
+    if (window.TClientAdmin.isUnlocked()) {
+      await window.TSalesManagement?.upsert?.(row.companyId, { pipelineStage: "candidate", pipelineStatus: "pending" }, row);
+    }
   } catch (err) {
     window.TClientAdmin.removeCustomCompany(row.companyId);
     showToast(err.message || "회사 등록 실패", "error");
@@ -2669,6 +2673,7 @@ async function submitAddPostAsync() {
         (u) => (window.TPostUrl?.postUrlKey(u) ?? `${u}`.toLowerCase()) !== key
       );
       window.TClientAdmin.setEntry(conflict.row.companyId, { hiddenPosts: nextHidden });
+      await window.TClientAdmin.flushPersist?.();
       reloadRowsWithAdmin();
       refreshViews();
       closeAddPostModal();
