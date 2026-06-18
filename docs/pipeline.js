@@ -180,13 +180,14 @@
     return { pipelineStage: stage, pipelineStatus: status, closedReason };
   }
 
-  /** Notion 추천 DB·is_recommended — 파이프라인 단계와 무관하게 추천 탭에 표시 */
+  /** 추천 탭: is_recommended + 후보 단계(🔍 등) */
   function rowMatchesRecommendedTab(row) {
-    return isRecommendedLead(row);
+    return isRecommendedLead(row) && !isInProgressLead(row);
   }
 
+  /** 진행 탭: is_recommended + 테스트/제안/미팅/계약/전달 단계 */
   function rowMatchesInProgressTab(row) {
-    return isInProgressLead(row);
+    return isRecommendedLead(row) && isInProgressLead(row);
   }
 
   /** Pipeline 후보 단계 + 아직 추천/진행/숨김 아님 (액션 KPI·버킷용). */
