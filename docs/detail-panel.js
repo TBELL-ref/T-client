@@ -144,7 +144,7 @@
     return `<div class="cell-file-icons">${files
       .map((f) => {
         const title = f.title || window.TCompanyFiles?.FILE_TYPE_LABEL?.[f.fileType] || "파일";
-        const url = f.fileUrl || "#";
+        const url = (window.TCompanyFiles?.resolveHref?.(f) ?? f.fileUrl) || "#";
         return `<a class="file-icon-chip" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" download title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}">${iconSvg(fileIconName(f.fileType), 15)}</a>`;
       })
       .join("")}</div>`;
@@ -282,7 +282,7 @@
 
   function renderRecommendedTab(activeTab) {
     if (activeTab !== "recommended") return;
-    const rows = sortTabRows(getRows().filter(rowMatchesRecommendedTab));
+    const rows = (V().sortRecommendedRows ?? sortTabRows)(getRows().filter(rowMatchesRecommendedTab));
     const filtered = filterSearch(rows, getSearchQuery()).filter((r) => V().passesFilters?.(r) ?? true);
     byId("recommended").innerHTML = filtered.length ? recommendedTable(filtered) : emptyState("recommended");
     bindListClicks("recommended");

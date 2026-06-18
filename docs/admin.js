@@ -448,13 +448,17 @@
   }
 
   function emptyDoc() {
-    return { version: 3, updatedAt: null, favorites: [], companies: {}, customCompanies: [] };
+    return { version: 3, updatedAt: null, favorites: [], companies: {}, customCompanies: [], deletedCompanyIds: [] };
   }
 
   function loadLocal() {
     try {
       const raw = localStorage.getItem(LS_KEY) || localStorage.getItem("tclient-overrides-v1");
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const doc = JSON.parse(raw);
+        if (!Array.isArray(doc.deletedCompanyIds)) doc.deletedCompanyIds = [];
+        return doc;
+      }
     } catch {
       /* ignore */
     }
@@ -509,6 +513,8 @@
       customMap.set(row.companyId, prev ? pickNewerCustomRow(prev, row) : row);
     }
     out.customCompanies = [...customMap.values()];
+    const deletedIds = new Set([...(a?.deletedCompanyIds ?? []), ...(b?.deletedCompanyIds ?? [])]);
+    out.deletedCompanyIds = [...deletedIds];
     return out;
   }
 
@@ -755,14 +761,21 @@
   }
 
   function isCompanyDeleted(companyId) {
+    if (!companyId) return false;
+    if ((state.doc?.deletedCompanyIds ?? []).includes(companyId)) return true;
+    const entry = window.TCompanyEdits?.get?.(companyId);
+    if (entry?.deleted || entry?.mergedAway) return true;
     return false;
   }
 
   async function markCompanyDeleted(companyId) {
     if (!companyId) return false;
-    await window.TCompanyEdits?.remove?.(companyId);
+    const deletedIds = new Set(state.doc?.deletedCompanyIds ?? []);
+    deletedIds.add(companyId);
+    state.doc.deletedCompanyIds = [...deletedIds];
     state.doc.customCompanies = (state.doc.customCompanies ?? []).filter((r) => r.companyId !== companyId);
-    state.dirty = Boolean(window.TCompanyEdits?.isDirty?.());
+    await window.TCompanyEdits?.remove?.(companyId);
+    saveLocal(state.doc, { scheduleRemote: true });
     return true;
   }
 

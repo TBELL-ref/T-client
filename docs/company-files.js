@@ -1,7 +1,8 @@
 /**
- * Company files (result reports, etc.) — DB-backed.
+ * Company files (result reports, etc.) — DB + Supabase Storage.
  */
 (function () {
+  const BUCKET = "company-files";
   const cache = new Map();
 
   function normalize(row = {}) {
@@ -16,6 +17,18 @@
       uploadedAt: row.uploadedAt ?? row.uploaded_at ?? "",
       memo: row.memo ?? ""
     };
+  }
+
+  function resolveHref(file = {}) {
+    if (file.fileUrl) return file.fileUrl;
+    if (file.storagePath && window.TSupabase?.publicStorageUrl) {
+      return window.TSupabase.publicStorageUrl(BUCKET, file.storagePath);
+    }
+    return "#";
+  }
+
+  function safeFileName(name) {
+    return `${name ?? "file"}`.replace(/[^\w.\-가-힣]/g, "_");
   }
 
   async function loadForCompany(companyId, force = false) {
@@ -37,8 +50,27 @@
     return normalize(result);
   }
 
-  async function remove(fileId, companyId) {
+  async function uploadFile(companyId, file, { title = "", fileType = "result_report" } = {}) {
+    if (!file) throw new Error("파일이 없습니다.");
+    const storagePath = `${companyId}/${Date.now()}_${safeFileName(file.name)}`;
+    const fileUrl = await window.TSupabase.uploadStorageFile(BUCKET, storagePath, file);
+    return add(companyId, {
+      fileType,
+      title: title || file.name,
+      fileUrl,
+      storagePath
+    });
+  }
+
+  async function remove(fileId, companyId, storagePath = "") {
     await window.TSupabase.deleteCompanyFile(fileId);
+    if (storagePath) {
+      try {
+        await window.TSupabase.deleteStorageFile(BUCKET, storagePath);
+      } catch (err) {
+        console.warn("[company-files] storage delete failed", err);
+      }
+    }
     cache.delete(companyId);
   }
 
@@ -56,8 +88,10 @@
   window.TCompanyFiles = {
     loadForCompany,
     add,
+    uploadFile,
     remove,
     invalidate,
+    resolveHref,
     FILE_TYPE_LABEL,
     normalize
   };

@@ -13,6 +13,7 @@ const state = {
   activeTab: "in_progress",
   detailRow: null,
   detailEditSections: {},
+  detailOpenSections: new Set(),
   mergeSourceRow: null,
   filtersOpen: false,
   tableSort: { column: "priorityScore", direction: "desc" },
@@ -201,9 +202,8 @@ function getRecommendedRows() {
 
 function sortRecommendedRows(rows) {
   return [...rows].sort((a, b) => {
-    const ra = Number.parseInt(`${a.candidateRank ?? 999}`, 10) || 999;
-    const rb = Number.parseInt(`${b.candidateRank ?? 999}`, 10) || 999;
-    if (ra !== rb) return ra - rb;
+    const rankDiff = notionPriorityValue(a) - notionPriorityValue(b);
+    if (rankDiff !== 0) return rankDiff;
     const sa = Number.parseInt(`${a.recommendScore ?? 0}`, 10) || 0;
     const sb = Number.parseInt(`${b.recommendScore ?? 0}`, 10) || 0;
     if (sa !== sb) return sb - sa;
@@ -357,7 +357,8 @@ function detailSectionCard(title, body, sectionKey, extraClass = "", { icon = "f
     </section>`;
   }
 
-  return `<details class="drawer-section ${extraClass}${editing ? " is-section-edit" : ""}"${open ? " open" : ""}>
+  const shouldOpen = open || editing;
+  return `<details class="drawer-section ${extraClass}${editing ? " is-section-edit" : ""}" data-section-key="${escapeAttr(sectionKey || "")}"${shouldOpen ? " open" : ""}>
     <summary class="drawer-section-head">
       <span class="drawer-section-icon" aria-hidden="true">${iconSvg(icon, 18)}</span>
       <span class="drawer-section-title">${escapeHtml(title)}</span>
@@ -377,27 +378,49 @@ function drawerStatRow(label, value) {
 }
 
 function renderDrawerStatsCompact(row) {
-  const pool = poolClassOf(row);
   const items = [];
-  if (row.priorityScore != null && row.priorityScore !== "") {
-    items.push(`<span class="drawer-stat-chip">${escapeHtml(row.priorityScore)}점</span>`);
-  }
   if (row.leadGrade) {
     items.push(`<span class="drawer-stat-chip drawer-stat-grade grade-${row.leadGrade}">${row.leadGrade}</span>`);
   }
   if (row.notionPriority > 0) {
     items.push(`<span class="drawer-stat-chip">No. ${escapeHtml(String(row.notionPriority))}</span>`);
   }
-  items.push(`<span class="drawer-stat-chip">공고 ${row.posts.length}</span>`);
   items.push(`<span class="drawer-stat-chip">담당 ${row.contactSecured === "yes" ? "확보" : "미확보"}</span>`);
-  const classLabel = poolClassLabel(pool);
-  if (pool === "in_progress") {
-    const stage = pipelineLabels().pipelineStageLabel?.(row.pipelineStage) ?? "-";
-    items.push(`<span class="drawer-stat-chip">${escapeHtml(classLabel)} · ${escapeHtml(stage)}</span>`);
-  } else {
-    items.push(`<span class="drawer-stat-chip">${escapeHtml(classLabel)}</span>`);
+  const { pipelineStage, pipelineStatus } = resolveRowPipeline(row);
+  const stageLabel = pipelineLabels().pipelineStageLabel?.(pipelineStage);
+  if (stageLabel) {
+    const statusSuffix =
+      pipelineStatus === "active"
+        ? "진행"
+        : pipelineStatus === "pending"
+          ? "대기"
+          : pipelineLabels().pipelineStatusLabel?.(pipelineStatus) ?? "";
+    const label = statusSuffix ? `${stageLabel} ${statusSuffix}` : stageLabel;
+    items.push(`<span class="drawer-stat-chip">${escapeHtml(label)}</span>`);
   }
   return items.join("");
+}
+
+function renderDetailHeaderSub(row) {
+  const line1 = companySubline(row);
+  const memo = `${row.salesMemo ?? row.manualNotes ?? ""}`.trim();
+  if (!memo) return escapeHtml(line1);
+  return `${escapeHtml(line1)}<span class="detail-header-memo">${escapeHtml(memo)}</span>`;
+}
+
+function captureDetailOpenSections() {
+  const open = new Set();
+  byId("detailBody")?.querySelectorAll("details.drawer-section[data-section-key]").forEach((el) => {
+    if (el.open && el.dataset.sectionKey) open.add(el.dataset.sectionKey);
+  });
+  return open;
+}
+
+function applyDetailOpenSections(openSections) {
+  if (!openSections?.size) return;
+  byId("detailBody")?.querySelectorAll("details.drawer-section[data-section-key]").forEach((el) => {
+    if (openSections.has(el.dataset.sectionKey)) el.open = true;
+  });
 }
 
 function detailMetric(label, value, extraClass = "") {
@@ -901,19 +924,24 @@ function bindDetailSectionEdits() {
     if (!row) return;
 
     if (e.target?.closest?.(".detail-section-actions button")) {
+      e.preventDefault();
       e.stopPropagation();
     }
 
     const editBtn = e.target?.closest?.("[data-section-edit]");
     if (editBtn) {
-      setSectionEdit(editBtn.dataset.sectionEdit, true);
+      const sectionKey = editBtn.dataset.sectionEdit;
+      setSectionEdit(sectionKey, true);
+      if (sectionKey) state.detailOpenSections.add(sectionKey);
       paintDetailModal();
       return;
     }
 
     const cancelBtn = e.target?.closest?.("[data-section-cancel]");
     if (cancelBtn) {
-      setSectionEdit(cancelBtn.dataset.sectionCancel, false);
+      const sectionKey = cancelBtn.dataset.sectionCancel;
+      setSectionEdit(sectionKey, false);
+      if (sectionKey) state.detailOpenSections.add(sectionKey);
       paintDetailModal();
       return;
     }
@@ -935,8 +963,106 @@ function bindDetailSectionEdits() {
 
     if (e.target?.closest?.("#btn-recalc-score")) {
       void runRecalcScore(row);
+      return;
+    }
+
+    const fileDelBtn = e.target?.closest?.(".file-del-btn");
+    if (fileDelBtn && isSectionEdit("files")) {
+      e.preventDefault();
+      try {
+        await window.TCompanyFiles.remove(fileDelBtn.dataset.fileId, row.companyId, fileDelBtn.dataset.storagePath || "");
+        void hydrateDetailExtras(row);
+      } catch (err) {
+        showToast(err.message || "파일 삭제 실패", "error");
+      }
+      return;
+    }
+
+    if (e.target?.closest?.("#file-upload-btn") && isSectionEdit("files")) {
+      e.preventDefault();
+      const fileInput = byId("edit-file-input");
+      const file = fileInput?.files?.[0];
+      if (!file) {
+        showToast("업로드할 파일을 선택하세요.", "error");
+        return;
+      }
+      try {
+        await window.TCompanyFiles.uploadFile(row.companyId, file, {
+          title: byId("edit-file-title")?.value.trim() || file.name
+        });
+        if (fileInput) fileInput.value = "";
+        const fileNameEl = byId("edit-file-name");
+        if (fileNameEl) fileNameEl.textContent = "선택된 파일 없음";
+        const titleEl = byId("edit-file-title");
+        if (titleEl) titleEl.value = "";
+        void hydrateDetailExtras(row);
+        showToast("파일이 업로드되었습니다.");
+      } catch (err) {
+        showToast(err.message || "파일 업로드 실패", "error");
+      }
+      return;
+    }
+
+    const meetingDelBtn = e.target?.closest?.(".meeting-del-btn");
+    if (meetingDelBtn && isSectionEdit("meetings")) {
+      e.preventDefault();
+      try {
+        await window.TMeetingNotes.remove(meetingDelBtn.dataset.noteId, row.companyId);
+        void hydrateDetailExtras(row);
+      } catch (err) {
+        showToast(err.message || "미팅 삭제 실패", "error");
+      }
+      return;
+    }
+
+    if (e.target?.closest?.("#meeting-add-btn") && isSectionEdit("meetings")) {
+      e.preventDefault();
+      const at = byId("edit-meeting-at")?.value;
+      try {
+        await window.TMeetingNotes.upsert(row.companyId, {
+          meetingAt: at ? new Date(at).toISOString() : null,
+          location: byId("edit-meeting-location")?.value.trim(),
+          attendees: byId("edit-meeting-attendees")?.value.trim(),
+          summary: byId("edit-meeting-summary")?.value.trim(),
+          nextAction: byId("edit-meeting-next")?.value.trim()
+        });
+        ["edit-meeting-at", "edit-meeting-location", "edit-meeting-attendees", "edit-meeting-summary", "edit-meeting-next"].forEach(
+          (id) => {
+            const el = byId(id);
+            if (el) el.value = "";
+          }
+        );
+        void hydrateDetailExtras(row);
+        showToast("미팅 기록이 추가되었습니다.");
+      } catch (err) {
+        showToast(err.message || "미팅 저장 실패", "error");
+      }
     }
   });
+
+  body.addEventListener("change", (e) => {
+    if (e.target?.id !== "edit-file-input") return;
+    const fileNameEl = byId("edit-file-name");
+    if (fileNameEl) fileNameEl.textContent = e.target.files?.[0]?.name || "선택된 파일 없음";
+  });
+}
+
+function bindDetailSectionToggles() {
+  const body = byId("detailBody");
+  if (!body || body.dataset.sectionToggleBound === "1") return;
+  body.dataset.sectionToggleBound = "1";
+  body.addEventListener(
+    "toggle",
+    (e) => {
+      const el = e.target;
+      if (!el?.matches?.("details.drawer-section[data-section-key]")) return;
+      const key = el.dataset.sectionKey;
+      if (!key) return;
+      if (el.open) state.detailOpenSections.add(key);
+      else state.detailOpenSections.delete(key);
+    },
+    true
+  );
 }
 
 function mergeBaseRows(snapshotRows) {
@@ -2394,13 +2520,12 @@ function paintDetailHeader(row) {
   byId("detailTitle").innerHTML = renderDetailTitleHtml(row);
   const sub = byId("detailHeaderSub");
   if (sub) {
-    const text = companySubline(row);
-    sub.textContent = text;
-    sub.classList.toggle("hidden", !text);
+    sub.innerHTML = renderDetailHeaderSub(row);
+    sub.classList.toggle("hidden", !companySubline(row) && !`${row.salesMemo ?? row.manualNotes ?? ""}`.trim());
   }
   const chips = byId("detailHeaderChips");
   if (chips) {
-    const items = [newBadge(row), manualBadge(row)].filter(Boolean);
+    const items = [newBadge(row)].filter(Boolean);
     chips.innerHTML = items.join("");
     chips.classList.toggle("hidden", !items.length);
   }
@@ -2523,11 +2648,15 @@ function renderDetailBody(row, admin = false) {
 
   const filesPlaceholder = editFiles && admin
     ? `<div class="detail-files-section" data-company-files="${escapeAttr(row.companyId)}">
-        <div class="detail-form-grid cols-2 file-add-row">
-          <div class="inline-row"><span class="inline-label">제목</span>${inlineInput("edit-file-title", "", "text", "결과보고서")}</div>
-          <div class="inline-row"><span class="inline-label">URL</span>${inlineInput("edit-file-url", "", "url", "https://...")}</div>
+        <div class="file-upload-row">
+          <label class="file-upload-picker">
+            <span class="btn-ghost btn-sm">파일 선택</span>
+            <input type="file" id="edit-file-input" class="file-input-hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.hwp,.hwpx,.png,.jpg,.jpeg,.zip" />
+          </label>
+          <span id="edit-file-name" class="file-upload-name muted">선택된 파일 없음</span>
+          ${inlineInput("edit-file-title", "", "text", "제목 (선택)")}
+          <button type="button" class="btn-primary btn-sm" id="file-upload-btn">업로드</button>
         </div>
-        <p><button type="button" class="btn-ghost btn-sm" id="file-add-btn">파일 URL 추가</button></p>
         <div class="file-list-wrap"><p class="muted">파일 목록 로딩…</p></div>
       </div>`
     : `<div class="detail-files-section" data-company-files="${escapeAttr(row.companyId)}"><p class="muted">결과보고서 목록 로딩…</p></div>`;
@@ -2630,7 +2759,9 @@ function renderDetailBody(row, admin = false) {
   );
 
   const anyEdit = Object.keys(state.detailEditSections).length > 0;
-  const summaryPanel = `<section class="detail-summary-panel${editSummary ? " is-editing" : ""}">${summaryBlock}</section>`;
+  const summaryPanel = editSummary
+    ? `<section class="detail-summary-panel is-editing">${summaryBlock}</section>`
+    : "";
   return `
     <div class="detail-shell${anyEdit ? " is-edit" : ""}">
       ${summaryPanel}
@@ -2656,30 +2787,19 @@ async function hydrateDetailExtras(row) {
 
   function renderFileList(files) {
     if (!filesListEl) return;
+    const href = (f) => window.TCompanyFiles.resolveHref(f);
     filesListEl.innerHTML = files.length
-      ? `<ul class="file-list">${files
+      ? `<ul class="file-list file-list-compact">${files
           .map(
             (f) =>
-              `<li><a class="link" href="${escapeAttr(f.fileUrl)}" target="_blank" rel="noreferrer">${escapeHtml(f.title || window.TCompanyFiles.FILE_TYPE_LABEL[f.fileType] || "파일")}</a> <span class="muted">${escapeHtml(formatDate(f.uploadedAt))}</span>${
+              `<li><a class="link" href="${escapeAttr(href(f))}" target="_blank" rel="noreferrer">${escapeHtml(f.title || window.TCompanyFiles.FILE_TYPE_LABEL[f.fileType] || "파일")}</a> <span class="muted">${escapeHtml(formatDate(f.uploadedAt))}</span>${
                 editFiles
-                  ? ` <button type="button" class="btn-ghost btn-sm file-del-btn" data-file-id="${escapeAttr(f.id)}">삭제</button>`
+                  ? ` <button type="button" class="btn-ghost btn-sm file-del-btn" data-file-id="${escapeAttr(f.id)}" data-storage-path="${escapeAttr(f.storagePath || "")}">삭제</button>`
                   : ""
               }</li>`
           )
           .join("")}</ul>`
-      : `<p class="muted">등록된 파일이 없습니다.${admin ? " 수정 모드에서 URL을 추가하세요." : ""}</p>`;
-    if (editFiles) {
-      filesListEl.querySelectorAll(".file-del-btn").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          try {
-            await window.TCompanyFiles.remove(btn.dataset.fileId, row.companyId);
-            void hydrateDetailExtras(row);
-          } catch (err) {
-            showToast(err.message || "파일 삭제 실패", "error");
-          }
-        });
-      });
-    }
+      : `<p class="muted">등록된 파일이 없습니다.${admin ? " 수정 모드에서 파일을 업로드하세요." : ""}</p>`;
   }
 
   function renderMeetingList(notes) {
@@ -2698,18 +2818,6 @@ async function hydrateDetailExtras(row) {
           )
           .join("")}</ul>`
       : '<p class="muted">미팅 기록이 없습니다.</p>';
-    if (editMeetings) {
-      meetListEl.querySelectorAll(".meeting-del-btn").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          try {
-            await window.TMeetingNotes.remove(btn.dataset.noteId, row.companyId);
-            void hydrateDetailExtras(row);
-          } catch (err) {
-            showToast(err.message || "미팅 삭제 실패", "error");
-          }
-        });
-      });
-    }
   }
 
   try {
@@ -2727,52 +2835,6 @@ async function hydrateDetailExtras(row) {
   } catch {
     if (meetListEl) meetListEl.innerHTML = '<p class="muted">미팅 기록을 불러오지 못했습니다. (migration 013 필요)</p>';
   }
-
-  if (editMeetings) {
-    byId("meeting-add-btn")?.addEventListener("click", async () => {
-      const at = byId("edit-meeting-at")?.value;
-      try {
-        await window.TMeetingNotes.upsert(row.companyId, {
-          meetingAt: at ? new Date(at).toISOString() : null,
-          location: byId("edit-meeting-location")?.value.trim(),
-          attendees: byId("edit-meeting-attendees")?.value.trim(),
-          summary: byId("edit-meeting-summary")?.value.trim(),
-          nextAction: byId("edit-meeting-next")?.value.trim()
-        });
-        ["edit-meeting-at", "edit-meeting-location", "edit-meeting-attendees", "edit-meeting-summary", "edit-meeting-next"].forEach(
-          (id) => {
-            const el = byId(id);
-            if (el) el.value = "";
-          }
-        );
-        void hydrateDetailExtras(row);
-        showToast("미팅 기록이 추가되었습니다.");
-      } catch (err) {
-        showToast(err.message || "미팅 저장 실패", "error");
-      }
-    });
-
-    byId("file-add-btn")?.addEventListener("click", async () => {
-      const url = byId("edit-file-url")?.value.trim();
-      if (!url) {
-        showToast("파일 URL을 입력하세요.", "error");
-        return;
-      }
-      try {
-        await window.TCompanyFiles.add(row.companyId, {
-          fileType: "result_report",
-          title: byId("edit-file-title")?.value.trim() || "결과보고서",
-          fileUrl: url
-        });
-        byId("edit-file-url").value = "";
-        byId("edit-file-title").value = "";
-        void hydrateDetailExtras(row);
-        showToast("파일이 추가되었습니다.");
-      } catch (err) {
-        showToast(err.message || "파일 저장 실패", "error");
-      }
-    });
-  }
 }
 
 function paintDetailModal() {
@@ -2780,8 +2842,12 @@ function paintDetailModal() {
   if (!row) return;
   setDetailLoading(false);
   const admin = window.TClientAdmin?.isUnlocked();
+  const openSections = captureDetailOpenSections();
+  openSections.forEach((key) => state.detailOpenSections.add(key));
+  Object.keys(state.detailEditSections).forEach((key) => state.detailOpenSections.add(key));
   paintDetailHeader(row);
   byId("detailBody").innerHTML = renderDetailBody(row, admin);
+  applyDetailOpenSections(state.detailOpenSections);
   if (admin) {
     window.TUiSelect?.init(byId("detailDrawer"));
   }
@@ -2808,6 +2874,8 @@ async function openDetail(row, sectionToEdit = null) {
       /* migration 013 */
     }
   }
+  state.detailOpenSections = new Set(["sales"]);
+  if (sectionToEdit) state.detailOpenSections.add(sectionToEdit);
   paintDetailModal();
   const drawer = byId("detailDrawer");
   drawer?.classList.remove("hidden");
@@ -2819,6 +2887,7 @@ async function openDetail(row, sectionToEdit = null) {
 function closeDetail() {
   state.detailRow = null;
   clearSectionEdits();
+  state.detailOpenSections = new Set();
   window.__TCLIENT_DETAIL_ROW = null;
   window.__TCLIENT_DETAIL_EDIT = false;
   hidePortfolioPopover();
@@ -3035,11 +3104,13 @@ async function deleteCompanyAsync(row) {
       if (!/not found/i.test(`${err.message ?? ""}`)) throw err;
     }
     window.TSalesManagement?.removeLocal?.(companyId);
+    await admin.flushPersist?.();
   } catch (err) {
     showToast(err.message || "삭제 실패", "error");
     return;
   }
 
+  state.snapshotRows = state.snapshotRows.filter((r) => r.companyId !== row.companyId);
   closeDetail();
   reloadRowsWithAdmin();
   refreshViews();
@@ -3255,6 +3326,7 @@ function bindModal() {
   window.openMergeModal = openMergeModal;
   bindDetailHeaderEdits();
   bindDetailSectionEdits();
+  bindDetailSectionToggles();
   byId("detailBody")?.addEventListener("click", (e) => {
     const btn = e.target?.closest?.(".post-delete-btn");
     if (!btn || !state.detailRow || !window.TClientAdmin?.isUnlocked()) return;
@@ -3992,6 +4064,7 @@ window.deleteCompany = deleteCompany;
 window.refreshViews = refreshViews;
 window.TClientView = {
   sortRows,
+  sortRecommendedRows,
   passesFilters,
   pipelineStageBadge,
   pipelineStatusBadge,

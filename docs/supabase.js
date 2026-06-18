@@ -43,6 +43,46 @@
     }
   }
 
+  function publicStorageUrl(bucket, path) {
+    const { url } = config();
+    const encoded = `${path}`.split("/").map((seg) => encodeURIComponent(seg)).join("/");
+    return `${url}/storage/v1/object/public/${bucket}/${encoded}`;
+  }
+
+  async function uploadStorageFile(bucket, path, file) {
+    const { url, anonKey } = config();
+    const token = await window.TAuth.getAccessToken();
+    if (!token) throw new Error("로그인이 필요합니다.");
+    const encoded = `${path}`.split("/").map((seg) => encodeURIComponent(seg)).join("/");
+    const res = await fetch(`${url}/storage/v1/object/${bucket}/${encoded}`, {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": file.type || "application/octet-stream",
+        "x-upsert": "true"
+      },
+      body: file
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`파일 업로드 실패 (${res.status}). ${detail}`);
+    }
+    return publicStorageUrl(bucket, path);
+  }
+
+  async function deleteStorageFile(bucket, path) {
+    if (!path) return;
+    const { url, anonKey } = config();
+    const token = await window.TAuth.getAccessToken();
+    if (!token) throw new Error("로그인이 필요합니다.");
+    const encoded = `${path}`.split("/").map((seg) => encodeURIComponent(seg)).join("/");
+    await fetch(`${url}/storage/v1/object/${bucket}/${encoded}`, {
+      method: "DELETE",
+      headers: { apikey: anonKey, Authorization: `Bearer ${token}` }
+    });
+  }
+
   window.TSupabase = {
     getPublishedSnapshot: () => rpc("get_published_snapshot"),
     getLeadDashboard: () => rpc("get_lead_dashboard"),
@@ -86,6 +126,9 @@
     deleteCompanyFile: (fileId) => rpc("delete_company_file", { p_file_id: fileId }, { auth: true }),
     getMeetingNotes: (companyId) => rpc("get_meeting_notes", { p_company_id: companyId }),
     upsertMeetingNote: (patch) => rpc("upsert_meeting_note", { p_patch: patch }, { auth: true }),
-    deleteMeetingNote: (noteId) => rpc("delete_meeting_note", { p_note_id: noteId }, { auth: true })
+    deleteMeetingNote: (noteId) => rpc("delete_meeting_note", { p_note_id: noteId }, { auth: true }),
+    uploadStorageFile,
+    deleteStorageFile,
+    publicStorageUrl
   };
 })();
