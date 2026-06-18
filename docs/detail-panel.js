@@ -283,12 +283,7 @@
   function renderRecommendedTab(activeTab) {
     if (activeTab !== "recommended") return;
     const rows = sortTabRows(getRows().filter(rowMatchesRecommendedTab));
-    const filtered = filterSearch(rows, getSearchQuery()).sort((a, b) => {
-      const sa = Number.parseInt(`${a.recommendScore ?? 0}`, 10) || 0;
-      const sb = Number.parseInt(`${b.recommendScore ?? 0}`, 10) || 0;
-      if (sa !== sb) return sb - sa;
-      return displayName(a).localeCompare(displayName(b), "ko");
-    });
+    const filtered = filterSearch(rows, getSearchQuery()).filter((r) => V().passesFilters?.(r) ?? true);
     byId("recommended").innerHTML = filtered.length ? recommendedTable(filtered) : emptyState("recommended");
     bindListClicks("recommended");
     if (!filtered.length) bindEmptyStateActions("recommended");
