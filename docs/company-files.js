@@ -32,26 +32,26 @@
     return m ? m[1].toLowerCase() : "";
   }
 
-  const EXT_EMOJI = {
-    pdf: "📕",
-    hwp: "📘",
-    hwpx: "📘",
-    doc: "📃",
-    docx: "📃",
-    xls: "📊",
-    xlsx: "📊",
-    ppt: "📽️",
-    pptx: "📽️",
-    zip: "🗂️",
-    rar: "🗂️",
-    "7z": "🗂️",
-    png: "🖼️",
-    jpg: "🖼️",
-    jpeg: "🖼️",
-    gif: "🖼️",
-    webp: "🖼️",
-    txt: "📝",
-    csv: "📊"
+  const EXT_ICON = {
+    pdf: "fileText",
+    hwp: "fileText",
+    hwpx: "fileText",
+    doc: "fileText",
+    docx: "fileText",
+    txt: "fileText",
+    xls: "chart",
+    xlsx: "chart",
+    csv: "chart",
+    ppt: "briefcase",
+    pptx: "briefcase",
+    zip: "archive",
+    rar: "archive",
+    "7z": "archive",
+    png: "image",
+    jpg: "image",
+    jpeg: "image",
+    gif: "image",
+    webp: "image"
   };
 
   function extFromFile(file = {}) {
@@ -62,8 +62,8 @@
     return fromPath || "bin";
   }
 
-  function extEmoji(file = {}) {
-    return EXT_EMOJI[extFromFile(file)] || "📎";
+  function extIconName(file = {}) {
+    return EXT_ICON[extFromFile(file)] || "fileText";
   }
 
   /** Storage object keys must be ASCII-only (Supabase rejects 한글/spaces in keys). */
@@ -145,7 +145,7 @@
     invalidate,
     resolveHref,
     resolveTitle,
-    extEmoji,
+    extIconName,
     extFromFile,
     FILE_TYPE_LABEL,
     normalize

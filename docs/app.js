@@ -2896,7 +2896,7 @@ async function hydrateDetailExtras(row) {
       ? `<ul class="file-list file-list-compact">${files
           .map(
             (f) =>
-              `<li><a class="link file-list-link" href="${escapeAttr(href(f))}" target="_blank" rel="noreferrer"><span class="file-ext-emoji" aria-hidden="true">${window.TCompanyFiles.extEmoji(f)}</span> ${escapeHtml(window.TCompanyFiles.resolveTitle(f))}</a> <span class="muted">${escapeHtml(formatDate(f.uploadedAt))}</span>${
+              `<li><a class="link file-list-link" href="${escapeAttr(href(f))}" target="_blank" rel="noreferrer"><span class="file-ext-icon file-ext-${escapeAttr(window.TCompanyFiles.extFromFile(f) || "file")}" aria-hidden="true">${iconSvg(window.TCompanyFiles.extIconName(f), 14)}</span> ${escapeHtml(window.TCompanyFiles.resolveTitle(f))}</a> <span class="muted">${escapeHtml(formatDate(f.uploadedAt))}</span>${
                 editFiles
                   ? ` <button type="button" class="btn-ghost btn-sm file-del-btn" data-file-id="${escapeAttr(f.id)}" data-storage-path="${escapeAttr(f.storagePath || "")}">삭제</button>`
                   : ""
@@ -4010,6 +4010,10 @@ function bindAdmin() {
     if (window.TClientAdmin?.isDirty?.()) {
       window.TClientAdmin.flushPersist();
     }
+  });
+
+  byId("adminManualDownloadBtn")?.addEventListener("click", () => {
+    showToast("준비중입니다.");
   });
 
   byId("adminNotionSyncBtn")?.addEventListener("click", async () => {

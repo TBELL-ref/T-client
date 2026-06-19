@@ -140,8 +140,10 @@
       .map((f) => {
         const title = window.TCompanyFiles?.resolveTitle?.(f) ?? "파일";
         const url = (window.TCompanyFiles?.resolveHref?.(f) ?? f.fileUrl) || "#";
-        const emoji = window.TCompanyFiles?.extEmoji?.(f) ?? "📎";
-        return `<a class="file-icon-chip file-ext-chip" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" download title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}"><span class="file-ext-emoji" aria-hidden="true">${emoji}</span></a>`;
+        const ext = window.TCompanyFiles?.extFromFile?.(f) ?? "";
+        const icon = window.TCompanyFiles?.extIconName?.(f) ?? "fileText";
+        const extClass = ext ? ` file-ext-${escapeAttr(ext)}` : "";
+        return `<a class="file-icon-chip file-ext-chip${extClass}" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" download title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}">${iconSvg(icon, 15)}</a>`;
       })
       .join("")}</div>`;
   }
@@ -254,11 +256,16 @@
       leads: rows.filter((r) => isMainTab(r)).length,
       excluded: rows.filter((r) => rowMatchesExcludedTab(r)).length
     };
-  document.querySelectorAll(".tabs-bar .tab[data-tab]").forEach((btn) => {
+    const hideCountTabs = new Set(["leads", "posts", "excluded"]);
+    document.querySelectorAll(".tabs-bar .tab[data-tab]").forEach((btn) => {
       const id = btn.dataset.tab;
-      const n = counts[id];
       const base = btn.dataset.tabLabel || btn.textContent.replace(/\s*\d+$/, "").trim();
       btn.dataset.tabLabel = base;
+      if (hideCountTabs.has(id)) {
+        btn.textContent = base;
+        return;
+      }
+      const n = counts[id];
       btn.textContent = n != null && n > 0 ? `${base} ${n}` : base;
     });
   }

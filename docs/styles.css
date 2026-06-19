@@ -44,21 +44,25 @@ body {
 .app {
   max-width: 1320px;
   margin: 0 auto;
-  padding: 20px 24px 48px;
+  padding: 0 24px 48px;
 }
 
 /* Header */
 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 300;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 20px;
-  margin-bottom: 20px;
-  padding: 12px 20px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
+  margin: 0 -24px 20px;
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid var(--line);
   box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .brand {
@@ -104,6 +108,10 @@ body {
 
 .meta-updated {
   font-weight: 500;
+}
+
+#dashboard {
+  padding-top: 20px;
 }
 
 /* Dashboard — chart ~60% · stats ~40% */
@@ -3720,12 +3728,18 @@ tbody tr.row-manual {
 
 @media (max-width: 640px) {
   .app {
-    padding: 12px 14px 32px;
+    padding: 0 14px 32px;
   }
 
   .site-header {
+    margin: 0 -14px 16px;
+    padding: 10px 14px;
     flex-wrap: wrap;
     gap: 10px;
+  }
+
+  #dashboard {
+    padding-top: 16px;
   }
 
   .header-end {
@@ -5442,19 +5456,40 @@ body.detail-drawer-open .app {
   color: #475569;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
   text-decoration: none;
-  font-size: 0.95rem;
   line-height: 1;
 }
 
-.file-ext-emoji {
+.file-ext-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
-.file-list-link .file-ext-emoji {
-  margin-right: 2px;
+.file-list-link .file-ext-icon {
+  margin-right: 4px;
+  vertical-align: middle;
 }
+
+.file-ext-pdf { color: #dc2626; }
+.file-ext-hwp,
+.file-ext-hwpx { color: #1d4ed8; }
+.file-ext-doc,
+.file-ext-docx,
+.file-ext-txt { color: #2563eb; }
+.file-ext-xls,
+.file-ext-xlsx,
+.file-ext-csv { color: #059669; }
+.file-ext-ppt,
+.file-ext-pptx { color: #d97706; }
+.file-ext-zip,
+.file-ext-rar,
+.file-ext-7z { color: #7c3aed; }
+.file-ext-png,
+.file-ext-jpg,
+.file-ext-jpeg,
+.file-ext-gif,
+.file-ext-webp { color: #0891b2; }
 
 .file-icon-chip:hover {
   background: #eff6ff;
