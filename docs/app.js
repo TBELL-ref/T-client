@@ -96,6 +96,12 @@ function pipelineCombinedCell(row) {
   return `<div class="pipeline-combined">${pipelineStageBadge(row)}${pipelineStatusBadge(row)}</div>`;
 }
 
+function multilineHtml(text) {
+  const raw = `${text ?? ""}`.trim();
+  if (!raw) return "";
+  return escapeHtml(raw).replace(/\r?\n/g, "<br>");
+}
+
 function candidateOpinionText(row) {
   const memo = `${row.memo ?? row.salesMemo ?? ""}`.trim();
   if (memo) return memo;
@@ -108,9 +114,15 @@ function candidateOpinionText(row) {
 }
 
 function candidateOpinionHtml(row) {
-  const text = candidateOpinionText(row);
-  if (!text || text === "-") return '<span class="muted">—</span>';
-  return `<div class="cell-opinion">${escapeHtml(text).replace(/\r?\n/g, "<br>")}</div>`;
+  const memo = `${row.memo ?? row.salesMemo ?? ""}`.trim();
+  if (memo) return `<div class="cell-opinion text-preline">${multilineHtml(memo)}</div>`;
+  const pros = `${row.candidatePros ?? ""}`.trim();
+  const cons = `${row.candidateCons ?? ""}`.trim();
+  const parts = [];
+  if (pros) parts.push(pros);
+  if (cons) parts.push(cons);
+  if (!parts.length) return '<span class="muted">—</span>';
+  return `<div class="cell-opinion text-preline">${multilineHtml(parts.join("\n"))}</div>`;
 }
 
 function testPeriodDisplay(row) {
@@ -541,7 +553,24 @@ function renderContactStrip(c, email) {
   }
   if (c.phone) parts.push(`<span class="sales-contact-phone">${escapeHtml(c.phone)}</span>`);
   if (!parts.length) return '<span class="muted sales-contact-empty">담당자 정보 없음</span>';
-  return `<div class="sales-contact-strip">${parts.join('<span class="sales-contact-sep" aria-hidden="true">·</span>')}</div>`;
+  return `<div class="sales-contact-strip">${parts.join('<span class="sales-contact-sep" aria-hidden="true">|</span>')}</div>`;
+}
+
+function renderSalesRowView(c, email, row) {
+  return `<div class="sales-row-bar">
+    <div class="sales-row-contact">${renderContactStrip(c, email)}</div>
+    <div class="sales-row-pipeline">${renderPipelineSummary(row)}</div>
+  </div>`;
+}
+
+function renderTestView(row) {
+  const start = row.testStartedAt ? escapeHtml(formatDate(row.testStartedAt)) : '<span class="muted">—</span>';
+  const end = row.testEndedAt ? escapeHtml(formatDate(row.testEndedAt)) : '<span class="muted">—</span>';
+  const memo = `${row.testNotes ?? ""}`.trim();
+  return `<div class="test-compact-view">
+    <div class="test-dates-row"><span class="test-date-item"><span class="test-date-label">시작</span> ${start}</span><span class="test-date-sep" aria-hidden="true">|</span><span class="test-date-item"><span class="test-date-label">종료</span> ${end}</span></div>
+    ${memo ? `<div class="test-memo text-preline">${multilineHtml(memo)}</div>` : ""}
+  </div>`;
 }
 
 function renderScoreSection(row, edit, admin = false) {
@@ -834,7 +863,6 @@ async function saveDetailSection(row, section) {
       salesPatch({
         testStartedAt: byId("edit-test-started")?.value ? `${byId("edit-test-started").value}T00:00:00Z` : "",
         testEndedAt: byId("edit-test-ended")?.value ? `${byId("edit-test-ended").value}T00:00:00Z` : "",
-        testPeriodLabel: byId("edit-test-period")?.value.trim(),
         testNotes: byId("edit-test-notes")?.value.trim()
       })
     );
@@ -2645,7 +2673,7 @@ function renderDetailBody(row, admin = false) {
 
   const salesBody = editSales
     ? `<div class="detail-sales-layout is-edit">${detailSubPanel("파이프라인", pipelineBlock)}${detailSubPanel("담당자", contactBlock)}</div>`
-    : `<div class="detail-sales-compact">${pipelineBlock}${contactBlock}</div>`;
+    : renderSalesRowView(c, email, row);
 
   const evalBlock = editEval
     ? `<div class="detail-form-grid cols-2">
@@ -2658,23 +2686,17 @@ function renderDetailBody(row, admin = false) {
     : `<div class="detail-eval-summary">
         <div class="detail-score-box"><span class="detail-score-label">추천</span>${renderStarRating(row.recommendScore, 5)}</div>
         <div class="detail-score-box"><span class="detail-score-label">파일럿</span>${renderStarRating(row.pilotDifficulty, 3)}</div>
-        ${row.recommendScoreReason ? `<p class="detail-prose"><strong>추천 근거</strong> ${escapeHtml(row.recommendScoreReason)}</p>` : ""}
-        ${row.pilotDifficultyReason ? `<p class="detail-prose"><strong>파일럿 근거</strong> ${escapeHtml(row.pilotDifficultyReason)}</p>` : ""}
+        ${row.recommendScoreReason ? `<p class="detail-prose text-preline"><strong>추천 근거</strong> ${multilineHtml(row.recommendScoreReason)}</p>` : ""}
+        ${row.pilotDifficultyReason ? `<p class="detail-prose text-preline"><strong>파일럿 근거</strong> ${multilineHtml(row.pilotDifficultyReason)}</p>` : ""}
       </div>`;
 
   const testBlock = editTest
     ? `<div class="detail-form-grid cols-2">
         <div class="inline-row"><span class="inline-label">시작일</span>${inlineInput("edit-test-started", (row.testStartedAt ?? "").slice(0, 10), "date")}</div>
         <div class="inline-row"><span class="inline-label">종료일</span>${inlineInput("edit-test-ended", (row.testEndedAt ?? "").slice(0, 10), "date")}</div>
-        <div class="inline-row span-2"><span class="inline-label">테스트기간(원문)</span>${inlineInput("edit-test-period", row.testPeriodLabel ?? "")}</div>
         <div class="inline-row span-2"><span class="inline-label">테스트 메모</span>${inlineInput("edit-test-notes", row.testNotes ?? "")}</div>
       </div>`
-    : detailKvGrid([
-        ["시작일", row.testStartedAt ? escapeHtml(formatDate(row.testStartedAt)) : '<span class="muted">—</span>'],
-        ["종료일", row.testEndedAt ? escapeHtml(formatDate(row.testEndedAt)) : '<span class="muted">—</span>'],
-        ...(row.testPeriodLabel ? [["기간(원문)", escapeHtml(row.testPeriodLabel)]] : []),
-        ["메모", row.testNotes ? escapeHtml(row.testNotes) : '<span class="muted">—</span>']
-      ]);
+    : renderTestView(row);
 
   const filesPlaceholder = editFiles && admin
     ? `<div class="detail-files-section" data-company-files="${escapeAttr(row.companyId)}">
@@ -2831,16 +2853,21 @@ async function hydrateDetailExtras(row) {
   function renderMeetingList(notes) {
     if (!meetListEl) return;
     meetListEl.innerHTML = notes.length
-      ? `<ul class="meeting-list">${notes
+      ? `<ul class="meeting-list meeting-list-compact">${notes
           .map(
             (n) =>
-              `<li><strong>${escapeHtml(formatDate(n.meetingAt) || "일시 미정")}</strong> ${escapeHtml(n.location ? `· ${n.location}` : "")}<div>${escapeHtml(n.summary || "")}</div>${
-                n.nextAction ? `<div class="muted">다음: ${escapeHtml(n.nextAction)}</div>` : ""
-              }${
-                editMeetings
-                  ? ` <button type="button" class="btn-ghost btn-sm meeting-del-btn" data-note-id="${escapeAttr(n.id)}">삭제</button>`
-                  : ""
-              }</li>`
+              `<li class="meeting-card">
+                <div class="meeting-card-head">
+                  <span><strong>${escapeHtml(formatDate(n.meetingAt) || "일시 미정")}</strong>${n.location ? ` <span class="meeting-location">${escapeHtml(n.location)}</span>` : ""}</span>
+                  ${
+                    editMeetings
+                      ? `<button type="button" class="btn-ghost btn-sm meeting-del-btn" data-note-id="${escapeAttr(n.id)}">삭제</button>`
+                      : ""
+                  }
+                </div>
+                ${n.summary ? `<div class="meeting-card-body text-preline">${multilineHtml(n.summary)}</div>` : ""}
+                ${n.nextAction ? `<div class="meeting-card-next text-preline">다음: ${multilineHtml(n.nextAction)}</div>` : ""}
+              </li>`
           )
           .join("")}</ul>`
       : '<p class="muted">미팅 기록이 없습니다.</p>';
