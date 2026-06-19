@@ -533,6 +533,17 @@ function closedReasonSelect(id, value) {
     .join("")}</select>`;
 }
 
+function renderContactStrip(c, email) {
+  const parts = [];
+  if (c.name) parts.push(`<span class="sales-contact-name">${escapeHtml(c.name)}</span>`);
+  if (email) {
+    parts.push(`<a class="link sales-contact-email" href="mailto:${escapeAttr(email)}">${escapeHtml(email)}</a>`);
+  }
+  if (c.phone) parts.push(`<span class="sales-contact-phone">${escapeHtml(c.phone)}</span>`);
+  if (!parts.length) return '<span class="muted sales-contact-empty">담당자 정보 없음</span>';
+  return `<div class="sales-contact-strip">${parts.join('<span class="sales-contact-sep" aria-hidden="true">·</span>')}</div>`;
+}
+
 function renderScoreSection(row, edit, admin = false) {
   const breakdown = row.scoreBreakdown ?? [];
   const recalcBtn = admin
@@ -566,12 +577,12 @@ function renderScoreSection(row, edit, admin = false) {
         )
         .join("")
     : `<li class="score-row is-muted"><span class="score-row-label">${escapeHtml(row.scoreReason)}</span></li>`;
-  return `<div class="score-panel">
-    <div class="score-panel-header">
-      <span class="score-panel-total">${escapeHtml(row.priorityScore)}<small>점</small></span>
-      <span class="score-panel-grade grade-${escapeHtml(row.leadGrade || "C")}">${escapeHtml(row.leadGrade || "-")}</span>
+  return `<div class="score-compact">
+    <div class="score-compact-head">
+      <span class="score-compact-total">${escapeHtml(row.priorityScore)}점</span>
+      <span class="score-compact-grade grade-${escapeHtml(row.leadGrade || "C")}">${escapeHtml(row.leadGrade || "-")}</span>
     </div>
-    <ul class="score-panel-list">${lines}</ul>
+    <ul class="score-compact-list">${lines}</ul>
   </div>${recalcBtn}`;
 }
 
@@ -2615,10 +2626,10 @@ function renderDetailBody(row, admin = false) {
         <div class="inline-row"><span class="inline-label">상태</span>${pipelineStatusSelect("edit-pipeline-status", pipeline.pipelineStatus)}</div>
         <div class="inline-row span-2"><span class="inline-label">종결 사유</span>${closedReasonSelect("edit-closed-reason", row.closedReason ?? "")}</div>
       </div>`
-    : `<div class="detail-pipeline-card">
+    : `<div class="sales-pipeline-strip">
         ${renderPipelineSummary(row)}
-        ${row.closedReason ? `<p class="detail-meta-line">종결 · ${escapeHtml(pipelineLabels().closedReasonLabel?.(row.closedReason) ?? row.closedReason)}</p>` : ""}
-        ${row.pipelineStageAt ? `<p class="detail-meta-line">변경 · ${escapeHtml(formatDate(row.pipelineStageAt))}</p>` : ""}
+        ${row.closedReason ? `<span class="sales-meta-chip">종결 ${escapeHtml(pipelineLabels().closedReasonLabel?.(row.closedReason) ?? row.closedReason)}</span>` : ""}
+        ${row.pipelineStageAt ? `<span class="sales-meta-chip">${escapeHtml(formatDate(row.pipelineStageAt))}</span>` : ""}
       </div>`;
 
   const contactBlock = editSales
@@ -2627,11 +2638,11 @@ function renderDetailBody(row, admin = false) {
         <div class="inline-row"><span class="inline-label">이메일</span>${inlineInput("edit-contact-email", email, "email")}</div>
         <div class="inline-row span-2"><span class="inline-label">전화</span>${inlineInput("edit-contact-phone", c.phone ?? "", "tel")}</div>
       </div>`
-    : detailKvGrid([
-        ["이름", c.name ? escapeHtml(c.name) : '<span class="muted">—</span>'],
-        ["이메일", email ? `<a class="link" href="mailto:${escapeAttr(email)}">${escapeHtml(email)}</a>` : '<span class="muted">없음</span>'],
-        ["전화", c.phone ? escapeHtml(c.phone) : '<span class="muted">—</span>']
-      ]);
+    : renderContactStrip(c, email);
+
+  const salesBody = editSales
+    ? `<div class="detail-sales-layout is-edit">${detailSubPanel("파이프라인", pipelineBlock)}${detailSubPanel("담당자", contactBlock)}</div>`
+    : `<div class="detail-sales-compact">${pipelineBlock}${contactBlock}</div>`;
 
   const evalBlock = editEval
     ? `<div class="detail-form-grid cols-2">
@@ -2751,13 +2762,7 @@ function renderDetailBody(row, admin = false) {
 
   const sections = [];
   sections.push(
-    detailSectionCard(
-      "영업 관리",
-      `<div class="detail-sales-layout">${detailSubPanel("파이프라인", pipelineBlock)}${detailSubPanel("담당자", contactBlock)}</div>`,
-      "sales",
-      "",
-      { icon: "briefcase", open: true }
-    )
+    detailSectionCard("영업 관리", salesBody, "sales", "", { icon: "briefcase", open: true })
   );
   if (window.TPipeline?.isInProgressStage?.(pipeline.pipelineStage) || testPeriodDisplay(row)) {
     sections.push(detailSectionCard("테스트 · 진행", testBlock, "test", "", { icon: "target", open: false }));
