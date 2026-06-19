@@ -5227,6 +5227,143 @@ body.detail-drawer-open .app {
   color: #9ca3af;
 }
 
+.sales-section-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sales-meetings-embed {
+  padding-top: 8px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.meeting-list-mini {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meeting-mini-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.meeting-mini-details {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #f3f4f6;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.meeting-mini-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.8rem;
+}
+
+.meeting-mini-head::-webkit-details-marker {
+  display: none;
+}
+
+.meeting-mini-date {
+  font-weight: 700;
+  color: #111827;
+  flex-shrink: 0;
+}
+
+.meeting-mini-next {
+  color: #6b7280;
+  text-align: right;
+  flex: 1;
+  min-width: 0;
+  white-space: pre-line;
+  word-break: break-word;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.meeting-mini-body {
+  padding: 0 8px 8px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #374151;
+}
+
+.meeting-mini-meta {
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+.meeting-add-actions {
+  margin: 6px 0 4px;
+}
+
+.progress-section-stack,
+.rating-section-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-files-block,
+.rating-score-block {
+  padding-top: 8px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.score-grid-3x2 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px 6px;
+}
+
+.score-grid-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 6px;
+  background: #f9fafb;
+  border: 1px solid #f3f4f6;
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.score-grid-cell.is-wide {
+  grid-column: 1 / -1;
+}
+
+.score-grid-label {
+  font-size: 0.68rem;
+  color: #6b7280;
+  line-height: 1.25;
+  word-break: keep-all;
+}
+
+.score-grid-pts {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2563eb;
+  line-height: 1.2;
+}
+
+@media (max-width: 400px) {
+  .score-grid-3x2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .cell-opinion {
   font-size: 0.82rem;
   line-height: 1.5;

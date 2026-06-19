@@ -602,17 +602,35 @@ function renderScoreSection(row, edit, admin = false) {
     ? breakdown
         .map(
           (b) =>
-            `<li class="score-row"><span class="score-row-label">${escapeHtml(b.label)}</span><span class="score-row-pts">${escapeHtml(b.pts || "")}</span></li>`
+            `<div class="score-grid-cell"><span class="score-grid-label">${escapeHtml(b.label)}</span><span class="score-grid-pts">${escapeHtml(b.pts || "")}</span></div>`
         )
         .join("")
-    : `<li class="score-row is-muted"><span class="score-row-label">${escapeHtml(row.scoreReason)}</span></li>`;
+    : `<div class="score-grid-cell is-wide"><span class="score-grid-label">${escapeHtml(row.scoreReason)}</span></div>`;
   return `<div class="score-compact">
     <div class="score-compact-head">
       <span class="score-compact-total">${escapeHtml(row.priorityScore)}점</span>
       <span class="score-compact-grade grade-${escapeHtml(row.leadGrade || "C")}">${escapeHtml(row.leadGrade || "-")}</span>
     </div>
-    <ul class="score-compact-list">${lines}</ul>
+    <div class="score-grid-3x2">${lines}</div>
   </div>${recalcBtn}`;
+}
+
+function renderMeetingsEmbed(row, editSales, admin) {
+  const addForm =
+    editSales && admin
+      ? `<div class="detail-form-grid cols-2 meeting-add-row">
+          <div class="inline-row"><span class="inline-label">일시</span><input type="datetime-local" id="edit-meeting-at" class="inline-field" /></div>
+          <div class="inline-row"><span class="inline-label">장소</span>${inlineInput("edit-meeting-location", "", "text")}</div>
+          <div class="inline-row span-2"><span class="inline-label">참석자</span>${inlineInput("edit-meeting-attendees", "", "text")}</div>
+          <div class="inline-row span-2"><span class="inline-label">요약</span>${inlineInput("edit-meeting-summary", "", "text")}</div>
+          <div class="inline-row span-2"><span class="inline-label">다음 액션</span>${inlineInput("edit-meeting-next", "", "text")}</div>
+        </div>
+        <p class="meeting-add-actions"><button type="button" class="detail-sec-btn detail-sec-btn-edit" id="meeting-add-btn">미팅 추가</button></p>`
+      : "";
+  return `<div class="sales-meetings-embed" data-company-meetings="${escapeAttr(row.companyId)}">
+    ${addForm}
+    <div class="meeting-list-wrap"><p class="muted">미팅 기록 로딩…</p></div>
+  </div>`;
 }
 
 function showToast(message, type = "ok") {
@@ -857,7 +875,7 @@ async function saveDetailSection(row, section) {
     return;
   }
 
-  if (section === "test") {
+  if (section === "progress") {
     await persistCompany(
       null,
       salesPatch({
@@ -880,6 +898,14 @@ async function saveDetailSection(row, section) {
         evaluationNotes: byId("edit-eval-notes")?.value.trim()
       })
     );
+    const parts = {};
+    document.querySelectorAll(".score-part-input").forEach((inp) => {
+      const v = inp.value.trim();
+      if (v !== "") parts[inp.dataset.scorePart] = v;
+    });
+    const total = byId("edit-score-total")?.value.trim() ?? "";
+    if (total !== "") parts._total = total;
+    if (Object.keys(parts).length) await persistCompany({ scoreParts: parts });
     return;
   }
 
@@ -904,18 +930,6 @@ async function saveDetailSection(row, section) {
     return;
   }
 
-  if (section === "score") {
-    const parts = {};
-    document.querySelectorAll(".score-part-input").forEach((inp) => {
-      const v = inp.value.trim();
-      if (v !== "") parts[inp.dataset.scorePart] = v;
-    });
-    const total = byId("edit-score-total")?.value.trim() ?? "";
-    if (total !== "") parts._total = total;
-    await persistCompany({ scoreParts: parts });
-    return;
-  }
-
   if (section === "posts") {
     const postUrl = byId("edit-post-url")?.value.trim();
     const overridePatch = {};
@@ -932,10 +946,6 @@ async function saveDetailSection(row, section) {
     }
     await persistCompany(overridePatch);
     return;
-  }
-
-  if (section === "files" || section === "meetings") {
-    finishDetailSave(cid, { exitSection: section, toastMessage: "" });
   }
 }
 
@@ -983,6 +993,10 @@ function bindDetailSectionEdits() {
       e.stopPropagation();
     }
 
+    if (e.target?.closest?.(".meeting-mini-details summary")) {
+      e.stopPropagation();
+    }
+
     const editBtn = e.target?.closest?.("[data-section-edit]");
     if (editBtn) {
       const sectionKey = editBtn.dataset.sectionEdit;
@@ -1022,7 +1036,7 @@ function bindDetailSectionEdits() {
     }
 
     const fileDelBtn = e.target?.closest?.(".file-del-btn");
-    if (fileDelBtn && isSectionEdit("files")) {
+    if (fileDelBtn && isSectionEdit("progress")) {
       e.preventDefault();
       try {
         await window.TCompanyFiles.remove(fileDelBtn.dataset.fileId, row.companyId, fileDelBtn.dataset.storagePath || "");
@@ -1033,7 +1047,7 @@ function bindDetailSectionEdits() {
       return;
     }
 
-    if (e.target?.closest?.("#file-upload-btn") && isSectionEdit("files")) {
+    if (e.target?.closest?.("#file-upload-btn") && isSectionEdit("progress")) {
       e.preventDefault();
       const fileInput = byId("edit-file-input");
       const file = fileInput?.files?.[0];
@@ -1059,7 +1073,7 @@ function bindDetailSectionEdits() {
     }
 
     const meetingDelBtn = e.target?.closest?.(".meeting-del-btn");
-    if (meetingDelBtn && isSectionEdit("meetings")) {
+    if (meetingDelBtn && isSectionEdit("sales")) {
       e.preventDefault();
       try {
         await window.TMeetingNotes.remove(meetingDelBtn.dataset.noteId, row.companyId);
@@ -1070,7 +1084,7 @@ function bindDetailSectionEdits() {
       return;
     }
 
-    if (e.target?.closest?.("#meeting-add-btn") && isSectionEdit("meetings")) {
+    if (e.target?.closest?.("#meeting-add-btn") && isSectionEdit("sales")) {
       e.preventDefault();
       const at = byId("edit-meeting-at")?.value;
       try {
@@ -2606,13 +2620,10 @@ function renderDetailBody(row, admin = false) {
 
   const editSummary = isSectionEdit("summary");
   const editSales = isSectionEdit("sales");
-  const editTest = isSectionEdit("test");
+  const editProgress = isSectionEdit("progress");
   const editEval = isSectionEdit("eval");
   const editProfile = isSectionEdit("profile");
-  const editScore = isSectionEdit("score");
   const editPosts = isSectionEdit("posts");
-  const editFiles = isSectionEdit("files");
-  const editMeetings = isSectionEdit("meetings");
 
   const summaryBlock = editSummary
     ? `<div class="drawer-edit-form detail-form-grid">
@@ -2674,8 +2685,9 @@ function renderDetailBody(row, admin = false) {
   const salesBody = editSales
     ? `<div class="detail-sales-layout is-edit">${detailSubPanel("파이프라인", pipelineBlock)}${detailSubPanel("담당자", contactBlock)}</div>`
     : renderSalesRowView(c, email, row);
+  const salesWithMeetings = `<div class="sales-section-stack">${salesBody}${renderMeetingsEmbed(row, editSales, admin)}</div>`;
 
-  const evalBlock = editEval
+  const evalViewBlock = editEval
     ? `<div class="detail-form-grid cols-2">
         <div class="inline-row"><span class="inline-label">추천 점수</span>${inlineSelect("edit-cand-score", scoreSelectValue(row.recommendScore), [["","(선택)"],["5","★★★★★"],["4","★★★★☆"],["3","★★★☆☆"],["2","★★☆☆☆"],["1","★☆☆☆☆"]])}</div>
         <div class="inline-row"><span class="inline-label">파일럿 난이도</span>${inlineSelect("edit-cand-pilot", scoreSelectValue(row.pilotDifficulty), [["","(선택)"],["1","★☆☆"],["2","★★☆"],["3","★★★"]])}</div>
@@ -2689,8 +2701,9 @@ function renderDetailBody(row, admin = false) {
         ${row.recommendScoreReason ? `<p class="detail-prose text-preline"><strong>추천 근거</strong> ${multilineHtml(row.recommendScoreReason)}</p>` : ""}
         ${row.pilotDifficultyReason ? `<p class="detail-prose text-preline"><strong>파일럿 근거</strong> ${multilineHtml(row.pilotDifficultyReason)}</p>` : ""}
       </div>`;
+  const ratingBody = `<div class="rating-section-stack">${evalViewBlock}<div class="rating-score-block">${renderScoreSection(row, editEval, admin)}</div></div>`;
 
-  const testBlock = editTest
+  const testBlock = editProgress
     ? `<div class="detail-form-grid cols-2">
         <div class="inline-row"><span class="inline-label">시작일</span>${inlineInput("edit-test-started", (row.testStartedAt ?? "").slice(0, 10), "date")}</div>
         <div class="inline-row"><span class="inline-label">종료일</span>${inlineInput("edit-test-ended", (row.testEndedAt ?? "").slice(0, 10), "date")}</div>
@@ -2698,7 +2711,7 @@ function renderDetailBody(row, admin = false) {
       </div>`
     : renderTestView(row);
 
-  const filesPlaceholder = editFiles && admin
+  const filesBlock = editProgress && admin
     ? `<div class="detail-files-section" data-company-files="${escapeAttr(row.companyId)}">
         <div class="file-upload-row">
           <label class="file-upload-picker">
@@ -2711,20 +2724,11 @@ function renderDetailBody(row, admin = false) {
         </div>
         <div class="file-list-wrap"><p class="muted">파일 목록 로딩…</p></div>
       </div>`
-    : `<div class="detail-files-section" data-company-files="${escapeAttr(row.companyId)}"><p class="muted">결과보고서 목록 로딩…</p></div>`;
-  const meetingsPlaceholder = editMeetings && admin
-    ? `<div class="detail-meetings-section" data-company-meetings="${escapeAttr(row.companyId)}">
-        <div class="detail-form-grid cols-2 meeting-add-row">
-          <div class="inline-row"><span class="inline-label">일시</span><input type="datetime-local" id="edit-meeting-at" class="inline-field" /></div>
-          <div class="inline-row"><span class="inline-label">장소</span>${inlineInput("edit-meeting-location", "", "text")}</div>
-          <div class="inline-row span-2"><span class="inline-label">참석자</span>${inlineInput("edit-meeting-attendees", "", "text")}</div>
-          <div class="inline-row span-2"><span class="inline-label">요약</span>${inlineInput("edit-meeting-summary", "", "text")}</div>
-          <div class="inline-row span-2"><span class="inline-label">다음 액션</span>${inlineInput("edit-meeting-next", "", "text")}</div>
-        </div>
-        <p><button type="button" class="btn-ghost btn-sm" id="meeting-add-btn">미팅 추가</button></p>
-        <div class="meeting-list-wrap"><p class="muted">미팅 기록 로딩…</p></div>
-      </div>`
-    : `<div class="detail-meetings-section" data-company-meetings="${escapeAttr(row.companyId)}"><p class="muted">미팅 기록 로딩…</p></div>`;
+    : `<div class="detail-files-section" data-company-files="${escapeAttr(row.companyId)}"><div class="file-list-wrap"><p class="muted">결과보고서 로딩…</p></div></div>`;
+  const progressBody = `<div class="progress-section-stack">
+    <div class="progress-test-block">${testBlock}</div>
+    <div class="progress-files-block">${filesBlock}</div>
+  </div>`;
 
   const postsBlock = editPosts
     ? `<div class="posts-panel">
@@ -2786,19 +2790,10 @@ function renderDetailBody(row, admin = false) {
       : `<p class="muted detail-empty-hint">등록된 공고가 없습니다.</p>`;
 
   const sections = [];
-  sections.push(
-    detailSectionCard("영업 관리", salesBody, "sales", "", { icon: "briefcase", open: true })
-  );
-  if (window.TPipeline?.isInProgressStage?.(pipeline.pipelineStage) || testPeriodDisplay(row)) {
-    sections.push(detailSectionCard("테스트 · 진행", testBlock, "test", "", { icon: "target", open: false }));
-  }
-  sections.push(detailSectionCard("추천 평가", evalBlock, "eval", "detail-block-warm", { icon: "star", open: false }));
-  sections.push(detailSectionCard("결과보고서", filesPlaceholder, "files", "", { icon: "fileText", open: false }));
-  sections.push(detailSectionCard("미팅 기록", meetingsPlaceholder, "meetings", "", { icon: "users", open: false }));
+  sections.push(detailSectionCard("영업 관리", salesWithMeetings, "sales", "", { icon: "briefcase", open: true }));
+  sections.push(detailSectionCard("테스트 · 결과", progressBody, "progress", "", { icon: "target", open: false }));
+  sections.push(detailSectionCard("추천 · 점수", ratingBody, "eval", "detail-block-warm", { icon: "star", open: false }));
   sections.push(detailSectionCard(`공고 · ${row.posts.length}건`, postsBlock, "posts", "", { icon: "building", open: false }));
-  sections.push(
-    detailSectionCard("점수 근거", renderScoreSection(row, editScore, admin), "score", "detail-block-muted", { icon: "chart", open: false })
-  );
   sections.push(
     detailSectionCard("프로필", renderProfileSection(row, editProfile, p, e.domain || row.domain || "", admin), "profile", "", {
       icon: "layers",
@@ -2830,8 +2825,39 @@ async function hydrateDetailExtras(row) {
   const filesListEl = filesEl?.querySelector(".file-list-wrap") ?? filesEl;
   const meetListEl = meetEl?.querySelector(".meeting-list-wrap") ?? meetEl;
   const admin = window.TClientAdmin?.isUnlocked?.();
-  const editFiles = isSectionEdit("files") && admin;
-  const editMeetings = isSectionEdit("meetings") && admin;
+  const editFiles = isSectionEdit("progress") && admin;
+  const editMeetings = isSectionEdit("sales") && admin;
+
+  function renderMeetingList(notes) {
+    if (!meetListEl) return;
+    meetListEl.innerHTML = notes.length
+      ? `<ul class="meeting-list meeting-list-mini">${notes
+          .map((n) => {
+            const date = escapeHtml(formatDate(n.meetingAt) || "일시 미정");
+            const next = n.nextAction ? escapeHtml(n.nextAction) : '<span class="muted">—</span>';
+            const bodyParts = [];
+            if (n.summary) bodyParts.push(`<div class="meeting-mini-summary text-preline">${multilineHtml(n.summary)}</div>`);
+            if (n.location) bodyParts.push(`<div class="meeting-mini-meta">장소 · ${escapeHtml(n.location)}</div>`);
+            if (n.attendees) bodyParts.push(`<div class="meeting-mini-meta">참석 · ${escapeHtml(n.attendees)}</div>`);
+            const body = bodyParts.length ? bodyParts.join("") : '<span class="muted">내용 없음</span>';
+            return `<li class="meeting-mini-item">
+              <details class="meeting-mini-details">
+                <summary class="meeting-mini-head">
+                  <span class="meeting-mini-date">${date}</span>
+                  <span class="meeting-mini-next">${next}</span>
+                </summary>
+                <div class="meeting-mini-body">${body}</div>
+              </details>
+              ${
+                editMeetings
+                  ? `<button type="button" class="btn-ghost btn-sm meeting-del-btn" data-note-id="${escapeAttr(n.id)}">삭제</button>`
+                  : ""
+              }
+            </li>`;
+          })
+          .join("")}</ul>`
+      : '<p class="muted detail-empty-hint">미팅 기록이 없습니다.</p>';
+  }
 
   function renderFileList(files) {
     if (!filesListEl) return;
@@ -2847,30 +2873,7 @@ async function hydrateDetailExtras(row) {
               }</li>`
           )
           .join("")}</ul>`
-      : `<p class="muted">등록된 파일이 없습니다.${admin ? " 수정 모드에서 파일을 업로드하세요." : ""}</p>`;
-  }
-
-  function renderMeetingList(notes) {
-    if (!meetListEl) return;
-    meetListEl.innerHTML = notes.length
-      ? `<ul class="meeting-list meeting-list-compact">${notes
-          .map(
-            (n) =>
-              `<li class="meeting-card">
-                <div class="meeting-card-head">
-                  <span><strong>${escapeHtml(formatDate(n.meetingAt) || "일시 미정")}</strong>${n.location ? ` <span class="meeting-location">${escapeHtml(n.location)}</span>` : ""}</span>
-                  ${
-                    editMeetings
-                      ? `<button type="button" class="btn-ghost btn-sm meeting-del-btn" data-note-id="${escapeAttr(n.id)}">삭제</button>`
-                      : ""
-                  }
-                </div>
-                ${n.summary ? `<div class="meeting-card-body text-preline">${multilineHtml(n.summary)}</div>` : ""}
-                ${n.nextAction ? `<div class="meeting-card-next text-preline">다음: ${multilineHtml(n.nextAction)}</div>` : ""}
-              </li>`
-          )
-          .join("")}</ul>`
-      : '<p class="muted">미팅 기록이 없습니다.</p>';
+      : `<p class="muted">등록된 파일이 없습니다.${admin ? " 수정 모드에서 업로드하세요." : ""}</p>`;
   }
 
   try {
