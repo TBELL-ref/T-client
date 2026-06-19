@@ -336,15 +336,22 @@ function clearSectionEdits() {
   state.detailEditSections = {};
 }
 
+function detailSubPanel(title, body, extraClass = "") {
+  return `<div class="detail-subpanel${extraClass ? ` ${extraClass}` : ""}">
+    <div class="detail-subpanel-title">${escapeHtml(title)}</div>
+    <div class="detail-subpanel-body">${body}</div>
+  </div>`;
+}
+
 function detailSectionCard(title, body, sectionKey, extraClass = "", { icon = "fileText", open = true, flat = false, editable = true } = {}) {
   const admin = window.TClientAdmin?.isUnlocked?.();
   const editing = sectionKey && isSectionEdit(sectionKey);
   const actions =
     admin && editable && sectionKey
-      ? `<div class="detail-section-actions">${editing
-          ? `<button type="button" class="btn-ghost btn-sm" data-section-cancel="${escapeAttr(sectionKey)}">취소</button>
-             <button type="button" class="btn-primary btn-sm" data-section-save="${escapeAttr(sectionKey)}">저장</button>`
-          : `<button type="button" class="btn-ghost btn-sm" data-section-edit="${escapeAttr(sectionKey)}">수정</button>`}</div>`
+      ? `<div class="detail-section-actions${editing ? " is-editing" : ""}">${editing
+          ? `<button type="button" class="detail-sec-btn detail-sec-btn-ghost" data-section-cancel="${escapeAttr(sectionKey)}">취소</button>
+             <button type="button" class="detail-sec-btn detail-sec-btn-primary" data-section-save="${escapeAttr(sectionKey)}">저장</button>`
+          : `<button type="button" class="detail-sec-btn detail-sec-btn-edit" data-section-edit="${escapeAttr(sectionKey)}">수정</button>`}</div>`
       : "";
 
   if (flat) {
@@ -529,34 +536,43 @@ function closedReasonSelect(id, value) {
 function renderScoreSection(row, edit, admin = false) {
   const breakdown = row.scoreBreakdown ?? [];
   const recalcBtn = admin
-    ? `<p class="score-recalc-row"><button type="button" class="btn-ghost btn-sm" id="btn-recalc-score">점수 재집계</button></p>`
+    ? `<div class="score-panel-footer"><button type="button" class="detail-sec-btn detail-sec-btn-edit" id="btn-recalc-score">점수 재집계</button></div>`
     : "";
   if (!breakdown.length && !row.scoreReason) {
-    return `<p class="muted">점수 정보 없음</p>${recalcBtn}`;
+    return `<p class="muted detail-empty-hint">점수 정보 없음</p>${recalcBtn}`;
   }
   if (edit && breakdown.length) {
-    return `<div class="detail-form-grid">${breakdown
+    return `<div class="score-edit-grid">${breakdown
       .map((b) => {
         const defaultPts = `${b.pts ?? ""}`.replace(":", "") || "0";
         const val = b.override !== undefined && b.override !== "" ? b.override : "";
-        return `<div class="inline-row span-2">
-          <span class="inline-label">${escapeHtml(b.label)} <span class="score-pts">${escapeHtml(b.pts || "")}</span></span>
+        return `<label class="score-edit-row">
+          <span class="score-edit-label">${escapeHtml(b.label)} <em>${escapeHtml(b.pts || "")}</em></span>
           <input type="number" class="inline-field score-part-input" data-score-part="${escapeAttr(b.part)}" value="${escapeAttr(val)}" placeholder="${escapeAttr(defaultPts)}" />
-        </div>`;
+        </label>`;
       })
       .join("")}
-      <div class="inline-row"><span class="inline-label">총점</span>${inlineInput("edit-score-total", row.priorityScore, "number")}</div>
+      <label class="score-edit-row score-edit-total">
+        <span class="score-edit-label">총점</span>
+        ${inlineInput("edit-score-total", row.priorityScore, "number")}
+      </label>
     </div>${recalcBtn}`;
   }
   const lines = breakdown.length
     ? breakdown
         .map(
           (b) =>
-            `<li><span class="score-label">${escapeHtml(b.label)}</span> <span class="score-pts">${escapeHtml(b.pts || "")}</span></li>`
+            `<li class="score-row"><span class="score-row-label">${escapeHtml(b.label)}</span><span class="score-row-pts">${escapeHtml(b.pts || "")}</span></li>`
         )
         .join("")
-    : `<li class="muted">${escapeHtml(row.scoreReason)}</li>`;
-  return `<ul class="score-breakdown">${lines}</ul><p class="score-total">합계 <strong>${escapeHtml(row.priorityScore)}</strong>점 · ${escapeHtml(row.leadGrade)}등급</p>${recalcBtn}`;
+    : `<li class="score-row is-muted"><span class="score-row-label">${escapeHtml(row.scoreReason)}</span></li>`;
+  return `<div class="score-panel">
+    <div class="score-panel-header">
+      <span class="score-panel-total">${escapeHtml(row.priorityScore)}<small>점</small></span>
+      <span class="score-panel-grade grade-${escapeHtml(row.leadGrade || "C")}">${escapeHtml(row.leadGrade || "-")}</span>
+    </div>
+    <ul class="score-panel-list">${lines}</ul>
+  </div>${recalcBtn}`;
 }
 
 function showToast(message, type = "ok") {
@@ -2599,11 +2615,11 @@ function renderDetailBody(row, admin = false) {
         <div class="inline-row"><span class="inline-label">상태</span>${pipelineStatusSelect("edit-pipeline-status", pipeline.pipelineStatus)}</div>
         <div class="inline-row span-2"><span class="inline-label">종결 사유</span>${closedReasonSelect("edit-closed-reason", row.closedReason ?? "")}</div>
       </div>`
-    : `<div class="pipeline-detail-summary">${renderPipelineSummary(row)}${
-        row.closedReason
-          ? `<p class="muted pipeline-closed-reason">종결 사유: ${escapeHtml(pipelineLabels().closedReasonLabel?.(row.closedReason) ?? row.closedReason)}</p>`
-          : ""
-      }${row.pipelineStageAt ? `<p class="muted pipeline-stage-at">단계 변경: ${escapeHtml(formatDate(row.pipelineStageAt))}</p>` : ""}</div>`;
+    : `<div class="detail-pipeline-card">
+        ${renderPipelineSummary(row)}
+        ${row.closedReason ? `<p class="detail-meta-line">종결 · ${escapeHtml(pipelineLabels().closedReasonLabel?.(row.closedReason) ?? row.closedReason)}</p>` : ""}
+        ${row.pipelineStageAt ? `<p class="detail-meta-line">변경 · ${escapeHtml(formatDate(row.pipelineStageAt))}</p>` : ""}
+      </div>`;
 
   const contactBlock = editSales
     ? `<div class="detail-form-grid">
@@ -2612,7 +2628,7 @@ function renderDetailBody(row, admin = false) {
         <div class="inline-row span-2"><span class="inline-label">전화</span>${inlineInput("edit-contact-phone", c.phone ?? "", "tel")}</div>
       </div>`
     : detailKvGrid([
-        ["이름", c.name ? `<strong>${escapeHtml(c.name)}</strong>` : '<span class="muted">—</span>'],
+        ["이름", c.name ? escapeHtml(c.name) : '<span class="muted">—</span>'],
         ["이메일", email ? `<a class="link" href="mailto:${escapeAttr(email)}">${escapeHtml(email)}</a>` : '<span class="muted">없음</span>'],
         ["전화", c.phone ? escapeHtml(c.phone) : '<span class="muted">—</span>']
       ]);
@@ -2639,12 +2655,12 @@ function renderDetailBody(row, admin = false) {
         <div class="inline-row span-2"><span class="inline-label">테스트기간(원문)</span>${inlineInput("edit-test-period", row.testPeriodLabel ?? "")}</div>
         <div class="inline-row span-2"><span class="inline-label">테스트 메모</span>${inlineInput("edit-test-notes", row.testNotes ?? "")}</div>
       </div>`
-    : `<div class="detail-kv">${detailKvGrid([
+    : detailKvGrid([
         ["시작일", row.testStartedAt ? escapeHtml(formatDate(row.testStartedAt)) : '<span class="muted">—</span>'],
         ["종료일", row.testEndedAt ? escapeHtml(formatDate(row.testEndedAt)) : '<span class="muted">—</span>'],
         ...(row.testPeriodLabel ? [["기간(원문)", escapeHtml(row.testPeriodLabel)]] : []),
-        ["메모", escapeHtml(row.testNotes || "-")]
-      ])}</div>`;
+        ["메모", row.testNotes ? escapeHtml(row.testNotes) : '<span class="muted">—</span>']
+      ]);
 
   const filesPlaceholder = editFiles && admin
     ? `<div class="detail-files-section" data-company-files="${escapeAttr(row.companyId)}">
@@ -2675,47 +2691,49 @@ function renderDetailBody(row, admin = false) {
     : `<div class="detail-meetings-section" data-company-meetings="${escapeAttr(row.companyId)}"><p class="muted">미팅 기록 로딩…</p></div>`;
 
   const postsBlock = editPosts
-    ? `<div class="detail-table-wrap">
-        <table class="detail-table detail-table-compact">
-          <thead><tr><th>공고</th><th>출처</th><th></th></tr></thead>
-          <tbody>${row.posts
-            .map(
-              (post) => `
-            <tr>
-              <td>${escapeHtml(post.title)}</td>
-              <td>${escapeHtml(post.sourceLabel || post.source)}</td>
-              <td class="cell-post-link">
-                <a class="link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${iconSvg("external", 14)}</a>
-                ${
-                  admin
-                    ? '<button type="button" class="btn-icon-delete post-delete-btn" data-post-url="' +
-                      escapeAttr(post.url) +
-                      '" data-post-manual="' +
-                      (post.isManualPost ? "1" : "0") +
-                      '" title="삭제"><span data-icon="trash"></span></button>'
-                    : ""
-                }
-              </td>
-            </tr>`
-            )
-            .join("")}</tbody>
-        </table>
-      </div>
-      <div class="detail-form-grid cols-2 post-add-row">
-        <div class="inline-row"><span class="inline-label">제목</span>${inlineInput("edit-post-title", "", "text", "QA 엔지니어")}</div>
-        <div class="inline-row"><span class="inline-label">URL</span>${inlineInput("edit-post-url", "", "url", "https://...")}</div>
+    ? `<div class="posts-panel">
+        <div class="detail-table-wrap">
+          <table class="detail-table detail-table-compact">
+            <thead><tr><th>공고</th><th>출처</th><th class="col-actions"></th></tr></thead>
+            <tbody>${row.posts
+              .map(
+                (post) => `
+              <tr>
+                <td class="post-cell-title">${escapeHtml(post.title)}</td>
+                <td><span class="post-source-chip">${escapeHtml(post.sourceLabel || post.source)}</span></td>
+                <td class="cell-post-link">
+                  <a class="post-action-link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer" title="열기">${iconSvg("external", 14)}</a>
+                  ${
+                    admin
+                      ? '<button type="button" class="btn-icon-delete post-delete-btn" data-post-url="' +
+                        escapeAttr(post.url) +
+                        '" data-post-manual="' +
+                        (post.isManualPost ? "1" : "0") +
+                        '" title="삭제"><span data-icon="trash"></span></button>'
+                      : ""
+                  }
+                </td>
+              </tr>`
+              )
+              .join("")}</tbody>
+          </table>
+        </div>
+        <div class="detail-form-grid cols-2 post-add-row">
+          <div class="inline-row"><span class="inline-label">제목</span>${inlineInput("edit-post-title", "", "text", "QA 엔지니어")}</div>
+          <div class="inline-row"><span class="inline-label">URL</span>${inlineInput("edit-post-url", "", "url", "https://...")}</div>
+        </div>
       </div>`
     : row.posts.length
-      ? `<ul class="post-list">${row.posts
+      ? `<ul class="post-card-list">${row.posts
           .map(
             (post) => `
-          <li class="post-list-item">
-            <div class="post-list-main">
-              <strong>${escapeHtml(post.title)}</strong>
-              <span class="post-list-meta">${escapeHtml(post.sourceLabel || post.source)}</span>
+          <li class="post-card">
+            <div class="post-card-main">
+              <span class="post-card-title">${escapeHtml(post.title)}</span>
+              <span class="post-source-chip">${escapeHtml(post.sourceLabel || post.source)}</span>
             </div>
-            <div class="post-list-actions">
-              <a class="link post-list-link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${iconSvg("external", 14)} 열기</a>
+            <div class="post-card-actions">
+              <a class="post-action-link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer" title="공고 열기">${iconSvg("external", 14)}</a>
               ${
                 admin
                   ? '<button type="button" class="btn-icon-delete post-delete-btn" data-post-url="' +
@@ -2735,7 +2753,7 @@ function renderDetailBody(row, admin = false) {
   sections.push(
     detailSectionCard(
       "영업 관리",
-      `<div class="detail-split">${pipelineBlock}${contactBlock}</div>`,
+      `<div class="detail-sales-layout">${detailSubPanel("파이프라인", pipelineBlock)}${detailSubPanel("담당자", contactBlock)}</div>`,
       "sales",
       "",
       { icon: "briefcase", open: true }
