@@ -141,9 +141,12 @@
         const title = window.TCompanyFiles?.resolveTitle?.(f) ?? "파일";
         const url = (window.TCompanyFiles?.resolveHref?.(f) ?? f.fileUrl) || "#";
         const ext = window.TCompanyFiles?.extFromFile?.(f) ?? "";
-        const icon = window.TCompanyFiles?.extIconName?.(f) ?? "fileText";
         const extClass = ext ? ` file-ext-${escapeAttr(ext)}` : "";
-        return `<a class="file-icon-chip file-ext-chip${extClass}" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" download title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}">${iconSvg(icon, 15)}</a>`;
+        const inner =
+          window.TCompanyFiles?.extUsesBadge?.(ext)
+            ? `<span class="file-ext-badge-text">${escapeHtml(window.TCompanyFiles.extBadgeLabel(f))}</span>`
+            : iconSvg(window.TCompanyFiles?.extIconName?.(f) ?? "fileText", 15);
+        return `<a class="file-icon-chip file-ext-chip${extClass}" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" download title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}">${inner}</a>`;
       })
       .join("")}</div>`;
   }

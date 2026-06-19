@@ -33,7 +33,7 @@
   }
 
   const EXT_ICON = {
-    pdf: "fileText",
+    pdf: "filePdf",
     hwp: "fileText",
     hwpx: "fileText",
     doc: "fileText",
@@ -53,6 +53,17 @@
     gif: "image",
     webp: "image"
   };
+
+  const EXT_BADGE = new Set(["pdf", "hwp", "hwpx", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv"]);
+
+  function extUsesBadge(ext) {
+    return EXT_BADGE.has(`${ext ?? ""}`.toLowerCase());
+  }
+
+  function extBadgeLabel(file = {}) {
+    const ext = extFromFile(file);
+    return ext ? ext.slice(0, 4).toUpperCase() : "FILE";
+  }
 
   function extFromFile(file = {}) {
     const name = resolveTitle(file);
@@ -147,6 +158,8 @@
     resolveTitle,
     extIconName,
     extFromFile,
+    extUsesBadge,
+    extBadgeLabel,
     FILE_TYPE_LABEL,
     normalize
   };

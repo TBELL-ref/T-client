@@ -23,6 +23,8 @@
       '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>',
     fileText:
       '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+    filePdf:
+      '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path fill="currentColor" stroke="none" d="M8 12.5h8v1.2H8zm0 2.4h5.5v1.2H8z"/><path fill="currentColor" stroke="none" d="M9.2 9.2h2.1c.9 0 1.4.5 1.4 1.2s-.5 1.2-1.4 1.2H10v1.1H9.2V9.2zm.8 1.8h1.2c.3 0 .5-.2.5-.5s-.2-.5-.5-.5H10v1z"/>',
     ban: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
     trash:
       '<path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6"/><path d="M14 11v6"/>',
@@ -49,6 +51,9 @@
     }
     if (name === "star") {
       return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" class="icon ${className}" aria-hidden="true">${inner}</svg>`;
+    }
+    if (name === "filePdf") {
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" class="icon icon-file-pdf ${className}" aria-hidden="true">${inner}</svg>`;
     }
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" class="icon ${className}" aria-hidden="true">${inner}</svg>`;
   }

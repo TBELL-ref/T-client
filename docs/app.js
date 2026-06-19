@@ -108,17 +108,73 @@ function richTextHtml(text) {
   if (!raw.trim()) return "";
   let html = "";
   let lastIndex = 0;
-  const re = /\*\*([^*]+)\*\*/g;
+  const re = /\*\*([^*\n]+)\*\*/g;
   let match;
   while ((match = re.exec(raw)) !== null) {
     if (match.index > lastIndex) {
       html += escapeHtml(raw.slice(lastIndex, match.index));
     }
-    html += `<strong>${escapeHtml(match[1])}</strong>`;
+    html += `<strong class="rich-bold">${escapeHtml(match[1])}</strong>`;
     lastIndex = match.index + match[0].length;
   }
   if (lastIndex < raw.length) html += escapeHtml(raw.slice(lastIndex));
   return html.replace(/\r?\n/g, "<br>");
+}
+
+function wrapTextareaSelection(textarea, wrap = "**") {
+  if (!textarea) return;
+  const start = textarea.selectionStart ?? 0;
+  const end = textarea.selectionEnd ?? 0;
+  const val = textarea.value ?? "";
+  const selected = val.slice(start, end) || "굵게";
+  textarea.value = val.slice(0, start) + wrap + selected + wrap + val.slice(end);
+  textarea.focus();
+  const selStart = start + wrap.length;
+  textarea.setSelectionRange(selStart, selStart + selected.length);
+}
+
+function richTextareaField(id, value, placeholder = "", rows = 3, extraAttrs = "") {
+  return `<div class="rich-text-field">
+    <div class="rich-text-toolbar">
+      <button type="button" class="rich-text-tool-btn" data-rich-action="bold" title="선택 영역 굵게"><strong>B</strong></button>
+      <span class="rich-text-hint muted">**굵게**</span>
+    </div>
+    <textarea id="${escapeAttr(id)}" class="inline-field inline-textarea" rows="${rows}" placeholder="${escapeAttr(placeholder)}"${extraAttrs ? ` ${extraAttrs}` : ""}>${escapeHtml(value ?? "")}</textarea>
+  </div>`;
+}
+
+function toDatetimeLocalValue(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return "";
+  }
+}
+
+function renderMeetingEditCard(n) {
+  const summaryId = `meeting-summary-${n.id}`;
+  return `<li class="meeting-mini-item meeting-edit-card" data-note-id="${escapeAttr(n.id)}">
+    <div class="detail-form-grid cols-2 detail-form-compact meeting-edit-fields">
+      <div class="inline-row"><span class="inline-label">일시</span><input type="datetime-local" class="inline-field" data-meeting-field="at" value="${escapeAttr(toDatetimeLocalValue(n.meetingAt))}" /></div>
+      <div class="inline-row"><span class="inline-label">장소</span><input type="text" class="inline-field" data-meeting-field="location" value="${escapeAttr(n.location ?? "")}" /></div>
+      <div class="inline-row span-2"><span class="inline-label">참석</span><input type="text" class="inline-field" data-meeting-field="attendees" value="${escapeAttr(n.attendees ?? "")}" /></div>
+      <div class="inline-row span-2 inline-row-top"><span class="inline-label">요약</span>${richTextareaField(summaryId, n.summary ?? "", "미팅 내용", 3, 'data-meeting-field="summary"')}</div>
+      <div class="inline-row span-2"><span class="inline-label">다음</span><input type="text" class="inline-field" data-meeting-field="next" value="${escapeAttr(n.nextAction ?? "")}" /></div>
+    </div>
+    <button type="button" class="btn-ghost btn-sm meeting-del-btn" data-note-id="${escapeAttr(n.id)}">삭제</button>
+  </li>`;
+}
+
+function fileChipInnerHtml(file, size = 15) {
+  const ext = window.TCompanyFiles?.extFromFile?.(file) ?? "";
+  if (window.TCompanyFiles?.extUsesBadge?.(ext)) {
+    return `<span class="file-ext-badge-text">${escapeHtml(window.TCompanyFiles.extBadgeLabel(file))}</span>`;
+  }
+  return iconSvg(window.TCompanyFiles?.extIconName?.(file) ?? "fileText", size);
 }
 
 function candidateOpinionText(row) {
@@ -643,7 +699,7 @@ function renderMeetingsEmbed(row, editSales, admin) {
           <div class="inline-row"><span class="inline-label">일시</span><input type="datetime-local" id="edit-meeting-at" class="inline-field" /></div>
           <div class="inline-row"><span class="inline-label">장소</span>${inlineInput("edit-meeting-location", "", "text")}</div>
           <div class="inline-row span-2"><span class="inline-label">참석</span>${inlineInput("edit-meeting-attendees", "", "text")}</div>
-          <div class="inline-row span-2 inline-row-top"><span class="inline-label">요약</span>${inlineTextarea("edit-meeting-summary", "", "**굵게** · 줄바꿈", 3)}</div>
+          <div class="inline-row span-2 inline-row-top"><span class="inline-label">요약</span>${richTextareaField("edit-meeting-summary", "", "미팅 내용", 3)}</div>
           <div class="inline-row span-2"><span class="inline-label">다음</span>${inlineInput("edit-meeting-next", "", "text")}</div>
         </div>
         <p class="meeting-add-actions"><button type="button" class="detail-sec-btn detail-sec-btn-edit" id="meeting-add-btn">미팅 추가</button></p>`
@@ -879,6 +935,22 @@ async function saveDetailSection(row, section) {
   }
 
   if (section === "sales") {
+    if (window.TClientAdmin.isUnlocked()) {
+      const meetingCards = document.querySelectorAll(".meeting-edit-card[data-note-id]");
+      for (const card of meetingCards) {
+        const id = card.dataset.noteId;
+        if (!id) continue;
+        const at = card.querySelector('[data-meeting-field="at"]')?.value;
+        await window.TMeetingNotes.upsert(cid, {
+          id,
+          meetingAt: at ? new Date(at).toISOString() : null,
+          location: card.querySelector('[data-meeting-field="location"]')?.value.trim() ?? "",
+          attendees: card.querySelector('[data-meeting-field="attendees"]')?.value.trim() ?? "",
+          summary: card.querySelector('[data-meeting-field="summary"]')?.value.trim() ?? "",
+          nextAction: card.querySelector('[data-meeting-field="next"]')?.value.trim() ?? ""
+        });
+      }
+    }
     await persistCompany(
       {
         contact: {
@@ -1090,6 +1162,13 @@ function bindDetailSectionEdits() {
       } catch (err) {
         showToast(err.message || "파일 업로드 실패", "error");
       }
+      return;
+    }
+
+    if (e.target?.closest?.("[data-rich-action='bold']")) {
+      e.preventDefault();
+      const field = e.target.closest(".rich-text-field")?.querySelector("textarea");
+      wrapTextareaSelection(field);
       return;
     }
 
@@ -2848,6 +2927,7 @@ async function hydrateDetailExtras(row) {
     meetListEl.innerHTML = notes.length
       ? `<ul class="meeting-list meeting-list-mini">${notes
           .map((n) => {
+            if (editMeetings) return renderMeetingEditCard(n);
             const date = escapeHtml(formatDate(n.meetingAt) || "일시 미정");
             const next = n.nextAction ? richTextHtml(n.nextAction) : '<span class="muted">—</span>';
             const metaParts = [];
@@ -2865,15 +2945,10 @@ async function hydrateDetailExtras(row) {
                 </summary>
                 <div class="meeting-mini-body">${body}</div>
               </details>
-              ${
-                editMeetings
-                  ? `<button type="button" class="btn-ghost btn-sm meeting-del-btn" data-note-id="${escapeAttr(n.id)}">삭제</button>`
-                  : ""
-              }
             </li>`;
           })
           .join("")}</ul>`
-      : '<p class="muted detail-empty-hint">미팅 기록이 없습니다.</p>';
+      : `<p class="muted detail-empty-hint">${editMeetings ? "미팅 기록이 없습니다. 아래에서 추가하세요." : "미팅 기록이 없습니다."}</p>`;
   }
 
   function renderFileList(files) {
@@ -2883,7 +2958,7 @@ async function hydrateDetailExtras(row) {
       ? `<ul class="file-list file-list-compact">${files
           .map(
             (f) =>
-              `<li><a class="link file-list-link" href="${escapeAttr(href(f))}" target="_blank" rel="noreferrer"><span class="file-ext-icon file-ext-${escapeAttr(window.TCompanyFiles.extFromFile(f) || "file")}" aria-hidden="true">${iconSvg(window.TCompanyFiles.extIconName(f), 14)}</span> ${escapeHtml(window.TCompanyFiles.resolveTitle(f))}</a> <span class="muted">${escapeHtml(formatDate(f.uploadedAt))}</span>${
+              `<li><a class="link file-list-link" href="${escapeAttr(href(f))}" target="_blank" rel="noreferrer"><span class="file-ext-icon file-ext-${escapeAttr(window.TCompanyFiles.extFromFile(f) || "file")}" aria-hidden="true">${fileChipInnerHtml(f, 14)}</span> ${escapeHtml(window.TCompanyFiles.resolveTitle(f))}</a> <span class="muted">${escapeHtml(formatDate(f.uploadedAt))}</span>${
                 editFiles
                   ? ` <button type="button" class="btn-ghost btn-sm file-del-btn" data-file-id="${escapeAttr(f.id)}" data-storage-path="${escapeAttr(f.storagePath || "")}">삭제</button>`
                   : ""
