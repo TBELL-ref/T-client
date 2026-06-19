@@ -143,7 +143,7 @@
     if (!files.length) return "";
     return `<div class="cell-file-icons">${files
       .map((f) => {
-        const title = f.title || window.TCompanyFiles?.FILE_TYPE_LABEL?.[f.fileType] || "파일";
+        const title = window.TCompanyFiles?.resolveTitle?.(f) ?? "파일";
         const url = (window.TCompanyFiles?.resolveHref?.(f) ?? f.fileUrl) || "#";
         return `<a class="file-icon-chip" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" download title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}">${iconSvg(fileIconName(f.fileType), 15)}</a>`;
       })

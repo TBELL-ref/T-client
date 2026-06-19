@@ -1069,8 +1069,11 @@ function bindDetailSectionEdits() {
 
   body.addEventListener("change", (e) => {
     if (e.target?.id !== "edit-file-input") return;
+    const file = e.target.files?.[0];
     const fileNameEl = byId("edit-file-name");
-    if (fileNameEl) fileNameEl.textContent = e.target.files?.[0]?.name || "선택된 파일 없음";
+    const titleEl = byId("edit-file-title");
+    if (fileNameEl) fileNameEl.textContent = file?.name || "선택된 파일 없음";
+    if (titleEl && file?.name) titleEl.value = file.name;
   });
 }
 
@@ -2681,7 +2684,7 @@ function renderDetailBody(row, admin = false) {
             <input type="file" id="edit-file-input" class="file-input-hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.hwp,.hwpx,.png,.jpg,.jpeg,.zip" />
           </label>
           <span id="edit-file-name" class="file-upload-name muted">선택된 파일 없음</span>
-          ${inlineInput("edit-file-title", "", "text", "제목 (선택)")}
+          ${inlineInput("edit-file-title", "", "text", "비우면 파일명 사용")}
           <button type="button" class="btn-primary btn-sm" id="file-upload-btn">업로드</button>
         </div>
         <div class="file-list-wrap"><p class="muted">파일 목록 로딩…</p></div>
@@ -2815,7 +2818,7 @@ async function hydrateDetailExtras(row) {
       ? `<ul class="file-list file-list-compact">${files
           .map(
             (f) =>
-              `<li><a class="link" href="${escapeAttr(href(f))}" target="_blank" rel="noreferrer">${escapeHtml(f.title || window.TCompanyFiles.FILE_TYPE_LABEL[f.fileType] || "파일")}</a> <span class="muted">${escapeHtml(formatDate(f.uploadedAt))}</span>${
+              `<li><a class="link" href="${escapeAttr(href(f))}" target="_blank" rel="noreferrer">${escapeHtml(window.TCompanyFiles.resolveTitle(f))}</a> <span class="muted">${escapeHtml(formatDate(f.uploadedAt))}</span>${
                 editFiles
                   ? ` <button type="button" class="btn-ghost btn-sm file-del-btn" data-file-id="${escapeAttr(f.id)}" data-storage-path="${escapeAttr(f.storagePath || "")}">삭제</button>`
                   : ""
