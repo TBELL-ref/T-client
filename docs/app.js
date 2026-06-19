@@ -497,7 +497,7 @@ function renderProfileEnrichStrip(p, admin) {
             <button type="button" class="btn-primary btn-sm" id="btn-enrich-bizno">정보 자동 수집</button>
           </div>
         </div>
-        <p class="enrich-bizno-status muted" id="enrich-bizno-status">관리자 전용 · bizno.net에서 업종·규모·홈페이지를 가져옵니다.</p>
+        <p class="enrich-bizno-status muted" id="enrich-bizno-status">bizno.net 자동 조회</p>
       </div>`;
 }
 
@@ -524,7 +524,7 @@ function renderProfileSection(row, sectionEdit = false, p = {}, domain = "", adm
 
   if (sectionEdit) {
     const tableFields = fields.filter(([, id]) => id !== "edit-prof-bizno");
-    return `${enrichStrip}<div class="detail-form-grid">${tableFields
+    return `${enrichStrip}<div class="detail-form-grid cols-2 detail-form-compact">${tableFields
       .map(([label, id, val]) => {
         const wide = id === "edit-prof-industry" || id === "edit-prof-home" || id === "edit-prof-service-url";
         return `<div class="inline-row${wide ? " span-2" : ""}"><span class="inline-label">${escapeHtml(label)}</span>${inlineInput(id, val, id.includes("home") || id.includes("service-url") ? "url" : "text")}</div>`;
@@ -603,17 +603,17 @@ function renderScoreSection(row, edit, admin = false) {
     return `<p class="muted detail-empty-hint">점수 정보 없음</p>`;
   }
   if (edit && breakdown.length) {
-    return `<div class="score-edit-grid">${breakdown
+    return `<div class="score-edit-grid score-edit-grid-compact">${breakdown
       .map((b) => {
         const defaultPts = `${b.pts ?? ""}`.replace(":", "") || "0";
         const val = b.override !== undefined && b.override !== "" ? b.override : "";
-        return `<label class="score-edit-row">
+        return `<label class="score-edit-row score-edit-row-inline">
           <span class="score-edit-label">${escapeHtml(b.label)} <em>${escapeHtml(b.pts || "")}</em></span>
           <input type="number" class="inline-field score-part-input" data-score-part="${escapeAttr(b.part)}" value="${escapeAttr(val)}" placeholder="${escapeAttr(defaultPts)}" />
         </label>`;
       })
       .join("")}
-      <label class="score-edit-row score-edit-total">
+      <label class="score-edit-row score-edit-row-inline score-edit-total">
         <span class="score-edit-label">총점</span>
         ${inlineInput("edit-score-total", row.priorityScore, "number")}
       </label>
@@ -639,12 +639,12 @@ function renderScoreSection(row, edit, admin = false) {
 function renderMeetingsEmbed(row, editSales, admin) {
   const addForm =
     editSales && admin
-      ? `<div class="detail-form-grid cols-2 meeting-add-row">
+      ? `<div class="detail-form-grid cols-2 detail-form-compact meeting-add-row">
           <div class="inline-row"><span class="inline-label">일시</span><input type="datetime-local" id="edit-meeting-at" class="inline-field" /></div>
           <div class="inline-row"><span class="inline-label">장소</span>${inlineInput("edit-meeting-location", "", "text")}</div>
-          <div class="inline-row span-2"><span class="inline-label">참석자</span>${inlineInput("edit-meeting-attendees", "", "text")}</div>
-          <div class="inline-row span-2"><span class="inline-label">요약</span>${inlineTextarea("edit-meeting-summary", "", "**굵게** · 줄바꿈 지원", 5)}</div>
-          <div class="inline-row span-2"><span class="inline-label">다음 액션</span>${inlineInput("edit-meeting-next", "", "text")}</div>
+          <div class="inline-row span-2"><span class="inline-label">참석</span>${inlineInput("edit-meeting-attendees", "", "text")}</div>
+          <div class="inline-row span-2 inline-row-top"><span class="inline-label">요약</span>${inlineTextarea("edit-meeting-summary", "", "**굵게** · 줄바꿈", 3)}</div>
+          <div class="inline-row span-2"><span class="inline-label">다음</span>${inlineInput("edit-meeting-next", "", "text")}</div>
         </div>
         <p class="meeting-add-actions"><button type="button" class="detail-sec-btn detail-sec-btn-edit" id="meeting-add-btn">미팅 추가</button></p>`
       : "";
@@ -1082,7 +1082,7 @@ function bindDetailSectionEdits() {
         });
         if (fileInput) fileInput.value = "";
         const fileNameEl = byId("edit-file-name");
-        if (fileNameEl) fileNameEl.textContent = "선택된 파일 없음";
+        if (fileNameEl) fileNameEl.textContent = "없음";
         const titleEl = byId("edit-file-title");
         if (titleEl) titleEl.value = "";
         void hydrateDetailExtras(row);
@@ -1135,7 +1135,7 @@ function bindDetailSectionEdits() {
     const file = e.target.files?.[0];
     const fileNameEl = byId("edit-file-name");
     const titleEl = byId("edit-file-title");
-    if (fileNameEl) fileNameEl.textContent = file?.name || "선택된 파일 없음";
+    if (fileNameEl) fileNameEl.textContent = file?.name || "없음";
     if (titleEl && file?.name) titleEl.value = file.name;
   });
 }
@@ -2686,35 +2686,22 @@ function renderDetailBody(row, admin = false) {
         ["메모", escapeHtml(row.salesMemo ?? row.manualNotes ?? "—")]
       ]);
 
-  const pipelineBlock = editSales
-    ? `<div class="detail-form-grid cols-2">
+  const salesBody = editSales
+    ? `<div class="detail-form-grid cols-2 detail-form-compact sales-edit-grid">
         <div class="inline-row"><span class="inline-label">단계</span>${pipelineStageSelect("edit-pipeline-stage", pipeline.pipelineStage)}</div>
         <div class="inline-row"><span class="inline-label">상태</span>${pipelineStatusSelect("edit-pipeline-status", pipeline.pipelineStatus)}</div>
-        <div class="inline-row span-2"><span class="inline-label">종결 사유</span>${closedReasonSelect("edit-closed-reason", row.closedReason ?? "")}</div>
-      </div>`
-    : `<div class="sales-pipeline-strip">
-        ${renderPipelineSummary(row)}
-        ${row.closedReason ? `<span class="sales-meta-chip">종결 ${escapeHtml(pipelineLabels().closedReasonLabel?.(row.closedReason) ?? row.closedReason)}</span>` : ""}
-        ${row.pipelineStageAt ? `<span class="sales-meta-chip">${escapeHtml(formatDate(row.pipelineStageAt))}</span>` : ""}
-      </div>`;
-
-  const contactBlock = editSales
-    ? `<div class="detail-form-grid">
+        <div class="inline-row span-2"><span class="inline-label">종결</span>${closedReasonSelect("edit-closed-reason", row.closedReason ?? "")}</div>
         <div class="inline-row"><span class="inline-label">이름</span>${inlineInput("edit-contact-name", c.name ?? "")}</div>
         <div class="inline-row"><span class="inline-label">이메일</span>${inlineInput("edit-contact-email", email, "email")}</div>
-        <div class="inline-row span-2"><span class="inline-label">전화</span>${inlineInput("edit-contact-phone", c.phone ?? "", "tel")}</div>
+        <div class="inline-row"><span class="inline-label">전화</span>${inlineInput("edit-contact-phone", c.phone ?? "", "tel")}</div>
       </div>`
-    : renderContactStrip(c, email);
-
-  const salesBody = editSales
-    ? `<div class="detail-sales-layout is-edit">${detailSubPanel("파이프라인", pipelineBlock)}${detailSubPanel("담당자", contactBlock)}</div>`
     : renderSalesRowView(c, email, row);
   const salesWithMeetings = `<div class="sales-section-stack">${salesBody}${renderMeetingsEmbed(row, editSales, admin)}</div>`;
 
   const evalViewBlock = editEval
-    ? `<div class="detail-form-grid cols-2">
-        <div class="inline-row"><span class="inline-label">추천 점수</span>${inlineSelect("edit-cand-score", scoreSelectValue(row.recommendScore), [["","(선택)"],["5","★★★★★"],["4","★★★★☆"],["3","★★★☆☆"],["2","★★☆☆☆"],["1","★☆☆☆☆"]])}</div>
-        <div class="inline-row"><span class="inline-label">파일럿 난이도</span>${inlineSelect("edit-cand-pilot", scoreSelectValue(row.pilotDifficulty), [["","(선택)"],["1","★☆☆"],["2","★★☆"],["3","★★★"]])}</div>
+    ? `<div class="detail-form-grid cols-2 detail-form-compact">
+        <div class="inline-row"><span class="inline-label">추천</span>${inlineSelect("edit-cand-score", scoreSelectValue(row.recommendScore), [["","(선택)"],["5","★★★★★"],["4","★★★★☆"],["3","★★★☆☆"],["2","★★☆☆☆"],["1","★☆☆☆☆"]])}</div>
+        <div class="inline-row"><span class="inline-label">파일럿</span>${inlineSelect("edit-cand-pilot", scoreSelectValue(row.pilotDifficulty), [["","(선택)"],["1","★☆☆"],["2","★★☆"],["3","★★★"]])}</div>
         <div class="inline-row span-2"><span class="inline-label">추천 근거</span>${inlineInput("edit-recommend-reason", row.recommendScoreReason ?? "")}</div>
         <div class="inline-row span-2"><span class="inline-label">파일럿 근거</span>${inlineInput("edit-pilot-reason", row.pilotDifficultyReason ?? "")}</div>
         <div class="inline-row span-2"><span class="inline-label">평가 메모</span>${inlineInput("edit-eval-notes", row.evaluationNotes ?? "")}</div>
@@ -2728,22 +2715,22 @@ function renderDetailBody(row, admin = false) {
   const ratingBody = `<div class="rating-section-stack">${evalViewBlock}<div class="rating-score-block">${renderScoreSection(row, editEval, admin)}</div></div>`;
 
   const testBlock = editProgress
-    ? `<div class="detail-form-grid cols-2">
-        <div class="inline-row"><span class="inline-label">시작일</span>${inlineInput("edit-test-started", (row.testStartedAt ?? "").slice(0, 10), "date")}</div>
-        <div class="inline-row"><span class="inline-label">종료일</span>${inlineInput("edit-test-ended", (row.testEndedAt ?? "").slice(0, 10), "date")}</div>
-        <div class="inline-row span-2"><span class="inline-label">테스트 메모</span>${inlineInput("edit-test-notes", row.testNotes ?? "")}</div>
+    ? `<div class="detail-form-grid cols-2 detail-form-compact">
+        <div class="inline-row"><span class="inline-label">시작</span>${inlineInput("edit-test-started", (row.testStartedAt ?? "").slice(0, 10), "date")}</div>
+        <div class="inline-row"><span class="inline-label">종료</span>${inlineInput("edit-test-ended", (row.testEndedAt ?? "").slice(0, 10), "date")}</div>
+        <div class="inline-row span-2 inline-row-top"><span class="inline-label">메모</span>${inlineTextarea("edit-test-notes", row.testNotes ?? "", "", 2)}</div>
       </div>`
     : renderTestView(row);
 
   const filesBlock = editProgress && admin
     ? `<div class="detail-files-section" data-company-files="${escapeAttr(row.companyId)}">
-        <div class="file-upload-row">
+        <div class="file-upload-row file-upload-compact">
           <label class="file-upload-picker">
-            <span class="btn-ghost btn-sm">파일 선택</span>
+            <span class="btn-ghost btn-sm">파일</span>
             <input type="file" id="edit-file-input" class="file-input-hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.hwp,.hwpx,.png,.jpg,.jpeg,.zip" />
           </label>
-          <span id="edit-file-name" class="file-upload-name muted">선택된 파일 없음</span>
-          ${inlineInput("edit-file-title", "", "text", "비우면 파일명 사용")}
+          <span id="edit-file-name" class="file-upload-name muted">없음</span>
+          ${inlineInput("edit-file-title", "", "text", "제목(선택)")}
           <button type="button" class="btn-primary btn-sm" id="file-upload-btn">업로드</button>
         </div>
         <div class="file-list-wrap"><p class="muted">파일 목록 로딩…</p></div>
@@ -2782,7 +2769,7 @@ function renderDetailBody(row, admin = false) {
               .join("")}</tbody>
           </table>
         </div>
-        <div class="detail-form-grid cols-2 post-add-row">
+        <div class="detail-form-grid cols-2 detail-form-compact post-add-row">
           <div class="inline-row"><span class="inline-label">제목</span>${inlineInput("edit-post-title", "", "text", "QA 엔지니어")}</div>
           <div class="inline-row"><span class="inline-label">URL</span>${inlineInput("edit-post-url", "", "url", "https://...")}</div>
         </div>
