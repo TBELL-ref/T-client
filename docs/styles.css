@@ -79,9 +79,14 @@ body {
   height: 36px;
   border-radius: 10px;
   flex-shrink: 0;
-  background-image: url("./brand-icon.png");
-  background-size: cover;
-  background-position: center;
+  overflow: hidden;
+}
+
+.brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .brand-name {
