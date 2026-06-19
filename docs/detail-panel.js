@@ -133,11 +133,6 @@
     return V().pipelineCombinedCell?.(row) ?? "";
   }
 
-  function fileIconName(fileType) {
-    const map = { result_report: "fileText", proposal: "briefcase", contract: "briefcase", etc: "fileText" };
-    return map[fileType] ?? "fileText";
-  }
-
   function fileIconsCell(row) {
     const files = window.__TCLIENT_FILES_CACHE?.[row.companyId] ?? [];
     if (!files.length) return "";
@@ -145,7 +140,8 @@
       .map((f) => {
         const title = window.TCompanyFiles?.resolveTitle?.(f) ?? "파일";
         const url = (window.TCompanyFiles?.resolveHref?.(f) ?? f.fileUrl) || "#";
-        return `<a class="file-icon-chip" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" download title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}">${iconSvg(fileIconName(f.fileType), 15)}</a>`;
+        const emoji = window.TCompanyFiles?.extEmoji?.(f) ?? "📎";
+        return `<a class="file-icon-chip file-ext-chip" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" download title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}"><span class="file-ext-emoji" aria-hidden="true">${emoji}</span></a>`;
       })
       .join("")}</div>`;
   }

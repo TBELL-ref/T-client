@@ -102,6 +102,25 @@ function multilineHtml(text) {
   return escapeHtml(raw).replace(/\r?\n/g, "<br>");
 }
 
+/** Supports newlines and `**bold**` (stored as plain text). */
+function richTextHtml(text) {
+  const raw = `${text ?? ""}`;
+  if (!raw.trim()) return "";
+  let html = "";
+  let lastIndex = 0;
+  const re = /\*\*([^*]+)\*\*/g;
+  let match;
+  while ((match = re.exec(raw)) !== null) {
+    if (match.index > lastIndex) {
+      html += escapeHtml(raw.slice(lastIndex, match.index));
+    }
+    html += `<strong>${escapeHtml(match[1])}</strong>`;
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < raw.length) html += escapeHtml(raw.slice(lastIndex));
+  return html.replace(/\r?\n/g, "<br>");
+}
+
 function candidateOpinionText(row) {
   const memo = `${row.memo ?? row.salesMemo ?? ""}`.trim();
   if (memo) return memo;
@@ -314,6 +333,10 @@ function inlineInput(id, value, type = "text", placeholder = "") {
   return `<input type="${type}" id="${id}" class="inline-field" value="${escapeAttr(value ?? "")}" placeholder="${escapeAttr(placeholder)}" />`;
 }
 
+function inlineTextarea(id, value, placeholder = "", rows = 4) {
+  return `<textarea id="${escapeAttr(id)}" class="inline-field inline-textarea" rows="${rows}" placeholder="${escapeAttr(placeholder)}">${escapeHtml(value ?? "")}</textarea>`;
+}
+
 function inlineSelect(id, value, options) {
   const current = `${value ?? ""}`;
   const opts = options
@@ -355,16 +378,17 @@ function detailSubPanel(title, body, extraClass = "") {
   </div>`;
 }
 
-function detailSectionCard(title, body, sectionKey, extraClass = "", { icon = "fileText", open = true, flat = false, editable = true } = {}) {
+function detailSectionCard(title, body, sectionKey, extraClass = "", { icon = "fileText", open = true, flat = false, editable = true, headerExtra = "" } = {}) {
   const admin = window.TClientAdmin?.isUnlocked?.();
   const editing = sectionKey && isSectionEdit(sectionKey);
-  const actions =
+  const actionBtns =
     admin && editable && sectionKey
       ? `<div class="detail-section-actions${editing ? " is-editing" : ""}">${editing
           ? `<button type="button" class="detail-sec-btn detail-sec-btn-ghost" data-section-cancel="${escapeAttr(sectionKey)}">취소</button>
              <button type="button" class="detail-sec-btn detail-sec-btn-primary" data-section-save="${escapeAttr(sectionKey)}">저장</button>`
           : `<button type="button" class="detail-sec-btn detail-sec-btn-edit" data-section-edit="${escapeAttr(sectionKey)}">수정</button>`}</div>`
       : "";
+  const actions = headerExtra || actionBtns ? `<div class="drawer-section-head-actions">${headerExtra}${actionBtns}</div>` : "";
 
   if (flat) {
     return `<section class="detail-block detail-block-flat drawer-edit-panel${editing ? " is-section-edit" : ""} ${extraClass}">
@@ -575,11 +599,8 @@ function renderTestView(row) {
 
 function renderScoreSection(row, edit, admin = false) {
   const breakdown = row.scoreBreakdown ?? [];
-  const recalcBtn = admin
-    ? `<div class="score-panel-footer"><button type="button" class="detail-sec-btn detail-sec-btn-edit" id="btn-recalc-score">점수 재집계</button></div>`
-    : "";
   if (!breakdown.length && !row.scoreReason) {
-    return `<p class="muted detail-empty-hint">점수 정보 없음</p>${recalcBtn}`;
+    return `<p class="muted detail-empty-hint">점수 정보 없음</p>`;
   }
   if (edit && breakdown.length) {
     return `<div class="score-edit-grid">${breakdown
@@ -596,7 +617,7 @@ function renderScoreSection(row, edit, admin = false) {
         <span class="score-edit-label">총점</span>
         ${inlineInput("edit-score-total", row.priorityScore, "number")}
       </label>
-    </div>${recalcBtn}`;
+    </div>`;
   }
   const lines = breakdown.length
     ? breakdown
@@ -612,7 +633,7 @@ function renderScoreSection(row, edit, admin = false) {
       <span class="score-compact-grade grade-${escapeHtml(row.leadGrade || "C")}">${escapeHtml(row.leadGrade || "-")}</span>
     </div>
     <div class="score-grid-3x2">${lines}</div>
-  </div>${recalcBtn}`;
+  </div>`;
 }
 
 function renderMeetingsEmbed(row, editSales, admin) {
@@ -622,7 +643,7 @@ function renderMeetingsEmbed(row, editSales, admin) {
           <div class="inline-row"><span class="inline-label">일시</span><input type="datetime-local" id="edit-meeting-at" class="inline-field" /></div>
           <div class="inline-row"><span class="inline-label">장소</span>${inlineInput("edit-meeting-location", "", "text")}</div>
           <div class="inline-row span-2"><span class="inline-label">참석자</span>${inlineInput("edit-meeting-attendees", "", "text")}</div>
-          <div class="inline-row span-2"><span class="inline-label">요약</span>${inlineInput("edit-meeting-summary", "", "text")}</div>
+          <div class="inline-row span-2"><span class="inline-label">요약</span>${inlineTextarea("edit-meeting-summary", "", "**굵게** · 줄바꿈 지원", 5)}</div>
           <div class="inline-row span-2"><span class="inline-label">다음 액션</span>${inlineInput("edit-meeting-next", "", "text")}</div>
         </div>
         <p class="meeting-add-actions"><button type="button" class="detail-sec-btn detail-sec-btn-edit" id="meeting-add-btn">미팅 추가</button></p>`
@@ -2090,7 +2111,8 @@ function bindPortfolioMap() {
 
 function highlightActionKpiCards() {
   const tabKpiIds = {
-    leads: ["total", "candidate"],
+    leads: ["total"],
+    posts: ["posts"],
     recommended: ["recommended"],
     in_progress: ["inProgress", "contractWon"],
     excluded: ["excluded"]
@@ -2103,7 +2125,7 @@ function highlightActionKpiCards() {
 
 const ACTION_KPI_TAB_MAP = {
   total: "leads",
-  candidate: "leads",
+  posts: "posts",
   recommended: "recommended",
   inProgress: "in_progress",
   contractWon: "in_progress",
@@ -2112,6 +2134,7 @@ const ACTION_KPI_TAB_MAP = {
 
 const ACTION_KPI_TAB_LABEL = {
   leads: "회사",
+  posts: "공고",
   recommended: "추천",
   in_progress: "진행",
   excluded: "제외"
@@ -2357,11 +2380,12 @@ function renderQualityKpi(summary) {
 function computeActionKpi() {
   const active = activeLeadRows();
   const P = pipelineLabels();
+  const posts = active.reduce((n, r) => n + (r.posts?.length ?? 0), 0);
   return {
     total: active.length,
+    posts,
     recommended: active.filter((r) => P.rowMatchesRecommendedTab?.(r)).length,
     inProgress: active.filter((r) => P.rowMatchesInProgressTab?.(r)).length,
-    candidate: active.filter((r) => P.rowMatchesCandidatePool?.(r) ?? poolClassOf(r) === "normal").length,
     contractWon: active.filter((r) => {
       const { pipelineStatus, closedReason } = resolveRowPipeline(r);
       return pipelineStatus === "closed" && closedReason === "contract_won";
@@ -2373,7 +2397,7 @@ function computeActionKpi() {
 function renderActionKpiCards(kpi) {
   const cards = [
     { id: "total", icon: "building", value: kpi.total, label: "전체 활성", tone: "muted" },
-    { id: "candidate", icon: "star", value: kpi.candidate, label: "후보", tone: "muted" },
+    { id: "posts", icon: "fileText", value: kpi.posts, label: "공고", tone: "muted" },
     { id: "recommended", icon: "target", value: kpi.recommended, label: "추천", tone: "emphasis-3" },
     { id: "inProgress", icon: "fileText", value: kpi.inProgress, label: "진행", tone: "emphasis-2" },
     { id: "contractWon", icon: "briefcase", value: kpi.contractWon, label: "계약 성공", tone: "emphasis-1" },
@@ -2789,10 +2813,14 @@ function renderDetailBody(row, admin = false) {
           .join("")}</ul>`
       : `<p class="muted detail-empty-hint">등록된 공고가 없습니다.</p>`;
 
+  const evalHeaderExtra =
+    admin && !editEval
+      ? `<button type="button" class="detail-sec-btn detail-sec-btn-ghost" id="btn-recalc-score">재집계</button>`
+      : "";
   const sections = [];
   sections.push(detailSectionCard("영업 관리", salesWithMeetings, "sales", "", { icon: "briefcase", open: true }));
   sections.push(detailSectionCard("테스트 · 결과", progressBody, "progress", "", { icon: "target", open: false }));
-  sections.push(detailSectionCard("추천 · 점수", ratingBody, "eval", "detail-block-warm", { icon: "star", open: false }));
+  sections.push(detailSectionCard("추천 · 점수", ratingBody, "eval", "detail-block-warm", { icon: "star", open: false, headerExtra: evalHeaderExtra }));
   sections.push(detailSectionCard(`공고 · ${row.posts.length}건`, postsBlock, "posts", "", { icon: "building", open: false }));
   sections.push(
     detailSectionCard("프로필", renderProfileSection(row, editProfile, p, e.domain || row.domain || "", admin), "profile", "", {
@@ -2834,11 +2862,13 @@ async function hydrateDetailExtras(row) {
       ? `<ul class="meeting-list meeting-list-mini">${notes
           .map((n) => {
             const date = escapeHtml(formatDate(n.meetingAt) || "일시 미정");
-            const next = n.nextAction ? escapeHtml(n.nextAction) : '<span class="muted">—</span>';
+            const next = n.nextAction ? richTextHtml(n.nextAction) : '<span class="muted">—</span>';
+            const metaParts = [];
+            if (n.location) metaParts.push(`<div class="meeting-mini-meta">장소 · ${escapeHtml(n.location)}</div>`);
+            if (n.attendees) metaParts.push(`<div class="meeting-mini-meta">참석 · ${escapeHtml(n.attendees)}</div>`);
             const bodyParts = [];
-            if (n.summary) bodyParts.push(`<div class="meeting-mini-summary text-preline">${multilineHtml(n.summary)}</div>`);
-            if (n.location) bodyParts.push(`<div class="meeting-mini-meta">장소 · ${escapeHtml(n.location)}</div>`);
-            if (n.attendees) bodyParts.push(`<div class="meeting-mini-meta">참석 · ${escapeHtml(n.attendees)}</div>`);
+            if (metaParts.length) bodyParts.push(`<div class="meeting-mini-meta-block">${metaParts.join("")}</div>`);
+            if (n.summary) bodyParts.push(`<div class="meeting-mini-summary rich-text">${richTextHtml(n.summary)}</div>`);
             const body = bodyParts.length ? bodyParts.join("") : '<span class="muted">내용 없음</span>';
             return `<li class="meeting-mini-item">
               <details class="meeting-mini-details">
@@ -2866,7 +2896,7 @@ async function hydrateDetailExtras(row) {
       ? `<ul class="file-list file-list-compact">${files
           .map(
             (f) =>
-              `<li><a class="link" href="${escapeAttr(href(f))}" target="_blank" rel="noreferrer">${escapeHtml(window.TCompanyFiles.resolveTitle(f))}</a> <span class="muted">${escapeHtml(formatDate(f.uploadedAt))}</span>${
+              `<li><a class="link file-list-link" href="${escapeAttr(href(f))}" target="_blank" rel="noreferrer"><span class="file-ext-emoji" aria-hidden="true">${window.TCompanyFiles.extEmoji(f)}</span> ${escapeHtml(window.TCompanyFiles.resolveTitle(f))}</a> <span class="muted">${escapeHtml(formatDate(f.uploadedAt))}</span>${
                 editFiles
                   ? ` <button type="button" class="btn-ghost btn-sm file-del-btn" data-file-id="${escapeAttr(f.id)}" data-storage-path="${escapeAttr(f.storagePath || "")}">삭제</button>`
                   : ""
@@ -3493,18 +3523,17 @@ function formatDate(value) {
   }
 }
 
-/** 상단 갱신일·회사·공고 수 — 스냅샷 메타 + 실제 로드·병합된 rows 기준 */
+/** 상단 갱신일 — 스냅샷 메타 기준 */
 function paintMetaBanner() {
   const meta = byId("meta");
   if (!meta) return;
-  const activeRows = activeLeadRows();
-  const companies = activeRows.length;
-  const posts = activeRows.reduce((n, r) => n + (r.posts?.length ?? 0), 0);
   const generatedAt =
     state.snapshotGeneratedAt ||
     state.userOverridesAppliedAt ||
     null;
-  meta.innerHTML = `<strong>T-client</strong><span>${formatDate(generatedAt)} 갱신</span><span>회사 ${companies} · 공고 ${posts} · 추천 ${state.rows.filter((r) => pipelineLabels().rowMatchesRecommendedTab?.(r)).length}</span>`;
+  meta.innerHTML = generatedAt
+    ? `<span class="meta-updated">${escapeHtml(formatDate(generatedAt))} 갱신</span>`
+    : `<span class="meta-updated muted">갱신일 없음</span>`;
 }
 
 function switchTab(tabId, { resetFilters: shouldReset = false } = {}) {
@@ -3557,11 +3586,18 @@ function setAdminStatus(msg) {
 
 function setAdminUi(unlocked, { passwordSetup = false } = {}) {
   const badge = byId("adminBadge");
-  badge?.classList.toggle("hidden", !unlocked);
-  if (badge && unlocked) {
-    const email = window.TClientAdmin?.getUserEmail?.() ?? "";
-    badge.textContent = email || "로그인";
-    badge.title = email ? `로그인: ${email}` : "로그인됨";
+  if (badge) {
+    badge.classList.remove("hidden");
+    if (unlocked) {
+      const email = window.TClientAdmin?.getUserEmail?.() ?? "";
+      badge.textContent = email || "로그인";
+      badge.title = email ? `로그인: ${email}` : "로그인됨";
+      badge.classList.remove("is-guest");
+    } else {
+      badge.textContent = "비로그인";
+      badge.title = "로그인 필요";
+      badge.classList.add("is-guest");
+    }
   }
   byId("adminTools")?.classList.toggle("hidden", !unlocked);
   byId("adminLoginForm")?.classList.toggle("hidden", unlocked || passwordSetup);

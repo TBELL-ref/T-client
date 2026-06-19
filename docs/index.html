@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="T-client — QA 채용 리드 크롤링·영업 관리" />
-    <title>T-client</title>
+    <title>T-Client</title>
     <link rel="icon" href="./favicon.png" type="image/png" sizes="32x32" />
     <link rel="icon" href="./favicon-16.png" type="image/png" sizes="16x16" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
@@ -32,17 +32,14 @@
   <body>
     <div class="app">
       <header class="site-header">
-        <a class="brand" href="./" aria-label="T-client 홈">
+        <a class="brand" href="./" aria-label="T-Client 홈">
           <span class="brand-mark" aria-hidden="true"></span>
-          <span class="brand-text">
-            <span class="brand-name">T-client</span>
-            <span class="brand-desc">QA 리드 크롤링 · 영업 콘솔</span>
-          </span>
+          <span class="brand-name">T-Client</span>
         </a>
         <div class="header-end">
-          <div id="meta" class="meta"></div>
+          <div id="meta" class="meta" aria-label="데이터 갱신일"></div>
           <div class="admin-bar">
-            <span id="adminBadge" class="admin-badge hidden" title="로그인됨"></span>
+            <span id="adminBadge" class="admin-badge is-guest" title="로그인 계정">비로그인</span>
             <span id="crawlStatusBadge" class="admin-badge crawl-busy hidden" title="크롤링 진행 중">크롤링 중</span>
             <span id="notionSyncStatusBadge" class="admin-badge notion-busy hidden" title="Notion 동기화 진행 중">노션 동기화 중</span>
             <div class="admin-anchor">

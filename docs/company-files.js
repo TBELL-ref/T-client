@@ -29,14 +29,49 @@
 
   function fileExtension(name) {
     const m = `${name ?? ""}`.match(/\.([a-zA-Z0-9]{1,12})$/);
-    return m ? m[1].toLowerCase() : "bin";
+    return m ? m[1].toLowerCase() : "";
+  }
+
+  const EXT_EMOJI = {
+    pdf: "📕",
+    hwp: "📘",
+    hwpx: "📘",
+    doc: "📃",
+    docx: "📃",
+    xls: "📊",
+    xlsx: "📊",
+    ppt: "📽️",
+    pptx: "📽️",
+    zip: "🗂️",
+    rar: "🗂️",
+    "7z": "🗂️",
+    png: "🖼️",
+    jpg: "🖼️",
+    jpeg: "🖼️",
+    gif: "🖼️",
+    webp: "🖼️",
+    txt: "📝",
+    csv: "📊"
+  };
+
+  function extFromFile(file = {}) {
+    const name = resolveTitle(file);
+    const fromName = fileExtension(name);
+    if (fromName) return fromName;
+    const fromPath = fileExtension(`${file.storagePath ?? ""}`.split("/").pop());
+    return fromPath || "bin";
+  }
+
+  function extEmoji(file = {}) {
+    return EXT_EMOJI[extFromFile(file)] || "📎";
   }
 
   /** Storage object keys must be ASCII-only (Supabase rejects 한글/spaces in keys). */
   function storagePathForUpload(companyId, originalName) {
     const safeCompany = `${companyId ?? "company"}`.replace(/[^a-zA-Z0-9._-]/g, "_");
     const token = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-    return `${safeCompany}/${token}.${fileExtension(originalName)}`;
+    const ext = fileExtension(originalName) || "bin";
+    return `${safeCompany}/${token}.${ext}`;
   }
 
   function resolveTitle(file = {}) {
@@ -110,6 +145,8 @@
     invalidate,
     resolveHref,
     resolveTitle,
+    extEmoji,
+    extFromFile,
     FILE_TYPE_LABEL,
     normalize
   };
