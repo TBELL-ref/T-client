@@ -142,10 +142,7 @@
         const url = (window.TCompanyFiles?.resolveHref?.(f) ?? f.fileUrl) || "#";
         const ext = window.TCompanyFiles?.extFromFile?.(f) ?? "";
         const extClass = ext ? ` file-ext-${escapeAttr(ext)}` : "";
-        const inner =
-          window.TCompanyFiles?.extUsesBadge?.(ext)
-            ? `<span class="file-ext-badge-text">${escapeHtml(window.TCompanyFiles.extBadgeLabel(f))}</span>`
-            : iconSvg(window.TCompanyFiles?.extIconName?.(f) ?? "fileText", 15);
+        const inner = window.TClientView?.fileChipInnerHtml?.(f, 15) ?? iconSvg("fileText", 15);
         return `<a class="file-icon-chip file-ext-chip${extClass}" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" download title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}">${inner}</a>`;
       })
       .join("")}</div>`;

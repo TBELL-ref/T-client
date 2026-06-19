@@ -14,6 +14,8 @@ const state = {
   detailRow: null,
   detailEditSections: {},
   detailOpenSections: new Set(),
+  meetingEditId: null,
+  meetingAddOpen: false,
   mergeSourceRow: null,
   filtersOpen: false,
   tableSort: { column: "priorityScore", direction: "desc" },
@@ -155,6 +157,36 @@ function toDatetimeLocalValue(iso) {
   }
 }
 
+function clearMeetingUiState() {
+  state.meetingEditId = null;
+  state.meetingAddOpen = false;
+}
+
+function readMeetingCard(card) {
+  if (!card) return null;
+  const at = card.querySelector('[data-meeting-field="at"]')?.value;
+  return {
+    id: card.dataset.noteId,
+    meetingAt: at ? new Date(at).toISOString() : null,
+    location: card.querySelector('[data-meeting-field="location"]')?.value.trim() ?? "",
+    attendees: card.querySelector('[data-meeting-field="attendees"]')?.value.trim() ?? "",
+    summary: card.querySelector('[data-meeting-field="summary"]')?.value.trim() ?? "",
+    nextAction: card.querySelector('[data-meeting-field="next"]')?.value.trim() ?? ""
+  };
+}
+
+function refreshMeetingsPanel(row) {
+  if (!row?.companyId) return;
+  const embed = document.querySelector(`[data-company-meetings="${row.companyId}"]`);
+  if (!embed) {
+    paintDetailModal();
+    return;
+  }
+  const admin = window.TClientAdmin?.isUnlocked?.();
+  embed.outerHTML = renderMeetingsEmbed(row, admin);
+  void hydrateDetailExtras(row);
+}
+
 function renderMeetingEditCard(n) {
   const summaryId = `meeting-summary-${n.id}`;
   return `<li class="meeting-mini-item meeting-edit-card" data-note-id="${escapeAttr(n.id)}">
@@ -165,14 +197,48 @@ function renderMeetingEditCard(n) {
       <div class="inline-row span-2 inline-row-top"><span class="inline-label">요약</span>${richTextareaField(summaryId, n.summary ?? "", "미팅 내용", 3, 'data-meeting-field="summary"')}</div>
       <div class="inline-row span-2"><span class="inline-label">다음</span><input type="text" class="inline-field" data-meeting-field="next" value="${escapeAttr(n.nextAction ?? "")}" /></div>
     </div>
-    <button type="button" class="btn-ghost btn-sm meeting-del-btn" data-note-id="${escapeAttr(n.id)}">삭제</button>
+    <div class="meeting-edit-actions">
+      <button type="button" class="detail-sec-btn detail-sec-btn-primary meeting-save-btn" data-note-id="${escapeAttr(n.id)}">저장</button>
+      <button type="button" class="detail-sec-btn detail-sec-btn-ghost meeting-cancel-btn">취소</button>
+      <button type="button" class="btn-ghost btn-sm meeting-del-btn" data-note-id="${escapeAttr(n.id)}">삭제</button>
+    </div>
+  </li>`;
+}
+
+function renderMeetingViewItem(n, admin) {
+  if (admin && state.meetingEditId === n.id) return renderMeetingEditCard(n);
+  const date = escapeHtml(formatDate(n.meetingAt) || "일시 미정");
+  const next = n.nextAction ? richTextHtml(n.nextAction) : '<span class="muted">—</span>';
+  const metaParts = [];
+  if (n.location) metaParts.push(`<div class="meeting-mini-meta">장소 · ${escapeHtml(n.location)}</div>`);
+  if (n.attendees) metaParts.push(`<div class="meeting-mini-meta">참석 · ${escapeHtml(n.attendees)}</div>`);
+  const bodyParts = [];
+  if (metaParts.length) bodyParts.push(`<div class="meeting-mini-meta-block">${metaParts.join("")}</div>`);
+  if (n.summary) bodyParts.push(`<div class="meeting-mini-summary rich-text">${richTextHtml(n.summary)}</div>`);
+  const body = bodyParts.length ? bodyParts.join("") : '<span class="muted">내용 없음</span>';
+  const actions = admin
+    ? `<div class="meeting-item-actions">
+        <button type="button" class="detail-sec-btn detail-sec-btn-ghost meeting-edit-btn" data-note-id="${escapeAttr(n.id)}">수정</button>
+        <button type="button" class="btn-ghost btn-sm meeting-del-btn" data-note-id="${escapeAttr(n.id)}">삭제</button>
+      </div>`
+    : "";
+  return `<li class="meeting-mini-item">
+    <details class="meeting-mini-details">
+      <summary class="meeting-mini-head">
+        <span class="meeting-mini-date">${date}</span>
+        <span class="meeting-mini-next">${next}</span>
+      </summary>
+      <div class="meeting-mini-body">${body}</div>
+    </details>
+    ${actions}
   </li>`;
 }
 
 function fileChipInnerHtml(file, size = 15) {
   const ext = window.TCompanyFiles?.extFromFile?.(file) ?? "";
   if (window.TCompanyFiles?.extUsesBadge?.(ext)) {
-    return `<span class="file-ext-badge-text">${escapeHtml(window.TCompanyFiles.extBadgeLabel(file))}</span>`;
+    const label = escapeHtml(window.TCompanyFiles.extBadgeLabel(file));
+    return `<span class="file-type-mark file-type-${escapeAttr(ext)}" aria-hidden="true"><span class="file-type-mark-body"></span><span class="file-type-mark-label">${label}</span></span>`;
   }
   return iconSvg(window.TCompanyFiles?.extIconName?.(file) ?? "fileText", size);
 }
@@ -692,9 +758,15 @@ function renderScoreSection(row, edit, admin = false) {
   </div>`;
 }
 
-function renderMeetingsEmbed(row, editSales, admin) {
+function renderMeetingsEmbed(row, admin) {
+  const addOpen = state.meetingAddOpen && state.detailRow?.companyId === row.companyId;
+  const toolbar = admin
+    ? `<div class="meeting-toolbar">
+        <button type="button" class="detail-sec-btn detail-sec-btn-edit" id="meeting-add-toggle">${addOpen ? "추가 취소" : "미팅 추가"}</button>
+      </div>`
+    : "";
   const addForm =
-    editSales && admin
+    admin && addOpen
       ? `<div class="detail-form-grid cols-2 detail-form-compact meeting-add-row">
           <div class="inline-row"><span class="inline-label">일시</span><input type="datetime-local" id="edit-meeting-at" class="inline-field" /></div>
           <div class="inline-row"><span class="inline-label">장소</span>${inlineInput("edit-meeting-location", "", "text")}</div>
@@ -702,9 +774,10 @@ function renderMeetingsEmbed(row, editSales, admin) {
           <div class="inline-row span-2 inline-row-top"><span class="inline-label">요약</span>${richTextareaField("edit-meeting-summary", "", "미팅 내용", 3)}</div>
           <div class="inline-row span-2"><span class="inline-label">다음</span>${inlineInput("edit-meeting-next", "", "text")}</div>
         </div>
-        <p class="meeting-add-actions"><button type="button" class="detail-sec-btn detail-sec-btn-edit" id="meeting-add-btn">미팅 추가</button></p>`
+        <p class="meeting-add-actions"><button type="button" class="detail-sec-btn detail-sec-btn-primary" id="meeting-add-btn">등록</button></p>`
       : "";
   return `<div class="sales-meetings-embed" data-company-meetings="${escapeAttr(row.companyId)}">
+    ${toolbar}
     ${addForm}
     <div class="meeting-list-wrap"><p class="muted">미팅 기록 로딩…</p></div>
   </div>`;
@@ -935,22 +1008,6 @@ async function saveDetailSection(row, section) {
   }
 
   if (section === "sales") {
-    if (window.TClientAdmin.isUnlocked()) {
-      const meetingCards = document.querySelectorAll(".meeting-edit-card[data-note-id]");
-      for (const card of meetingCards) {
-        const id = card.dataset.noteId;
-        if (!id) continue;
-        const at = card.querySelector('[data-meeting-field="at"]')?.value;
-        await window.TMeetingNotes.upsert(cid, {
-          id,
-          meetingAt: at ? new Date(at).toISOString() : null,
-          location: card.querySelector('[data-meeting-field="location"]')?.value.trim() ?? "",
-          attendees: card.querySelector('[data-meeting-field="attendees"]')?.value.trim() ?? "",
-          summary: card.querySelector('[data-meeting-field="summary"]')?.value.trim() ?? "",
-          nextAction: card.querySelector('[data-meeting-field="next"]')?.value.trim() ?? ""
-        });
-      }
-    }
     await persistCompany(
       {
         contact: {
@@ -1172,19 +1229,71 @@ function bindDetailSectionEdits() {
       return;
     }
 
+    const meetingEditBtn = e.target?.closest?.(".meeting-edit-btn");
+    if (meetingEditBtn && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      state.meetingEditId = meetingEditBtn.dataset.noteId || null;
+      state.meetingAddOpen = false;
+      void hydrateDetailExtras(row);
+      return;
+    }
+
+    const meetingCancelBtn = e.target?.closest?.(".meeting-cancel-btn");
+    if (meetingCancelBtn) {
+      e.preventDefault();
+      state.meetingEditId = null;
+      void hydrateDetailExtras(row);
+      return;
+    }
+
+    const meetingSaveBtn = e.target?.closest?.(".meeting-save-btn");
+    if (meetingSaveBtn && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      const card = meetingSaveBtn.closest(".meeting-edit-card");
+      const patch = readMeetingCard(card);
+      if (!patch?.id) return;
+      try {
+        await window.TMeetingNotes.upsert(row.companyId, patch);
+        state.meetingEditId = null;
+        void hydrateDetailExtras(row);
+        showToast("미팅이 저장되었습니다.");
+      } catch (err) {
+        showToast(err.message || "미팅 저장 실패", "error");
+      }
+      return;
+    }
+
+    if (e.target?.closest?.("#meeting-add-toggle") && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      state.meetingAddOpen = !state.meetingAddOpen;
+      if (state.meetingAddOpen) state.meetingEditId = null;
+      refreshMeetingsPanel(row);
+      return;
+    }
+
+    if (e.target?.closest?.("#meeting-add-toggle-inline") && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      state.meetingAddOpen = true;
+      state.meetingEditId = null;
+      refreshMeetingsPanel(row);
+      return;
+    }
+
     const meetingDelBtn = e.target?.closest?.(".meeting-del-btn");
-    if (meetingDelBtn && isSectionEdit("sales")) {
+    if (meetingDelBtn && window.TClientAdmin?.isUnlocked?.()) {
       e.preventDefault();
       try {
         await window.TMeetingNotes.remove(meetingDelBtn.dataset.noteId, row.companyId);
+        if (state.meetingEditId === meetingDelBtn.dataset.noteId) state.meetingEditId = null;
         void hydrateDetailExtras(row);
+        showToast("미팅이 삭제되었습니다.");
       } catch (err) {
         showToast(err.message || "미팅 삭제 실패", "error");
       }
       return;
     }
 
-    if (e.target?.closest?.("#meeting-add-btn") && isSectionEdit("sales")) {
+    if (e.target?.closest?.("#meeting-add-btn") && window.TClientAdmin?.isUnlocked?.()) {
       e.preventDefault();
       const at = byId("edit-meeting-at")?.value;
       try {
@@ -1202,6 +1311,8 @@ function bindDetailSectionEdits() {
           }
         );
         void hydrateDetailExtras(row);
+        state.meetingAddOpen = false;
+        refreshMeetingsPanel(row);
         showToast("미팅 기록이 추가되었습니다.");
       } catch (err) {
         showToast(err.message || "미팅 저장 실패", "error");
@@ -2775,7 +2886,7 @@ function renderDetailBody(row, admin = false) {
         <div class="inline-row"><span class="inline-label">전화</span>${inlineInput("edit-contact-phone", c.phone ?? "", "tel")}</div>
       </div>`
     : renderSalesRowView(c, email, row);
-  const salesWithMeetings = `<div class="sales-section-stack">${salesBody}${renderMeetingsEmbed(row, editSales, admin)}</div>`;
+  const salesWithMeetings = `<div class="sales-section-stack">${salesBody}${renderMeetingsEmbed(row, admin)}</div>`;
 
   const evalViewBlock = editEval
     ? `<div class="detail-form-grid cols-2 detail-form-compact">
@@ -2920,35 +3031,12 @@ async function hydrateDetailExtras(row) {
   const meetListEl = meetEl?.querySelector(".meeting-list-wrap") ?? meetEl;
   const admin = window.TClientAdmin?.isUnlocked?.();
   const editFiles = isSectionEdit("progress") && admin;
-  const editMeetings = isSectionEdit("sales") && admin;
 
   function renderMeetingList(notes) {
     if (!meetListEl) return;
     meetListEl.innerHTML = notes.length
-      ? `<ul class="meeting-list meeting-list-mini">${notes
-          .map((n) => {
-            if (editMeetings) return renderMeetingEditCard(n);
-            const date = escapeHtml(formatDate(n.meetingAt) || "일시 미정");
-            const next = n.nextAction ? richTextHtml(n.nextAction) : '<span class="muted">—</span>';
-            const metaParts = [];
-            if (n.location) metaParts.push(`<div class="meeting-mini-meta">장소 · ${escapeHtml(n.location)}</div>`);
-            if (n.attendees) metaParts.push(`<div class="meeting-mini-meta">참석 · ${escapeHtml(n.attendees)}</div>`);
-            const bodyParts = [];
-            if (metaParts.length) bodyParts.push(`<div class="meeting-mini-meta-block">${metaParts.join("")}</div>`);
-            if (n.summary) bodyParts.push(`<div class="meeting-mini-summary rich-text">${richTextHtml(n.summary)}</div>`);
-            const body = bodyParts.length ? bodyParts.join("") : '<span class="muted">내용 없음</span>';
-            return `<li class="meeting-mini-item">
-              <details class="meeting-mini-details">
-                <summary class="meeting-mini-head">
-                  <span class="meeting-mini-date">${date}</span>
-                  <span class="meeting-mini-next">${next}</span>
-                </summary>
-                <div class="meeting-mini-body">${body}</div>
-              </details>
-            </li>`;
-          })
-          .join("")}</ul>`
-      : `<p class="muted detail-empty-hint">${editMeetings ? "미팅 기록이 없습니다. 아래에서 추가하세요." : "미팅 기록이 없습니다."}</p>`;
+      ? `<ul class="meeting-list meeting-list-mini">${notes.map((n) => renderMeetingViewItem(n, admin)).join("")}</ul>`
+      : `<p class="muted detail-empty-hint">미팅 기록이 없습니다.${admin ? ' <button type="button" class="link-btn" id="meeting-add-toggle-inline">미팅 추가</button>' : ""}</p>`;
   }
 
   function renderFileList(files) {
@@ -3008,6 +3096,7 @@ function paintDetailModal() {
 async function openDetail(row, sectionToEdit = null) {
   state.detailRow = row;
   clearSectionEdits();
+  clearMeetingUiState();
   if (sectionToEdit && window.TClientAdmin?.isUnlocked?.()) {
     setSectionEdit(sectionToEdit, true);
   }
@@ -3035,6 +3124,7 @@ async function openDetail(row, sectionToEdit = null) {
 function closeDetail() {
   state.detailRow = null;
   clearSectionEdits();
+  clearMeetingUiState();
   state.detailOpenSections = new Set();
   window.__TCLIENT_DETAIL_ROW = null;
   window.__TCLIENT_DETAIL_EDIT = false;
@@ -4236,6 +4326,7 @@ window.TClientView = {
   displayName,
   renderStarRating,
   iconSvg,
+  fileChipInnerHtml,
   renderCompanyTable,
   renderCompanyCell,
   listableLeadRows,

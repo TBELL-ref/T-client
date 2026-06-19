@@ -5433,13 +5433,38 @@ body.detail-drawer-open .app {
 
 .rich-text .rich-bold,
 .rich-text strong {
-  font-weight: 800;
-  color: #7c2d12;
-  background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%);
-  padding: 0 4px;
-  border-radius: 3px;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
+  font-weight: 700;
+  color: #111827;
+}
+
+.meeting-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+
+.meeting-item-actions,
+.meeting-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.meeting-edit-actions {
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #2563eb;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 .rich-text-field {
@@ -5613,6 +5638,14 @@ body.detail-drawer-open .app {
   line-height: 1;
 }
 
+.file-icon-chip:has(.file-type-mark) {
+  width: auto;
+  min-width: 28px;
+  padding: 0 3px;
+  background: transparent;
+  border: none;
+}
+
 .file-ext-icon {
   display: inline-flex;
   align-items: center;
@@ -5620,19 +5653,102 @@ body.detail-drawer-open .app {
   flex-shrink: 0;
 }
 
-.file-ext-badge-text {
+.file-type-mark {
+  position: relative;
   display: inline-flex;
-  align-items: center;
+  width: 22px;
+  height: 26px;
+  align-items: flex-end;
   justify-content: center;
-  min-width: 24px;
-  height: 14px;
-  padding: 0 3px;
+  flex-shrink: 0;
+}
+
+.file-type-mark-body {
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid currentColor;
   border-radius: 3px;
-  font-size: 0.56rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  background: #fff;
+}
+
+.file-type-mark-body::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(225deg, #fff 50%, currentColor 50%);
+  border-top-right-radius: 2px;
+}
+
+.file-type-mark-label {
+  position: relative;
+  z-index: 1;
+  font-size: 0.44rem;
+  font-weight: 900;
   line-height: 1;
-  text-transform: uppercase;
+  padding-bottom: 3px;
+  letter-spacing: -0.04em;
+}
+
+.file-type-pdf {
+  color: #dc2626;
+}
+
+.file-type-pdf .file-type-mark-body {
+  background: #fff5f5;
+  border-color: #f87171;
+}
+
+.file-type-pdf .file-type-mark-label {
+  color: #b91c1c;
+}
+
+.file-type-hwp,
+.file-type-hwpx {
+  color: #1d4ed8;
+}
+
+.file-type-hwp .file-type-mark-body,
+.file-type-hwpx .file-type-mark-body {
+  background: #eff6ff;
+  border-color: #60a5fa;
+}
+
+.file-type-doc,
+.file-type-docx {
+  color: #2563eb;
+}
+
+.file-type-doc .file-type-mark-body,
+.file-type-docx .file-type-mark-body {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.file-type-xls,
+.file-type-xlsx,
+.file-type-csv {
+  color: #059669;
+}
+
+.file-type-xls .file-type-mark-body,
+.file-type-xlsx .file-type-mark-body,
+.file-type-csv .file-type-mark-body {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+
+.file-type-ppt,
+.file-type-pptx {
+  color: #d97706;
+}
+
+.file-type-ppt .file-type-mark-body,
+.file-type-pptx .file-type-mark-body {
+  background: #fffbeb;
+  border-color: #fcd34d;
 }
 
 .file-list-link .file-ext-icon {
@@ -5640,54 +5756,8 @@ body.detail-drawer-open .app {
   vertical-align: middle;
 }
 
-.file-ext-pdf .file-ext-badge-text,
-.file-icon-chip.file-ext-pdf .file-ext-badge-text {
-  background: #dc2626;
-  color: #fff;
-}
-
-.file-ext-hwp .file-ext-badge-text,
-.file-ext-hwpx .file-ext-badge-text,
-.file-icon-chip.file-ext-hwp .file-ext-badge-text,
-.file-icon-chip.file-ext-hwpx .file-ext-badge-text {
-  background: #1d4ed8;
-  color: #fff;
-}
-
-.file-ext-doc .file-ext-badge-text,
-.file-ext-docx .file-ext-badge-text,
-.file-icon-chip.file-ext-doc .file-ext-badge-text,
-.file-icon-chip.file-ext-docx .file-ext-badge-text {
-  background: #2563eb;
-  color: #fff;
-}
-
-.file-ext-xls .file-ext-badge-text,
-.file-ext-xlsx .file-ext-badge-text,
-.file-ext-csv .file-ext-badge-text,
-.file-icon-chip.file-ext-xls .file-ext-badge-text,
-.file-icon-chip.file-ext-xlsx .file-ext-badge-text,
-.file-icon-chip.file-ext-csv .file-ext-badge-text {
-  background: #059669;
-  color: #fff;
-}
-
-.file-ext-ppt .file-ext-badge-text,
-.file-ext-pptx .file-ext-badge-text,
-.file-icon-chip.file-ext-ppt .file-ext-badge-text,
-.file-icon-chip.file-ext-pptx .file-ext-badge-text {
-  background: #d97706;
-  color: #fff;
-}
-
-.file-icon-chip.file-ext-pdf {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #dc2626;
-}
-
-.icon-file-pdf {
-  color: #dc2626;
+.file-icon-chip.file-ext-pdf:hover .file-type-mark-body {
+  background: #fee2e2;
 }
 
 .file-icon-chip:hover {
