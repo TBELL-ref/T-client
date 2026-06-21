@@ -224,12 +224,14 @@
     return get(companyId);
   }
 
-  async function batchSetNotionPriorities(orderedCompanyIds) {
+  async function batchSetNotionPriorities(orderedCompanyIds, { onProgress } = {}) {
     const out = [];
-    for (let i = 0; i < orderedCompanyIds.length; i++) {
+    const total = orderedCompanyIds.length;
+    for (let i = 0; i < total; i++) {
       const companyId = orderedCompanyIds[i];
       const row = window.state?.rows?.find((r) => r.companyId === companyId) ?? null;
       out.push(await upsert(companyId, { notionPriority: i + 1 }, row));
+      onProgress?.({ current: i + 1, total });
     }
     return out;
   }

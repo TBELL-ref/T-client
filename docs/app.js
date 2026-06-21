@@ -382,18 +382,24 @@ function isNotionReorderActive() {
 
 function getRecommendedTabRows() {
   const P = window.TPipeline;
-  return sortByNotionPriority(state.rows.filter((r) => P?.rowMatchesRecommendedTab?.(r)));
+  return sortByNotionPriority(
+    state.rows.filter((r) => P?.rowMatchesRecommendedTab?.(r) && isMainTabLead(r))
+  );
 }
 
 function getInProgressTabRows() {
   const P = window.TPipeline;
-  return sortByNotionPriority(state.rows.filter((r) => P?.rowMatchesInProgressTab?.(r)));
+  return sortByNotionPriority(
+    state.rows.filter((r) => P?.rowMatchesInProgressTab?.(r) && isMainTabLead(r))
+  );
 }
 
 function getCuratedNotionRows() {
   const P = window.TPipeline;
   return sortByNotionPriority(
-    state.rows.filter((r) => P?.rowMatchesRecommendedTab?.(r) || P?.rowMatchesInProgressTab?.(r))
+    state.rows.filter(
+      (r) => isMainTabLead(r) && (P?.rowMatchesRecommendedTab?.(r) || P?.rowMatchesInProgressTab?.(r))
+    )
   );
 }
 
@@ -411,17 +417,59 @@ function mergeTabReorder(curatedIds, tabIds, newTabOrder) {
   return curatedIds.map((id) => (tabSet.has(id) ? queue.shift() : id));
 }
 
+function sameIdSet(a, b) {
+  if (a.length !== b.length) return false;
+  const setB = new Set(b);
+  return a.every((id) => setB.has(id));
+}
+
 function updateNotionReorderUi() {
   const startBtn = byId("notionReorderStart");
   const bar = byId("notionReorderBar");
   const admin = window.TClientAdmin?.isUnlocked?.();
   const onTab = isNotionReorderTab();
+  const savingStatus = state.notionReorder?.savingStatus ?? null;
+  const saving = Boolean(savingStatus);
+  const saveBtn = byId("notionReorderSave");
+  const pushBtn = byId("notionReorderSavePush");
+  const cancelBtn = byId("notionReorderCancel");
+  const hintEl = byId("notionReorderHint");
+  const progress = state.notionReorder?.saveProgress;
+
   startBtn?.classList.toggle("hidden", !admin || !onTab || isNotionReorderActive());
   startBtn?.closest(".search-row-reorder")?.classList.toggle("hidden", !admin || !onTab);
   bar?.classList.toggle("hidden", !isNotionReorderActive());
   bar?.setAttribute("aria-hidden", isNotionReorderActive() ? "false" : "true");
+  bar?.classList.toggle("notion-reorder-busy", saving);
   document.body.classList.toggle("notion-reorder-active", isNotionReorderActive());
   byId("notionReorderSavePush")?.classList.toggle("hidden", !admin);
+
+  if (saveBtn) {
+    saveBtn.disabled = saving;
+    saveBtn.textContent =
+      savingStatus === "pushing" ? "저장 · Notion 반영 중…" : saving ? "저장 중…" : "순서 저장";
+  }
+  if (pushBtn) {
+    pushBtn.disabled = saving;
+    pushBtn.textContent = saving ? "저장 · Notion 반영 중…" : "저장 + Notion 반영";
+  }
+  if (cancelBtn) cancelBtn.disabled = saving;
+
+  if (hintEl) {
+    if (savingStatus === "pushing") {
+      hintEl.textContent =
+        progress?.total > 0
+          ? `순번 저장 중… (${progress.current}/${progress.total}) · Notion 반영 대기`
+          : "순번 저장 중… · Notion 반영 대기";
+    } else if (saving) {
+      hintEl.textContent =
+        progress?.total > 0
+          ? `순번 저장 중… (${progress.current}/${progress.total})`
+          : "순번 저장 중…";
+    } else {
+      hintEl.textContent = "☰ 핸들을 드래그해 순번을 바꾸세요. 행 클릭은 상세로 이동하지 않습니다.";
+    }
+  }
 }
 
 function startNotionReorder() {
@@ -438,7 +486,7 @@ function startNotionReorder() {
   }
   const sortEl = byId("sort");
   if (sortEl && sortEl.value !== "notion") sortEl.value = "notion";
-  state.notionReorder = { active: true, tab, draftIds, dragId: null };
+  state.notionReorder = { active: true, tab, draftIds, dragId: null, savingStatus: null, saveProgress: null };
   updateNotionReorderUi();
   window.TDetailPanel?.renderTabPanels?.(state.activeTab);
 }
@@ -456,7 +504,7 @@ function notionReorderRowsForTab(tab) {
 }
 
 function moveNotionReorderId(dragId, targetId) {
-  if (!state.notionReorder?.active || !dragId || !targetId || dragId === targetId) return;
+  if (!state.notionReorder?.active || state.notionReorder?.savingStatus || !dragId || !targetId || dragId === targetId) return;
   const ids = [...state.notionReorder.draftIds];
   const from = ids.indexOf(dragId);
   const to = ids.indexOf(targetId);
@@ -506,31 +554,39 @@ function bindNotionReorderTable(panelId) {
 }
 
 async function saveNotionReorder({ pushNotion = false } = {}) {
-  if (!state.notionReorder?.active || !window.TClientAdmin?.isUnlocked?.()) return;
+  if (!state.notionReorder?.active) return;
+  if (!window.TClientAdmin?.isUnlocked?.()) {
+    showToast("관리자 로그인이 필요합니다.", "error");
+    return;
+  }
+  if (state.notionReorder.savingStatus) return;
+
   const tab = state.notionReorder.tab;
   const tabIds = getNotionTabRowIds(tab);
   const draftIds = state.notionReorder.draftIds;
-  if (draftIds.length !== tabIds.length || !draftIds.every((id) => tabIds.includes(id))) {
-    showToast("순서 목록이 올바르지 않습니다. 다시 시도해 주세요.", "error");
+  if (!sameIdSet(draftIds, tabIds)) {
+    showToast("순서 목록이 올바르지 않습니다. 취소 후 다시 시도해 주세요.", "error");
     return;
   }
-  const msg = pushNotion
-    ? "이 순서로 Notion No.를 저장하고 Notion DB에 반영할까요?"
-    : "이 순서로 Notion No.를 저장할까요?";
-  if (!window.confirm(msg)) return;
 
   const merged = mergeTabReorder(getCuratedOrderedIds(), tabIds, draftIds);
-  const saveBtn = byId("notionReorderSave");
-  const pushBtn = byId("notionReorderSavePush");
-  if (saveBtn) saveBtn.disabled = true;
-  if (pushBtn) pushBtn.disabled = true;
+  state.notionReorder.savingStatus = pushNotion ? "pushing" : "saving";
+  state.notionReorder.saveProgress = { current: 0, total: merged.length };
+  updateNotionReorderUi();
+
   try {
-    await window.TSalesManagement.batchSetNotionPriorities(merged);
+    await window.TSalesManagement.batchSetNotionPriorities(merged, {
+      onProgress: ({ current, total }) => {
+        if (!state.notionReorder?.active) return;
+        state.notionReorder.saveProgress = { current, total };
+        updateNotionReorderUi();
+      }
+    });
     await window.TSalesManagement.loadAll(true);
     reloadRowsWithAdmin();
     refreshViews();
     cancelNotionReorder();
-    showToast(pushNotion ? "순서를 저장했습니다. Notion 반영을 시작합니다." : "Notion No. 순서가 저장되었습니다.");
+    showToast(pushNotion ? "순서를 저장했습니다. Notion 반영을 시작합니다." : "순번 순서가 저장되었습니다.");
     if (pushNotion) {
       await window.TClientAdmin.triggerNotionPush?.();
       notionPushUi.triggeredAt = Date.now();
@@ -538,10 +594,12 @@ async function saveNotionReorder({ pushNotion = false } = {}) {
       scheduleNotionPushWatch();
     }
   } catch (err) {
+    if (state.notionReorder) {
+      state.notionReorder.savingStatus = null;
+      state.notionReorder.saveProgress = null;
+      updateNotionReorderUi();
+    }
     showToast(err.message || "순서 저장 실패", "error");
-  } finally {
-    if (saveBtn) saveBtn.disabled = false;
-    if (pushBtn) pushBtn.disabled = false;
   }
 }
 
@@ -4270,7 +4328,7 @@ async function updateNotionPushUi() {
       pushBtn.disabled = busy;
       pushBtn.title = busy ? "Notion 반영 진행 중입니다" : "";
     }
-    if (savePushBtn) savePushBtn.disabled = busy || isNotionReorderActive();
+    if (savePushBtn) savePushBtn.disabled = busy || isNotionReorderActive() || Boolean(state.notionReorder?.savingStatus);
 
     if (notionPushUi.triggeredAt && Date.now() - notionPushUi.triggeredAt > 180000) {
       notionPushUi.triggeredAt = 0;
@@ -4620,13 +4678,13 @@ function bindCrawlModal() {
 }
 
 function bindAdmin() {
-  byId("adminUnlockBtn")?.addEventListener("click", (e) => {
-    e.stopPropagation();
+  byId("adminUnlockBtn")?.addEventListener("click", () => {
     toggleAdminPopover();
   });
 
   document.addEventListener("click", (e) => {
-    if (!e.target.closest(".admin-anchor")) closeAdminPopover();
+    if (e.target.closest(".admin-anchor")) return;
+    closeAdminPopover();
   });
 
   byId("adminLoginBtn")?.addEventListener("click", async () => {

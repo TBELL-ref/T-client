@@ -51,7 +51,7 @@ body {
 .site-header {
   position: sticky;
   top: 0;
-  z-index: 300;
+  z-index: 1300;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1193,6 +1193,15 @@ body {
   border-radius: 12px;
 }
 
+.notion-reorder-bar.notion-reorder-busy {
+  background: #fff1e6;
+  border-color: rgba(234, 88, 12, 0.38);
+}
+
+.notion-reorder-bar.notion-reorder-busy .notion-reorder-hint {
+  color: #c2410c;
+}
+
 .notion-reorder-hint {
   margin: 0;
   font-size: 13px;
@@ -1921,7 +1930,7 @@ button {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  z-index: 50;
+  z-index: 10;
   width: min(320px, calc(100vw - 32px));
   max-height: min(70vh, 520px);
   overflow-y: auto;
