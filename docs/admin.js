@@ -358,6 +358,27 @@
     return window.TSupabase.getNotionSyncStatus();
   }
 
+  async function getNotionPushStatus() {
+    return window.TSupabase.getNotionPushStatus();
+  }
+
+  async function triggerNotionPush() {
+    const status = await getNotionPushStatus();
+    if (status?.status === "running") {
+      const who = status.requestedByEmail ? ` (요청: ${status.requestedByEmail})` : "";
+      throw new Error(`Notion 반영 진행 중입니다${who}`);
+    }
+    const syncStatus = await getNotionSyncStatus();
+    if (syncStatus?.status === "running") {
+      throw new Error("Notion → T-client 동기화 진행 중입니다. 완료 후 다시 시도해 주세요.");
+    }
+
+    const email = state.userEmail;
+    if (!email) throw new Error("로그인이 필요합니다.");
+
+    return repoDispatch("push-notion", { email }, REPO_PRIVATE);
+  }
+
   async function triggerNotionSync() {
     const status = await getNotionSyncStatus();
     if (status?.status === "running") {
@@ -1413,6 +1434,8 @@
     getCrawlStatus,
     getNotionSyncStatus,
     triggerNotionSync,
+    getNotionPushStatus,
+    triggerNotionPush,
     saveToGitHub,
     flushPersist,
     persistToDb,

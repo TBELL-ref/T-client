@@ -17,6 +17,7 @@ const state = {
   meetingEditId: null,
   meetingAddOpen: false,
   mergeSourceRow: null,
+  notionReorder: null,
   filtersOpen: false,
   tableSort: { column: "priorityScore", direction: "desc" },
   leadsPage: 1,
@@ -354,14 +355,198 @@ function getRecommendedRows() {
 }
 
 function sortRecommendedRows(rows) {
+  return sortByNotionPriority(rows);
+}
+
+function sortInProgressRows(rows) {
+  return sortByNotionPriority(rows);
+}
+
+function sortByNotionPriority(rows) {
   return [...rows].sort((a, b) => {
     const rankDiff = notionPriorityValue(a) - notionPriorityValue(b);
     if (rankDiff !== 0) return rankDiff;
-    const sa = Number.parseInt(`${a.recommendScore ?? 0}`, 10) || 0;
-    const sb = Number.parseInt(`${b.recommendScore ?? 0}`, 10) || 0;
-    if (sa !== sb) return sb - sa;
     return displayName(a).localeCompare(displayName(b), "ko");
   });
+}
+
+const NOTION_REORDER_TABS = new Set(["recommended", "in_progress"]);
+
+function isNotionReorderTab(tab = state.activeTab) {
+  return NOTION_REORDER_TABS.has(tab);
+}
+
+function isNotionReorderActive() {
+  return Boolean(state.notionReorder?.active);
+}
+
+function getRecommendedTabRows() {
+  const P = window.TPipeline;
+  return sortByNotionPriority(state.rows.filter((r) => P?.rowMatchesRecommendedTab?.(r)));
+}
+
+function getInProgressTabRows() {
+  const P = window.TPipeline;
+  return sortByNotionPriority(state.rows.filter((r) => P?.rowMatchesInProgressTab?.(r)));
+}
+
+function getCuratedNotionRows() {
+  const P = window.TPipeline;
+  return sortByNotionPriority(
+    state.rows.filter((r) => P?.rowMatchesRecommendedTab?.(r) || P?.rowMatchesInProgressTab?.(r))
+  );
+}
+
+function getCuratedOrderedIds() {
+  return getCuratedNotionRows().map((r) => r.companyId);
+}
+
+function getNotionTabRowIds(tab) {
+  return (tab === "recommended" ? getRecommendedTabRows() : getInProgressTabRows()).map((r) => r.companyId);
+}
+
+function mergeTabReorder(curatedIds, tabIds, newTabOrder) {
+  const tabSet = new Set(tabIds);
+  const queue = [...newTabOrder];
+  return curatedIds.map((id) => (tabSet.has(id) ? queue.shift() : id));
+}
+
+function updateNotionReorderUi() {
+  const startBtn = byId("notionReorderStart");
+  const bar = byId("notionReorderBar");
+  const admin = window.TClientAdmin?.isUnlocked?.();
+  const onTab = isNotionReorderTab();
+  startBtn?.classList.toggle("hidden", !admin || !onTab || isNotionReorderActive());
+  startBtn?.closest(".tabs-bar-actions")?.classList.toggle("hidden", !admin || !onTab);
+  bar?.classList.toggle("hidden", !isNotionReorderActive());
+  bar?.setAttribute("aria-hidden", isNotionReorderActive() ? "false" : "true");
+  document.body.classList.toggle("notion-reorder-active", isNotionReorderActive());
+  byId("notionReorderSavePush")?.classList.toggle("hidden", !admin);
+}
+
+function startNotionReorder() {
+  if (!window.TClientAdmin?.isUnlocked?.()) {
+    showToast("관리자 로그인이 필요합니다.", "error");
+    return;
+  }
+  if (!isNotionReorderTab()) return;
+  const tab = state.activeTab;
+  const draftIds = getNotionTabRowIds(tab);
+  if (!draftIds.length) {
+    showToast("순서를 변경할 회사가 없습니다.", "error");
+    return;
+  }
+  const sortEl = byId("sort");
+  if (sortEl && sortEl.value !== "notion") sortEl.value = "notion";
+  state.notionReorder = { active: true, tab, draftIds, dragId: null };
+  updateNotionReorderUi();
+  window.TDetailPanel?.renderTabPanels?.(state.activeTab);
+}
+
+function cancelNotionReorder() {
+  state.notionReorder = null;
+  updateNotionReorderUi();
+  window.TDetailPanel?.renderTabPanels?.(state.activeTab);
+}
+
+function notionReorderRowsForTab(tab) {
+  const ids = state.notionReorder?.draftIds ?? getNotionTabRowIds(tab);
+  const byIdMap = new Map(state.rows.map((r) => [r.companyId, r]));
+  return ids.map((id) => byIdMap.get(id)).filter(Boolean);
+}
+
+function moveNotionReorderId(dragId, targetId) {
+  if (!state.notionReorder?.active || !dragId || !targetId || dragId === targetId) return;
+  const ids = [...state.notionReorder.draftIds];
+  const from = ids.indexOf(dragId);
+  const to = ids.indexOf(targetId);
+  if (from < 0 || to < 0) return;
+  ids.splice(from, 1);
+  ids.splice(to, 0, dragId);
+  state.notionReorder.draftIds = ids;
+  window.TDetailPanel?.renderTabPanels?.(state.activeTab);
+}
+
+function bindNotionReorderTable(panelId) {
+  const panel = byId(panelId);
+  if (!panel || !isNotionReorderActive()) return;
+  let dragId = null;
+  panel.querySelectorAll(".reorder-handle").forEach((handle) => {
+    handle.addEventListener("dragstart", (e) => {
+      dragId = handle.closest("tr")?.dataset?.reorderId ?? null;
+      if (!dragId) return;
+      state.notionReorder.dragId = dragId;
+      e.dataTransfer?.setData("text/plain", dragId);
+      e.dataTransfer.effectAllowed = "move";
+      handle.closest("tr")?.classList.add("reorder-dragging");
+    });
+    handle.addEventListener("dragend", () => {
+      dragId = null;
+      state.notionReorder.dragId = null;
+      panel.querySelectorAll("tr.reorder-dragging, tr.reorder-drop-target").forEach((tr) => {
+        tr.classList.remove("reorder-dragging", "reorder-drop-target");
+      });
+    });
+  });
+  panel.querySelectorAll("tr[data-reorder-id]").forEach((tr) => {
+    tr.addEventListener("dragover", (e) => {
+      if (!dragId) return;
+      e.preventDefault();
+      tr.classList.add("reorder-drop-target");
+    });
+    tr.addEventListener("dragleave", () => tr.classList.remove("reorder-drop-target"));
+    tr.addEventListener("drop", (e) => {
+      e.preventDefault();
+      tr.classList.remove("reorder-drop-target");
+      const targetId = tr.dataset.reorderId;
+      const fromId = e.dataTransfer?.getData("text/plain") || dragId;
+      moveNotionReorderId(fromId, targetId);
+    });
+  });
+}
+
+async function saveNotionReorder({ pushNotion = false } = {}) {
+  if (!state.notionReorder?.active || !window.TClientAdmin?.isUnlocked?.()) return;
+  const tab = state.notionReorder.tab;
+  const tabIds = getNotionTabRowIds(tab);
+  const draftIds = state.notionReorder.draftIds;
+  if (draftIds.length !== tabIds.length || !draftIds.every((id) => tabIds.includes(id))) {
+    showToast("순서 목록이 올바르지 않습니다. 다시 시도해 주세요.", "error");
+    return;
+  }
+  const msg = pushNotion
+    ? "이 순서로 Notion No.를 저장하고 Notion DB에 반영할까요?"
+    : "이 순서로 Notion No.를 저장할까요?";
+  if (!window.confirm(msg)) return;
+
+  const merged = mergeTabReorder(getCuratedOrderedIds(), tabIds, draftIds);
+  const saveBtn = byId("notionReorderSave");
+  const pushBtn = byId("notionReorderSavePush");
+  if (saveBtn) saveBtn.disabled = true;
+  if (pushBtn) pushBtn.disabled = true;
+  try {
+    await window.TSalesManagement.batchSetNotionPriorities(merged);
+    await window.TSalesManagement.loadAll(true);
+    reloadRowsWithAdmin();
+    refreshViews();
+    cancelNotionReorder();
+    showToast(pushNotion ? "순서를 저장했습니다. Notion 반영을 시작합니다." : "Notion No. 순서가 저장되었습니다.");
+    if (pushNotion) {
+      await window.TClientAdmin.triggerNotionPush?.();
+      notionPushUi.triggeredAt = Date.now();
+      notionPushUi.sawRunning = false;
+      scheduleNotionPushWatch();
+    }
+  } catch (err) {
+    showToast(err.message || "순서 저장 실패", "error");
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+    if (pushBtn) pushBtn.disabled = false;
+  }
+}
+
+function reorderHandleCell(no) {
+  return `<td class="col-reorder-handle"><button type="button" class="reorder-handle" draggable="true" aria-label="순서 변경">☰</button><span class="reorder-no">${no > 0 ? escapeHtml(String(no)) : "—"}</span></td>`;
 }
 
 function manualBadge(row) {
@@ -3856,6 +4041,7 @@ function paintMetaBanner() {
 function switchTab(tabId, { resetFilters: shouldReset = false } = {}) {
   const tabIds = ["in_progress", "recommended", "new", "leads", "posts", "excluded"];
   if (!tabIds.includes(tabId)) return;
+  if (isNotionReorderActive() && tabId !== state.notionReorder?.tab) cancelNotionReorder();
   if (shouldReset) resetTabFilters();
   document.querySelectorAll(".tabs-bar .tab").forEach((b) => {
     b.classList.toggle("active", b.dataset.tab === tabId);
@@ -3894,6 +4080,7 @@ function refreshViews() {
     renderAllPosts();
     renderExcludedTable();
   }
+  updateNotionReorderUi();
 }
 
 function setAdminStatus(msg) {
@@ -4040,6 +4227,77 @@ async function updateCrawlUi() {
 async function updateAdminJobUi() {
   await updateCrawlUi();
   await updateNotionSyncUi();
+  await updateNotionPushUi();
+}
+
+let notionPushUi = { triggeredAt: 0, sawRunning: false, watchTimer: null };
+
+function clearNotionPushWatch() {
+  if (notionPushUi.watchTimer) {
+    clearTimeout(notionPushUi.watchTimer);
+    notionPushUi.watchTimer = null;
+  }
+}
+
+function scheduleNotionPushWatch() {
+  clearNotionPushWatch();
+  const tick = async () => {
+    if (!notionPushUi.triggeredAt) return;
+    await updateNotionPushUi();
+    if (notionPushUi.triggeredAt) notionPushUi.watchTimer = setTimeout(tick, 4000);
+  };
+  notionPushUi.watchTimer = setTimeout(tick, 4000);
+}
+
+async function updateNotionPushUi() {
+  const badge = byId("notionPushStatusBadge");
+  const pushBtn = byId("adminNotionPushBtn");
+  const savePushBtn = byId("notionReorderSavePush");
+  if (!badge) return;
+  try {
+    const status = await window.TClientAdmin?.getNotionPushStatus?.();
+    const busy = status?.status === "running";
+    badge.classList.toggle("hidden", !busy);
+    if (busy) {
+      const who = status.requestedByEmail ? ` · ${status.requestedByEmail}` : "";
+      badge.textContent = `노션 반영 중${who}`;
+      badge.title = status.message || "T-client 데이터를 Notion DB에 반영 중입니다";
+      notionPushUi.sawRunning = true;
+    }
+    if (pushBtn) {
+      pushBtn.disabled = busy;
+      pushBtn.title = busy ? "Notion 반영 진행 중입니다" : "";
+    }
+    if (savePushBtn) savePushBtn.disabled = busy || isNotionReorderActive();
+
+    if (notionPushUi.triggeredAt && Date.now() - notionPushUi.triggeredAt > 180000) {
+      notionPushUi.triggeredAt = 0;
+      notionPushUi.sawRunning = false;
+      clearNotionPushWatch();
+      showToast("Notion 반영 응답이 지연되고 있습니다. 잠시 후 다시 확인해 주세요.", "error");
+      return;
+    }
+
+    if (notionPushUi.triggeredAt && notionPushUi.sawRunning && !busy) {
+      const finishedAt = status?.finishedAt ? Date.parse(status.finishedAt) : Date.now();
+      if (finishedAt >= notionPushUi.triggeredAt - 5000) {
+        if (status?.status === "error") {
+          showToast(status.message || "Notion 반영에 실패했습니다.", "error");
+        } else {
+          showToast(status?.message || "Notion DB 반영이 완료되었습니다.");
+        }
+        notionPushUi.triggeredAt = 0;
+        notionPushUi.sawRunning = false;
+        clearNotionPushWatch();
+      }
+    }
+  } catch {
+    badge.classList.add("hidden");
+    if (pushBtn) {
+      pushBtn.disabled = false;
+      pushBtn.title = "";
+    }
+  }
 }
 
 function closeAdminPopover() {
@@ -4361,6 +4619,40 @@ function bindAdmin() {
     }
   });
 
+  byId("adminNotionPushBtn")?.addEventListener("click", async () => {
+    if (!window.TClientAdmin?.isUnlocked?.()) {
+      showToast("로그인이 필요합니다.", "error");
+      return;
+    }
+    if (!window.confirm("추천·진행 탭 회사의 No.·상태·업체명·사업자번호를 Notion DB에 반영할까요?")) return;
+    const pushBtn = byId("adminNotionPushBtn");
+    if (pushBtn) pushBtn.disabled = true;
+    try {
+      const status = await window.TClientAdmin.getNotionPushStatus();
+      if (status?.status === "running") {
+        showToast("Notion 반영이 진행 중입니다.", "error");
+        await updateNotionPushUi();
+        return;
+      }
+      await window.TClientAdmin.triggerNotionPush();
+      closeAdminPopover();
+      notionPushUi.triggeredAt = Date.now();
+      notionPushUi.sawRunning = false;
+      showToast("Notion 반영을 시작했습니다.");
+      scheduleNotionPushWatch();
+    } catch (err) {
+      showToast(err.message || String(err), "error");
+      await updateNotionPushUi();
+    } finally {
+      if (pushBtn) pushBtn.disabled = false;
+    }
+  });
+
+  byId("notionReorderStart")?.addEventListener("click", startNotionReorder);
+  byId("notionReorderCancel")?.addEventListener("click", cancelNotionReorder);
+  byId("notionReorderSave")?.addEventListener("click", () => void saveNotionReorder({ pushNotion: false }));
+  byId("notionReorderSavePush")?.addEventListener("click", () => void saveNotionReorder({ pushNotion: true }));
+
   bindCrawlModal();
 
   window.TAuth.onAuthStateChange(async (event) => {
@@ -4457,6 +4749,7 @@ async function boot() {
     }
     window.TUiSelect?.init();
     refreshViews();
+    updateNotionReorderUi();
   } catch (err) {
     byId("meta").textContent = "로드 실패";
     const msg = `<div class="empty-state">${escapeHtml(err.message)}</div>`;
@@ -4478,6 +4771,8 @@ window.refreshViews = refreshViews;
 window.TClientView = {
   sortRows,
   sortRecommendedRows,
+  sortInProgressRows,
+  sortByNotionPriority,
   passesFilters,
   pipelineStageBadge,
   pipelineStatusBadge,
@@ -4499,7 +4794,11 @@ window.TClientView = {
   isListableLead,
   isMainTabLead,
   isShelvedLead,
-  excludedTabRows
+  excludedTabRows,
+  isNotionReorderActive,
+  notionReorderRowsForTab,
+  reorderHandleCell,
+  bindNotionReorderTable
 };
 
 if (document.readyState === "loading") {

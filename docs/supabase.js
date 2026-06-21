@@ -94,6 +94,7 @@
     checkEmailAllowed: (email) => rpc("check_email_allowed", { addr: email }),
     getCrawlStatus: () => rpc("get_crawl_status"),
     getNotionSyncStatus: () => rpc("get_notion_sync_status"),
+    getNotionPushStatus: () => rpc("get_notion_push_status"),
     requestCrawl: () => rpc("request_crawl", {}, { auth: true }),
     saveOverrides: (doc) => rpc("save_overrides_doc", { doc }, { auth: true }),
     upsertCompanyEdit: (companyId, patch) =>

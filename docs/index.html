@@ -43,6 +43,7 @@
             <span id="adminBadge" class="admin-badge is-guest" title="로그인 계정">비로그인</span>
             <span id="crawlStatusBadge" class="admin-badge crawl-busy hidden" title="크롤링 진행 중">크롤링 중</span>
             <span id="notionSyncStatusBadge" class="admin-badge notion-busy hidden" title="Notion 동기화 진행 중">노션 동기화 중</span>
+            <span id="notionPushStatusBadge" class="admin-badge notion-push-busy hidden" title="Notion 반영 진행 중">노션 반영 중</span>
             <div class="admin-anchor">
               <button type="button" id="adminUnlockBtn" class="btn-ghost btn-admin" aria-expanded="false" aria-controls="adminPopover">
                 <span class="btn-icon" data-icon="settings"></span>
@@ -67,7 +68,8 @@
                 <div id="adminTools" class="admin-popover-section hidden">
                   <nav class="admin-bottom-menu" aria-label="관리 메뉴">
                     <button type="button" id="adminOpenCrawlModal" class="admin-menu-item">크롤링</button>
-                    <button type="button" id="adminNotionSyncBtn" class="admin-menu-item">노션 최신화</button>
+                    <button type="button" id="adminNotionSyncBtn" class="admin-menu-item">노션 → T-client</button>
+                    <button type="button" id="adminNotionPushBtn" class="admin-menu-item">T-client → 노션 반영</button>
                     <button type="button" id="adminManualDownloadBtn" class="admin-menu-item">사용 매뉴얼 다운</button>
                     <button type="button" id="adminLogout" class="admin-menu-item admin-menu-item-muted">로그아웃</button>
                   </nav>
@@ -169,6 +171,18 @@
             <button type="button" data-tab="excluded" class="tab">제외</button>
           </div>
         </nav>
+        <div class="tabs-bar-actions admin-only hidden">
+          <button type="button" id="notionReorderStart" class="btn-ghost btn-sm">No. 순서 변경</button>
+        </div>
+      </div>
+
+      <div id="notionReorderBar" class="notion-reorder-bar hidden" aria-hidden="true">
+        <p class="notion-reorder-hint">☰ 핸들을 드래그해 Notion No. 순서를 바꾸세요. 행 클릭은 상세로 이동하지 않습니다.</p>
+        <div class="notion-reorder-actions">
+          <button type="button" id="notionReorderCancel" class="btn-ghost btn-sm">취소</button>
+          <button type="button" id="notionReorderSave" class="btn-primary btn-sm">순서 저장</button>
+          <button type="button" id="notionReorderSavePush" class="btn-primary btn-sm">저장 + Notion 반영</button>
+        </div>
       </div>
 
       <button type="button" id="btnAddLead" class="fab-add admin-only hidden" title="회사·공고 추가" aria-label="회사·공고 추가">

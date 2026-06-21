@@ -77,6 +77,10 @@
       const raw = `${out.candidateRank ?? ""}`.trim();
       out.candidateRank = raw === "" ? 0 : Number.parseInt(raw, 10) || 0;
     }
+    if ("notionPriority" in out) {
+      const n = Number.parseInt(`${out.notionPriority ?? 0}`, 10);
+      out.notionPriority = Number.isFinite(n) ? Math.max(0, n) : 0;
+    }
     return out;
   }
 
@@ -220,6 +224,16 @@
     return get(companyId);
   }
 
+  async function batchSetNotionPriorities(orderedCompanyIds) {
+    const out = [];
+    for (let i = 0; i < orderedCompanyIds.length; i++) {
+      const companyId = orderedCompanyIds[i];
+      const row = window.state?.rows?.find((r) => r.companyId === companyId) ?? null;
+      out.push(await upsert(companyId, { notionPriority: i + 1 }, row));
+    }
+    return out;
+  }
+
   function applyToRow(row) {
     const sm = get(row.companyId);
     if (!sm) {
@@ -271,6 +285,7 @@
     loadAll,
     get,
     upsert,
+    batchSetNotionPriorities,
     hide,
     mergeFromCompanies,
     entryToPatch,

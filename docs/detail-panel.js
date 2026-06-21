@@ -158,7 +158,10 @@
 
   function recommendedTable(rows) {
     if (!rows.length) return "";
-    return `<div class="table-wrap"><table class="leads-table leads-table-rich"><thead><tr>
+    const reorder = V().isNotionReorderActive?.() && (window.__TCLIENT_ACTIVE_TAB ?? "") === "recommended";
+    const handleTh = reorder ? `<th class="col-reorder-handle">No.</th>` : "";
+    return `<div class="table-wrap"><table class="leads-table leads-table-rich${reorder ? " table-reorder-mode" : ""}"><thead><tr>
+      ${handleTh}
       <th>회사</th>
       <th class="col-opinion">의견</th>
       <th>추천</th>
@@ -167,7 +170,8 @@
       <th>담당자</th>
     </tr></thead><tbody>${rows
       .map(
-        (row) => `<tr class="lead-row-click" data-open-company="${escapeAttr(row.companyId)}">
+        (row, idx) => `<tr class="lead-row-click${reorder ? " reorder-mode" : ""}" data-open-company="${escapeAttr(row.companyId)}"${reorder ? ` data-reorder-id="${escapeAttr(row.companyId)}"` : ""}>
+        ${reorder ? V().reorderHandleCell?.(idx + 1) ?? "" : ""}
         <td>${companyCell(row)}</td>
         <td class="col-opinion">${V().candidateOpinionHtml?.(row) ?? ""}</td>
         <td>${V().renderStarRating?.(row.recommendScore, 5) ?? ""}</td>
@@ -181,7 +185,10 @@
 
   function inProgressTable(rows) {
     if (!rows.length) return "";
-    return `<div class="table-wrap"><table class="leads-table leads-table-rich"><thead><tr>
+    const reorder = V().isNotionReorderActive?.() && (window.__TCLIENT_ACTIVE_TAB ?? "") === "in_progress";
+    const handleTh = reorder ? `<th class="col-reorder-handle">No.</th>` : "";
+    return `<div class="table-wrap"><table class="leads-table leads-table-rich${reorder ? " table-reorder-mode" : ""}"><thead><tr>
+      ${handleTh}
       <th>회사</th>
       <th>테스트 기간</th>
       <th>단계 · 상태</th>
@@ -189,9 +196,10 @@
       <th>담당자</th>
       <th class="col-files">파일</th>
     </tr></thead><tbody>${rows
-      .map((row) => {
+      .map((row, idx) => {
         const period = V().testPeriodHtml?.(row) ?? V().testPeriodDisplay?.(row) ?? "";
-        return `<tr class="lead-row-click" data-open-company="${escapeAttr(row.companyId)}">
+        return `<tr class="lead-row-click${reorder ? " reorder-mode" : ""}" data-open-company="${escapeAttr(row.companyId)}"${reorder ? ` data-reorder-id="${escapeAttr(row.companyId)}"` : ""}>
+        ${reorder ? V().reorderHandleCell?.(idx + 1) ?? "" : ""}
         <td>${companyCell(row)}</td>
         <td class="cell-test-period">${period || '<span class="muted">—</span>'}</td>
         <td>${pipelineCell(row)}</td>
@@ -273,6 +281,10 @@
   function bindListClicks(panelId) {
     const panel = byId(panelId);
     if (!panel) return;
+    if (V().isNotionReorderActive?.()) {
+      V().bindNotionReorderTable?.(panelId);
+      return;
+    }
     panel.querySelectorAll("tr.lead-row-click").forEach((tr) => {
       tr.addEventListener("click", (e) => {
         if (e.target.closest("a, button")) return;
@@ -285,8 +297,13 @@
 
   function renderRecommendedTab(activeTab) {
     if (activeTab !== "recommended") return;
-    const rows = (V().sortRecommendedRows ?? sortTabRows)(getRows().filter(rowMatchesRecommendedTab));
-    const filtered = filterSearch(rows, getSearchQuery()).filter((r) => V().passesFilters?.(r) ?? true);
+    const baseRows = getRows().filter(rowMatchesRecommendedTab);
+    const rows = V().isNotionReorderActive?.()
+      ? V().notionReorderRowsForTab?.("recommended") ?? baseRows
+      : (V().sortRecommendedRows ?? sortTabRows)(baseRows);
+    const filtered = V().isNotionReorderActive?.()
+      ? rows
+      : filterSearch(rows, getSearchQuery()).filter((r) => V().passesFilters?.(r) ?? true);
     byId("recommended").innerHTML = filtered.length ? recommendedTable(filtered) : emptyState("recommended");
     bindListClicks("recommended");
     if (!filtered.length) bindEmptyStateActions("recommended");
@@ -294,8 +311,11 @@
 
   async function renderInProgressTab(activeTab) {
     if (activeTab !== "in_progress") return;
-    const rows = sortTabRows(getRows().filter(rowMatchesInProgressTab));
-    const filtered = filterSearch(rows, getSearchQuery());
+    const baseRows = getRows().filter(rowMatchesInProgressTab);
+    const rows = V().isNotionReorderActive?.()
+      ? V().notionReorderRowsForTab?.("in_progress") ?? baseRows
+      : (V().sortInProgressRows ?? sortTabRows)(baseRows);
+    const filtered = V().isNotionReorderActive?.() ? rows : filterSearch(rows, getSearchQuery());
     const ids = filtered.map((r) => r.companyId);
     window.__TCLIENT_MEETING_CACHE = window.__TCLIENT_MEETING_CACHE ?? {};
     window.__TCLIENT_FILES_CACHE = window.__TCLIENT_FILES_CACHE ?? {};
