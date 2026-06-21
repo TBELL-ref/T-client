@@ -3569,10 +3569,10 @@ function openMergeModal(row) {
   const hint = byId("mergeSourceHint");
   const badge = byId("mergeSourceBadge");
   if (badge) {
-    badge.innerHTML = `<span class="merge-source-label">병합 원본</span><strong>${escapeHtml(displayName(row))}</strong>${manualBadge(row)}`;
+    badge.innerHTML = `<span class="merge-source-label">삭제·합쳐질 회사</span><strong>${escapeHtml(displayName(row))}</strong>${manualBadge(row)}`;
   }
   if (hint) {
-    hint.textContent = "아래에서 데이터를 합칠 대상 회사를 검색해 선택하세요.";
+    hint.textContent = "아래에서 최종적으로 남길 회사를 검색해 선택하세요. 선택한 회사로 공고·메모·프로필이 합쳐집니다.";
   }
   byId("mergeSearch").value = "";
   renderMergeResults("");
@@ -3602,6 +3602,7 @@ function renderMergeResults(query = "") {
   const q = `${query}`.toLowerCase().trim();
   const rows = state.rows
     .filter((r) => r.companyId !== sourceId && !r.userHidden)
+    .filter((r) => !window.TClientAdmin?.isCompanyDeleted?.(r.companyId))
     .filter((r) => {
       if (!q) return true;
       const hay = `${displayName(r)} ${r.companyName} ${r.domain} ${r.profile?.bizNo ?? ""} ${r.profile?.companyNameLegal ?? ""}`.toLowerCase();
@@ -3618,7 +3619,7 @@ function renderMergeResults(query = "") {
     .map(
       (r) => `
     <button type="button" class="merge-pick-row" data-merge-target="${escapeAttr(r.companyId)}">
-      <span class="merge-pick-name">${escapeHtml(displayName(r))}${manualBadge(r)}</span>
+      <span class="merge-pick-name">${escapeHtml(displayName(r))}${manualBadge(r)}<span class="merge-pick-action">이 회사에 합치기</span></span>
       <span class="merge-pick-meta">${escapeHtml(r.domain || "-")} · ${escapeHtml(r.leadGrade || "-")} · 공고 ${r.posts?.length ?? 0}건</span>
     </button>`
     )
@@ -3637,12 +3638,12 @@ async function confirmMergeToTargetAsync(targetId) {
 
   if (
     !window.confirm(
-      `「${displayName(sourceRow)}」을(를) 「${displayName(targetRow)}」로 병합할까요?\n(메모·후보·공고·프로필이 대상에 합쳐지고, 원본 회사는 ${window.TClientAdmin?.isCustomCompany?.(sourceId) ? "삭제" : "숨김"} 처리됩니다.)`
+      `「${displayName(sourceRow)}」(삭제)의 데이터를 「${displayName(targetRow)}」(유지)에 합칠까요?\n공고·메모·프로필이 유지 회사로 합쳐지고, 삭제 회사는 ${window.TClientAdmin?.isCustomCompany?.(sourceId) ? "완전 삭제" : "숨김"} 처리됩니다.`
     )
   )
     return;
 
-  if (!window.TClientAdmin.mergeCompanies(sourceId, targetId)) {
+  if (!window.TClientAdmin.mergeCompanies(sourceId, targetId, { sourceRow, targetRow })) {
     showToast("병합에 실패했습니다.", "error");
     return;
   }
@@ -3658,21 +3659,18 @@ async function confirmMergeToTargetAsync(targetId) {
     return;
   }
 
-  const editSections = { ...state.detailEditSections };
   closeMergeModal();
   reloadRowsWithAdmin();
   refreshViews();
 
-  const target = state.rows.find((r) => r.companyId === targetId);
-  if (target) {
-    state.detailRow = target;
-    state.detailEditSections = editSections;
-    window.__TCLIENT_DETAIL_EDIT = Object.keys(editSections).length > 0;
-    paintDetailModal();
+  const survivor = state.rows.find((r) => r.companyId === targetId);
+  if (survivor) {
+    await openDetail(survivor);
+    showToast(`「${displayName(survivor)}」로 병합되었습니다.`);
   } else {
     closeDetail();
+    showToast("회사 병합이 완료되었습니다.");
   }
-  showToast("회사 병합이 완료되었습니다.");
 }
 
 function mergeManualCompany(row) {

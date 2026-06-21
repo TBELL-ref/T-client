@@ -828,7 +828,33 @@
     return true;
   }
 
-  function mergeCompanies(sourceCompanyId, targetCompanyId) {
+  function mergePostUrlKey(url) {
+    return window.TPostUrl?.postUrlKey(url) ?? `${url ?? ""}`.trim().toLowerCase();
+  }
+
+  function pickMergeSurvivor(targetRow, dstEntry, sourceRow, srcEntry, rowKey, entryKey = rowKey) {
+    const pick = (v) => (v === undefined || v === null || `${v}`.trim() === "" ? "" : `${v}`.trim());
+    return (
+      pick(targetRow?.[rowKey]) ||
+      pick(dstEntry?.[entryKey]) ||
+      pick(sourceRow?.[rowKey]) ||
+      pick(srcEntry?.[entryKey]) ||
+      ""
+    );
+  }
+
+  function snapshotPostsToExtra(posts) {
+    return (posts ?? [])
+      .filter((p) => p?.url)
+      .map((p) => ({
+        title: p.title || "QA 공고",
+        url: p.url,
+        source: p.source || "manual",
+        sourceLabel: p.sourceLabel || "수동"
+      }));
+  }
+
+  function mergeCompanies(sourceCompanyId, targetCompanyId, { sourceRow = null, targetRow = null } = {}) {
     if (!sourceCompanyId || !targetCompanyId) return false;
     if (sourceCompanyId === targetCompanyId) return false;
 
@@ -836,7 +862,6 @@
     const dst = getEntry(targetCompanyId);
 
     const pickNonEmpty = (a, b) => (a === undefined || a === null || a === "" ? b : a);
-    const pickDefined = (a, b) => (a === undefined ? b : a);
     const pickDefinedWithObject = (a, b) => (a === undefined || a === null ? b : a);
 
     const mergedProfile = { ...(dst.profile ?? {}) };
@@ -854,36 +879,65 @@
       if (mergedScoreParts[k] === undefined) mergedScoreParts[k] = v;
     }
 
-    const mergedExtraPosts = [...(dst.extraPosts ?? []), ...(src.extraPosts ?? [])].filter(
-      (p, i, arr) => p?.url && arr.findIndex((x) => x?.url === p.url) === i
+    const seenPostKeys = new Set(
+      [...(targetRow?.posts ?? []), ...(sourceRow?.posts ?? []), ...(dst.extraPosts ?? []), ...(src.extraPosts ?? [])]
+        .filter((p) => p?.url)
+        .map((p) => mergePostUrlKey(p.url))
     );
+    const fromSourceSnapshot = snapshotPostsToExtra(sourceRow?.posts).filter((p) => {
+      const key = mergePostUrlKey(p.url);
+      if (seenPostKeys.has(key)) return false;
+      seenPostKeys.add(key);
+      return true;
+    });
+    const mergedExtraPosts = [
+      ...(dst.extraPosts ?? []),
+      ...fromSourceSnapshot,
+      ...(src.extraPosts ?? []).filter((p) => {
+        if (!p?.url) return false;
+        const key = mergePostUrlKey(p.url);
+        if (seenPostKeys.has(key)) return false;
+        seenPostKeys.add(key);
+        return true;
+      })
+    ];
     const mergedHiddenPosts = Array.from(new Set([...(dst.hiddenPosts ?? []), ...(src.hiddenPosts ?? [])]));
+    const mergedDeletedPosts = Array.from(new Set([...(dst.deletedPosts ?? []), ...(src.deletedPosts ?? [])]));
 
+    const survivorNameKo = pickMergeSurvivor(targetRow, dst, sourceRow, src, "companyNameKo");
+    const survivorName = pickMergeSurvivor(targetRow, dst, sourceRow, src, "companyName") || survivorNameKo;
+    const survivorDomain =
+      pickMergeSurvivor(targetRow, dst, sourceRow, src, "domain") ||
+      pickNonEmpty(targetRow?.domain, pickNonEmpty(dst.domain, src.domain));
+
+    const mergedNotes = [dst.notes, src.notes, targetRow?.manualNotes, sourceRow?.manualNotes]
+      .map((v) => `${v ?? ""}`.trim())
+      .filter(Boolean);
     const merged = stripLegacySalesFields({
       ...dst,
-      companyNameKo: pickNonEmpty(dst.companyNameKo, src.companyNameKo),
-      companyName: pickNonEmpty(dst.companyName, src.companyName),
-      domain: pickNonEmpty(dst.domain, src.domain),
+      companyNameKo: survivorNameKo,
+      companyName: survivorName,
+      domain: survivorDomain,
       domainVerified: pickDefinedWithObject(dst.domainVerified, src.domainVerified),
-      companyTier: pickNonEmpty(dst.companyTier, src.companyTier),
-      leadGrade: pickNonEmpty(dst.leadGrade, src.leadGrade),
+      companyTier: pickMergeSurvivor(targetRow, dst, sourceRow, src, "companyTier"),
+      leadGrade: pickMergeSurvivor(targetRow, dst, sourceRow, src, "leadGrade"),
       excludeReason: pickNonEmpty(dst.excludeReason, src.excludeReason),
-      notes: pickNonEmpty(dst.notes, src.notes),
+      notes: mergedNotes.length ? mergedNotes.join("\n---\n") : pickNonEmpty(dst.notes, src.notes),
       profile: mergedProfile,
       contact: mergedContact,
       extraPosts: mergedExtraPosts,
       hiddenPosts: mergedHiddenPosts,
+      deletedPosts: mergedDeletedPosts,
       scoreParts: mergedScoreParts,
       updatedAt: new Date().toISOString()
     });
 
-    // Apply to target
     setEntry(targetCompanyId, merged);
 
     if (isCustomCompany(sourceCompanyId)) {
       state.doc.customCompanies = (state.doc.customCompanies ?? []).filter((r) => r.companyId !== sourceCompanyId);
     }
-    setEntry(sourceCompanyId, { mergedAway: true });
+    setEntry(sourceCompanyId, { mergedAway: true, mergedInto: targetCompanyId });
     saveLocal(state.doc, { scheduleRemote: false });
     return true;
   }

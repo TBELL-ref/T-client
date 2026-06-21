@@ -1045,9 +1045,23 @@ body {
 }
 
 .merge-pick-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 14px;
   font-weight: 700;
   color: var(--text);
+}
+
+.merge-pick-action {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(234, 88, 12, 0.08);
 }
 
 .merge-pick-meta {
