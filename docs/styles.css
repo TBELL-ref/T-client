@@ -3605,6 +3605,70 @@ tbody tr.row-manual {
   width: min(520px, calc(100vw - 32px));
 }
 
+.notion-sync-modal-panel {
+  width: min(480px, calc(100vw - 32px));
+}
+
+.notion-sync-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notion-sync-modal-hint {
+  margin: 0;
+  font-size: 13px;
+}
+
+.notion-sync-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notion-sync-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.notion-sync-choice:hover:not(:disabled) {
+  border-color: rgba(234, 88, 12, 0.45);
+  background: #fff8f3;
+}
+
+.notion-sync-choice:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.notion-sync-choice-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.notion-sync-choice-desc {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.notion-sync-modal-footer {
+  justify-content: flex-end;
+}
+
 .crawl-modal-body {
   display: flex;
   flex-direction: column;

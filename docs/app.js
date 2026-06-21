@@ -4145,7 +4145,7 @@ function scheduleNotionSyncWatch() {
 
 async function updateNotionSyncUi() {
   const badge = byId("notionSyncStatusBadge");
-  const syncBtn = byId("adminNotionSyncBtn");
+  const pullBtn = byId("notionSyncPullBtn");
   if (!badge) return;
   try {
     const status = await window.TClientAdmin?.getNotionSyncStatus?.();
@@ -4158,9 +4158,9 @@ async function updateNotionSyncUi() {
       badge.title = status.message || "Notion DB를 T-client에 반영 중입니다";
       notionSyncUi.sawRunning = true;
     }
-    if (syncBtn) {
-      syncBtn.disabled = busy;
-      syncBtn.title = busy ? "Notion 동기화 진행 중입니다" : "";
+    if (pullBtn) {
+      pullBtn.disabled = busy;
+      pullBtn.title = busy ? "Notion 동기화 진행 중입니다" : "";
     }
 
     if (notionSyncUi.triggeredAt && Date.now() - notionSyncUi.triggeredAt > 180000) {
@@ -4191,10 +4191,12 @@ async function updateNotionSyncUi() {
     }
   } catch {
     badge.classList.add("hidden");
-    if (syncBtn) {
-      syncBtn.disabled = false;
-      syncBtn.title = "";
+    if (pullBtn) {
+      pullBtn.disabled = false;
+      pullBtn.title = "";
     }
+  } finally {
+    await updateNotionAdminMenuButton();
   }
 }
 
@@ -4251,7 +4253,7 @@ function scheduleNotionPushWatch() {
 
 async function updateNotionPushUi() {
   const badge = byId("notionPushStatusBadge");
-  const pushBtn = byId("adminNotionPushBtn");
+  const pushBtn = byId("notionSyncPushBtn");
   const savePushBtn = byId("notionReorderSavePush");
   if (!badge) return;
   try {
@@ -4297,6 +4299,31 @@ async function updateNotionPushUi() {
       pushBtn.disabled = false;
       pushBtn.title = "";
     }
+  } finally {
+    await updateNotionAdminMenuButton();
+  }
+}
+
+async function updateNotionAdminMenuButton() {
+  const openBtn = byId("adminOpenNotionModal");
+  if (!openBtn) return;
+  try {
+    const [syncStatus, pushStatus] = await Promise.all([
+      window.TClientAdmin?.getNotionSyncStatus?.(),
+      window.TClientAdmin?.getNotionPushStatus?.(),
+    ]);
+    const syncBusy = syncStatus?.status === "running";
+    const pushBusy = pushStatus?.status === "running";
+    const busy = syncBusy || pushBusy;
+    openBtn.disabled = busy;
+    openBtn.title = busy
+      ? syncBusy
+        ? "Notion 동기화 진행 중입니다"
+        : "Notion 반영 진행 중입니다"
+      : "";
+  } catch {
+    openBtn.disabled = false;
+    openBtn.title = "";
   }
 }
 
@@ -4396,6 +4423,103 @@ function closeCrawlModal() {
   const modal = byId("crawlModal");
   modal?.classList.add("hidden");
   modal?.setAttribute("aria-hidden", "true");
+}
+
+async function openNotionSyncModal() {
+  if (!window.TClientAdmin?.isUnlocked?.()) {
+    showToast("관리자 로그인이 필요합니다.", "error");
+    return;
+  }
+  closeAdminPopover();
+  await updateNotionSyncUi();
+  await updateNotionPushUi();
+  const modal = byId("notionSyncModal");
+  modal?.classList.remove("hidden");
+  modal?.setAttribute("aria-hidden", "false");
+  hydrateIcons(modal);
+  byId("notionSyncPullBtn")?.focus();
+}
+
+function closeNotionSyncModal() {
+  const modal = byId("notionSyncModal");
+  modal?.classList.add("hidden");
+  modal?.setAttribute("aria-hidden", "true");
+}
+
+async function runNotionSyncPull() {
+  if (!window.TClientAdmin?.isUnlocked?.()) {
+    showToast("로그인이 필요합니다.", "error");
+    return;
+  }
+  const pullBtn = byId("notionSyncPullBtn");
+  if (pullBtn?.disabled) return;
+  if (pullBtn) pullBtn.disabled = true;
+  try {
+    const status = await window.TClientAdmin.getNotionSyncStatus();
+    if (status?.status === "running") {
+      showToast("Notion 동기화 진행 중입니다.", "error");
+      await updateNotionSyncUi();
+      return;
+    }
+    await window.TClientAdmin.triggerNotionSync();
+    closeNotionSyncModal();
+    notionSyncUi.triggeredAt = Date.now();
+    notionSyncUi.sawRunning = false;
+    showToast("Notion 동기화를 시작했습니다. 완료되면 자동으로 새로고침됩니다.");
+    scheduleNotionSyncWatch();
+  } catch (err) {
+    showToast(err.message || String(err), "error");
+    await updateNotionSyncUi();
+  } finally {
+    if (pullBtn) pullBtn.disabled = false;
+  }
+}
+
+async function runNotionSyncPush() {
+  if (!window.TClientAdmin?.isUnlocked?.()) {
+    showToast("로그인이 필요합니다.", "error");
+    return;
+  }
+  const pushBtn = byId("notionSyncPushBtn");
+  if (pushBtn?.disabled) return;
+  if (pushBtn) pushBtn.disabled = true;
+  try {
+    const status = await window.TClientAdmin.getNotionPushStatus();
+    if (status?.status === "running") {
+      showToast("Notion 반영이 진행 중입니다.", "error");
+      await updateNotionPushUi();
+      return;
+    }
+    await window.TClientAdmin.triggerNotionPush();
+    closeNotionSyncModal();
+    notionPushUi.triggeredAt = Date.now();
+    notionPushUi.sawRunning = false;
+    showToast("Notion 반영을 시작했습니다.");
+    scheduleNotionPushWatch();
+  } catch (err) {
+    showToast(err.message || String(err), "error");
+    await updateNotionPushUi();
+  } finally {
+    if (pushBtn) pushBtn.disabled = false;
+  }
+}
+
+function bindNotionSyncModal() {
+  byId("adminOpenNotionModal")?.addEventListener("click", () => {
+    void openNotionSyncModal();
+  });
+
+  document.querySelectorAll("[data-close-notion-sync]").forEach((el) => {
+    el.addEventListener("click", () => closeNotionSyncModal());
+  });
+
+  byId("notionSyncPullBtn")?.addEventListener("click", () => {
+    void runNotionSyncPull();
+  });
+
+  byId("notionSyncPushBtn")?.addEventListener("click", () => {
+    void runNotionSyncPush();
+  });
 }
 
 function bindCrawlModal() {
@@ -4591,69 +4715,13 @@ function bindAdmin() {
     showToast("준비중입니다.");
   });
 
-  byId("adminNotionSyncBtn")?.addEventListener("click", async () => {
-    if (!window.TClientAdmin?.isUnlocked?.()) {
-      showToast("로그인이 필요합니다.", "error");
-      return;
-    }
-    const syncBtn = byId("adminNotionSyncBtn");
-    if (syncBtn) syncBtn.disabled = true;
-    try {
-      const status = await window.TClientAdmin.getNotionSyncStatus();
-      if (status?.status === "running") {
-        showToast("Notion 동기화 진행 중입니다.", "error");
-        await updateNotionSyncUi();
-        return;
-      }
-      await window.TClientAdmin.triggerNotionSync();
-      closeAdminPopover();
-      notionSyncUi.triggeredAt = Date.now();
-      notionSyncUi.sawRunning = false;
-      showToast("Notion 동기화를 시작했습니다. 완료되면 자동으로 새로고침됩니다.");
-      scheduleNotionSyncWatch();
-    } catch (err) {
-      showToast(err.message || String(err), "error");
-      await updateNotionSyncUi();
-    } finally {
-      if (syncBtn) syncBtn.disabled = false;
-    }
-  });
-
-  byId("adminNotionPushBtn")?.addEventListener("click", async () => {
-    if (!window.TClientAdmin?.isUnlocked?.()) {
-      showToast("로그인이 필요합니다.", "error");
-      return;
-    }
-    if (!window.confirm("추천·진행 탭 회사의 No.·상태·업체명·사업자번호를 Notion DB에 반영할까요?")) return;
-    const pushBtn = byId("adminNotionPushBtn");
-    if (pushBtn) pushBtn.disabled = true;
-    try {
-      const status = await window.TClientAdmin.getNotionPushStatus();
-      if (status?.status === "running") {
-        showToast("Notion 반영이 진행 중입니다.", "error");
-        await updateNotionPushUi();
-        return;
-      }
-      await window.TClientAdmin.triggerNotionPush();
-      closeAdminPopover();
-      notionPushUi.triggeredAt = Date.now();
-      notionPushUi.sawRunning = false;
-      showToast("Notion 반영을 시작했습니다.");
-      scheduleNotionPushWatch();
-    } catch (err) {
-      showToast(err.message || String(err), "error");
-      await updateNotionPushUi();
-    } finally {
-      if (pushBtn) pushBtn.disabled = false;
-    }
-  });
+  bindCrawlModal();
+  bindNotionSyncModal();
 
   byId("notionReorderStart")?.addEventListener("click", startNotionReorder);
   byId("notionReorderCancel")?.addEventListener("click", cancelNotionReorder);
   byId("notionReorderSave")?.addEventListener("click", () => void saveNotionReorder({ pushNotion: false }));
   byId("notionReorderSavePush")?.addEventListener("click", () => void saveNotionReorder({ pushNotion: true }));
-
-  bindCrawlModal();
 
   window.TAuth.onAuthStateChange(async (event) => {
     if (event === "PASSWORD_RECOVERY") {
