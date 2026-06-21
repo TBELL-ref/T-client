@@ -3449,9 +3449,16 @@ tbody tr.row-manual {
 }
 
 .modal-busy .modal-close,
-.modal-busy .btn-icon-edit {
+.modal-busy .btn-icon-edit,
+.modal-busy .detail-footer button,
+.modal-busy [data-close-add] {
   pointer-events: none;
   opacity: 0.5;
+}
+
+.modal-busy .inline-field {
+  pointer-events: none;
+  opacity: 0.65;
 }
 
 @keyframes spin {

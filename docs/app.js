@@ -876,6 +876,21 @@ async function applyEnrichedProfile(row, profile) {
   finishDetailSave(row.companyId, { exitSection: null, toastMessage: "회사 정보 수집이 완료되었습니다." });
 }
 
+async function waitForServerEnrichCore(row, bizNo, digits, onTick) {
+  const prevProfile = window.TClientAdmin.getEntry(row.companyId).profile ?? {};
+  window.TClientAdmin.setEntry(row.companyId, {
+    profile: { ...prevProfile, bizNo: window.TEnrichBizno.formatBizNo?.(digits) || bizNo }
+  });
+
+  await window.TClientAdmin.dispatchEnrichCompany(row.companyId, bizNo);
+  onTick?.();
+  return window.TClientAdmin.waitForEnrichedProfile(row.companyId, digits, {
+    timeoutMs: 90000,
+    intervalMs: 3000,
+    onTick
+  });
+}
+
 async function waitForServerEnrich(row, bizNo, digits) {
   const started = Date.now();
   const tick = () => {
@@ -883,19 +898,7 @@ async function waitForServerEnrich(row, bizNo, digits) {
     setDetailLoading(true, `서버에서 회사 정보 수집 중… (${sec}초)`);
     setEnrichBiznoStatus(`GitHub Actions가 bizno.net을 조회합니다. (${sec}초 경과)`);
   };
-
-  const prevProfile = window.TClientAdmin.getEntry(row.companyId).profile ?? {};
-  window.TClientAdmin.setEntry(row.companyId, {
-    profile: { ...prevProfile, bizNo: window.TEnrichBizno.formatBizNo?.(digits) || bizNo }
-  });
-
-  await window.TClientAdmin.dispatchEnrichCompany(row.companyId, bizNo);
-  tick();
-  return window.TClientAdmin.waitForEnrichedProfile(row.companyId, digits, {
-    timeoutMs: 90000,
-    intervalMs: 3000,
-    onTick: tick
-  });
+  return waitForServerEnrichCore(row, bizNo, digits, tick);
 }
 
 async function runEnrichBizNo(row) {
@@ -1584,7 +1587,84 @@ async function lookupEnrichProfile(bizNo) {
   }
 }
 
-async function resolveCompanyForManualPost(url, bizNo) {
+function profileFromStoredProfile(p) {
+  if (!p) return null;
+  let domain = `${p.domain ?? ""}`.trim();
+  if (!domain && p.homepage) {
+    try {
+      const url = `${p.homepage}`.startsWith("http") ? p.homepage : `https://${p.homepage}`;
+      domain = new URL(url).hostname.replace(/^www\./i, "");
+    } catch {
+      /* ignore */
+    }
+  }
+  return {
+    companyNameLegal: p.companyNameLegal ?? "",
+    bizNo: p.bizNo ?? "",
+    bizType: p.bizType ?? "",
+    bizItem: p.bizItem ?? "",
+    companyScale: p.companyScale ?? "",
+    bizStatus: p.bizStatus ?? "",
+    foundedDate: p.foundedDate ?? "",
+    employeeCount: p.employeeCount ?? "",
+    homepage: p.homepage ?? "",
+    industrySummary: p.industrySummary ?? "",
+    domain
+  };
+}
+
+function getCustomCompanyRow(companyId) {
+  return window.TClientAdmin?.getCustomCompanies?.()?.find((r) => r.companyId === companyId) ?? null;
+}
+
+function applyEnrichToManualCompany(companyId, enrichProfile, nameFallback = "") {
+  if (!enrichProfile) return null;
+  const companyName = enrichProfile.companyNameLegal?.trim() || `${nameFallback}`.trim();
+  const profile = profilePatchFromEnrich(enrichProfile);
+  const patch = {
+    companyNameKo: companyName,
+    companyName: companyName,
+    domain: enrichProfile.domain || undefined,
+    profile
+  };
+  window.TClientAdmin.updateCustomCompany(companyId, patch);
+  window.TClientAdmin.setEntry(companyId, {
+    companyNameKo: companyName,
+    ...(enrichProfile.domain ? { domain: enrichProfile.domain } : {}),
+    profile
+  });
+  return getCustomCompanyRow(companyId);
+}
+
+async function enrichProfileByBizNo(bizNo, companyId, onStatus) {
+  const digits = normalizeBizNoDigits(bizNo);
+  if (digits.length !== 10) return null;
+
+  onStatus?.("사업자 정보 조회 중…");
+  const browser = await lookupEnrichProfile(bizNo);
+  if (browser) return browser;
+
+  if (!companyId || !window.TClientAdmin?.dispatchEnrichCompany) return null;
+
+  const started = Date.now();
+  const tick = () => {
+    const sec = Math.floor((Date.now() - started) / 1000);
+    onStatus?.(`서버에서 사업자 정보 조회 중… (${sec}초)`);
+  };
+  try {
+    const waited = await waitForServerEnrichCore({ companyId }, bizNo, digits, tick);
+    if (waited.ok && waited.profile) return profileFromStoredProfile(waited.profile);
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function resolveManualCompanyName(enrichProfile, nameHint = "") {
+  return enrichProfile?.companyNameLegal?.trim() || `${nameHint ?? ""}`.trim() || "수동 등록 회사";
+}
+
+async function resolveCompanyForManualPost(url, bizNo, nameHint = "", onStatus) {
   const matchedByBiz = findCompanyByBizNo(bizNo);
   if (matchedByBiz) return { row: matchedByBiz, created: false, enrichProfile: null };
 
@@ -1620,23 +1700,31 @@ async function resolveCompanyForManualPost(url, bizNo) {
     return { row: matchedByDomain, created: false, enrichProfile };
   }
 
-  const profile = profilePatchFromEnrich(enrichProfile);
-  const companyNameKo = enrichProfile?.companyNameLegal?.trim() || "수동 등록 회사";
-  const domain = enrichProfile?.domain || domainFromPostUrl(url);
+  let resolvedEnrich = enrichProfile;
+  const companyNameKo = resolveManualCompanyName(resolvedEnrich, nameHint);
+  const domain = resolvedEnrich?.domain || domainFromPostUrl(url);
   const row = buildManualCompanyRow({
     companyNameKo,
     domain,
-    bizNo: enrichProfile?.bizNo || bizNo || "",
-    profile
+    bizNo: resolvedEnrich?.bizNo || bizNo || "",
+    profile: profilePatchFromEnrich(resolvedEnrich)
   });
-  if (!window.TClientAdmin.addCustomCompany(row)) return { row: null, created: false, enrichProfile };
+  if (!window.TClientAdmin.addCustomCompany(row)) return { row: null, created: false, enrichProfile: resolvedEnrich };
   try {
     await window.TCompanies.upsertManual(row);
+    if (bizNo && !resolvedEnrich) {
+      resolvedEnrich = await enrichProfileByBizNo(bizNo, row.companyId, onStatus);
+      if (resolvedEnrich) {
+        applyEnrichToManualCompany(row.companyId, resolvedEnrich, nameHint);
+        await window.TCompanies.upsertManual(getCustomCompanyRow(row.companyId) ?? row);
+      }
+    }
   } catch (err) {
     await window.TClientAdmin.removeCustomCompany(row.companyId);
     throw err;
   }
-  return { row, created: true, enrichProfile };
+  const saved = getCustomCompanyRow(row.companyId) ?? row;
+  return { row: saved, created: true, enrichProfile: resolvedEnrich };
 }
 
 function buildManualCompanyRow({ companyNameKo, domain = "", bizNo = "", profile = null }) {
@@ -3140,6 +3228,7 @@ function openAddLeadModal() {
     showToast("관리자 로그인이 필요합니다.", "error");
     return;
   }
+  setAddLeadLoading(false);
   const modal = byId("addLeadModal");
   byId("add-lead-post-url").value = "";
   byId("add-lead-name").value = "";
@@ -3152,7 +3241,22 @@ function openAddLeadModal() {
   hydrateIcons(modal);
 }
 
+function setAddLeadLoading(show, text = "등록 중…") {
+  const panel = byId("addLeadModal")?.querySelector(".modal-panel");
+  const layer = byId("addLeadLoading");
+  const label = byId("addLeadLoadingText");
+  const submitBtn = byId("add-lead-submit");
+  if (!layer) return;
+  if (label) label.textContent = text;
+  layer.classList.toggle("hidden", !show);
+  layer.setAttribute("aria-hidden", show ? "false" : "true");
+  panel?.classList.toggle("modal-busy", show);
+  if (submitBtn) submitBtn.disabled = show;
+  state.addLeadBusy = show;
+}
+
 function closeAddLeadModal() {
+  if (state.addLeadBusy) return;
   const modal = byId("addLeadModal");
   modal?.classList.add("hidden");
   modal?.setAttribute("aria-hidden", "true");
@@ -3168,13 +3272,14 @@ function submitAddLead() {
 }
 
 async function submitAddLeadAsync() {
+  if (state.addLeadBusy) return;
   const url = normalizePostUrlInput(byId("add-lead-post-url")?.value);
   const name = byId("add-lead-name")?.value.trim();
   const bizNo = byId("add-lead-bizno")?.value.trim();
   const domain = byId("add-lead-domain")?.value.trim();
 
   if (url) {
-    await submitManualPostAsync(url, bizNo);
+    await submitManualPostAsync(url, bizNo, name);
     return;
   }
 
@@ -3183,34 +3288,76 @@ async function submitAddLeadAsync() {
     return;
   }
 
-  const row = buildManualCompanyRow({ companyNameKo: name, domain, bizNo });
-  if (!window.TClientAdmin.addCustomCompany(row)) {
-    showToast("이미 등록된 회사입니다.", "error");
+  if (bizNo && normalizeBizNoDigits(bizNo).length !== 10) {
+    showToast("사업자번호 10자리를 입력하세요.", "error");
     return;
   }
+  if (bizNo && findCompanyByBizNo(bizNo)) {
+    showToast(`이미 등록된 사업자번호입니다: ${displayName(findCompanyByBizNo(bizNo))}`, "error");
+    return;
+  }
+
+  setAddLeadLoading(true, bizNo ? "사업자 정보 조회 · 회사 등록 중…" : "회사 등록 중…");
+  let ok = false;
+  let savedRow = null;
+  let enriched = false;
+  let pendingCompanyId = null;
   try {
-    await window.TCompanies.upsertManual(row);
+    let enrichProfile = bizNo ? await lookupEnrichProfile(bizNo) : null;
+    const companyName = resolveManualCompanyName(enrichProfile, name);
+    const row = buildManualCompanyRow({
+      companyNameKo: companyName,
+      domain: enrichProfile?.domain || domain,
+      bizNo: enrichProfile?.bizNo || bizNo,
+      profile: profilePatchFromEnrich(enrichProfile)
+    });
+    if (!window.TClientAdmin.addCustomCompany(row)) {
+      showToast("이미 등록된 회사입니다.", "error");
+      return;
+    }
+    pendingCompanyId = row.companyId;
+
+    if (bizNo && !enrichProfile) {
+      enrichProfile = await enrichProfileByBizNo(bizNo, row.companyId, (msg) => setAddLeadLoading(true, msg));
+      if (enrichProfile) {
+        applyEnrichToManualCompany(row.companyId, enrichProfile, name);
+        enriched = true;
+      }
+    } else if (enrichProfile) {
+      enriched = true;
+    }
+
+    savedRow = getCustomCompanyRow(row.companyId) ?? row;
+    await window.TCompanies.upsertManual(savedRow);
     await window.TClientAdmin.flushPersist?.();
     if (window.TClientAdmin.isUnlocked()) {
       await window.TSalesManagement?.upsert?.(
-        row.companyId,
+        savedRow.companyId,
         { isHidden: true, isRecommended: false, pipelineStage: "candidate", pipelineStatus: "pending" },
-        row
+        savedRow
       );
     }
+    reloadRowsWithAdmin();
+    refreshViews();
+    ok = true;
   } catch (err) {
-    await window.TClientAdmin.removeCustomCompany(row.companyId);
+    if (pendingCompanyId) await window.TClientAdmin.removeCustomCompany(pendingCompanyId);
     showToast(err.message || "회사 등록 실패", "error");
-    return;
+  } finally {
+    setAddLeadLoading(false);
   }
-  reloadRowsWithAdmin();
-  refreshViews();
-  closeAddLeadModal();
-  showToast("회사가 추가되었습니다. 공고가 없어 숨김 분류로 등록됩니다.");
-  openDetail(state.rows.find((r) => r.companyId === row.companyId) ?? row, "profile");
+  if (ok && savedRow) {
+    closeAddLeadModal();
+    showToast(
+      enriched
+        ? "회사가 추가되었습니다. 사업자 정보가 반영되었으며 숨김 분류로 등록됩니다."
+        : "회사가 추가되었습니다. 공고가 없어 숨김 분류로 등록됩니다."
+    );
+    openDetail(state.rows.find((r) => r.companyId === savedRow.companyId) ?? savedRow, "profile");
+  }
 }
 
-async function submitManualPostAsync(url, bizNoRaw = "") {
+async function submitManualPostAsync(url, bizNoRaw = "", nameHint = "") {
   try {
     new URL(url);
   } catch {
@@ -3220,18 +3367,28 @@ async function submitManualPostAsync(url, bizNoRaw = "") {
   const conflict = findPostConflict(url);
   if (conflict) {
     if (conflict.hidden && window.TClientAdmin?.isUnlocked?.()) {
-      const entry = window.TClientAdmin.getEntry(conflict.row.companyId);
-      const key = window.TPostUrl?.postUrlKey(url) ?? url.toLowerCase();
-      const nextHidden = (entry.hiddenPosts ?? []).filter(
-        (u) => (window.TPostUrl?.postUrlKey(u) ?? `${u}`.toLowerCase()) !== key
-      );
-      window.TClientAdmin.setEntry(conflict.row.companyId, { hiddenPosts: nextHidden });
-      await window.TClientAdmin.flushPersist?.();
-      reloadRowsWithAdmin();
-      refreshViews();
-      closeAddLeadModal();
-      showToast(`숨김 처리됐던 공고를 복원했습니다: ${displayName(conflict.row)}`);
-      openDetail(conflict.row);
+      setAddLeadLoading(true, "공고 복원 중…");
+      let ok = false;
+      const targetRow = conflict.row;
+      try {
+        const entry = window.TClientAdmin.getEntry(conflict.row.companyId);
+        const key = window.TPostUrl?.postUrlKey(url) ?? url.toLowerCase();
+        const nextHidden = (entry.hiddenPosts ?? []).filter(
+          (u) => (window.TPostUrl?.postUrlKey(u) ?? `${u}`.toLowerCase()) !== key
+        );
+        window.TClientAdmin.setEntry(conflict.row.companyId, { hiddenPosts: nextHidden });
+        await window.TClientAdmin.flushPersist?.();
+        reloadRowsWithAdmin();
+        refreshViews();
+        ok = true;
+      } finally {
+        setAddLeadLoading(false);
+      }
+      if (ok) {
+        closeAddLeadModal();
+        showToast(`숨김 처리됐던 공고를 복원했습니다: ${displayName(targetRow)}`);
+        openDetail(targetRow);
+      }
       return;
     }
     const name = displayName(conflict.row);
@@ -3250,10 +3407,13 @@ async function submitManualPostAsync(url, bizNoRaw = "") {
     return;
   }
 
-  const submitBtn = byId("add-lead-submit");
-  if (submitBtn) submitBtn.disabled = true;
+  setAddLeadLoading(true, bizNo ? "사업자 정보 조회 · 공고 등록 중…" : "공고 등록 중…");
+  let ok = false;
+  let result = null;
   try {
-    const { row, created, enrichProfile } = await resolveCompanyForManualPost(url, bizNo);
+    const { row, created, enrichProfile } = await resolveCompanyForManualPost(url, bizNo, nameHint, (msg) =>
+      setAddLeadLoading(true, msg)
+    );
     if (!row) {
       showToast("회사를 만들 수 없습니다.", "error");
       return;
@@ -3297,20 +3457,27 @@ async function submitManualPostAsync(url, bizNoRaw = "") {
     await window.TClientAdmin.flushPersist?.();
     reloadRowsWithAdmin();
     refreshViews();
+    ok = true;
+    result = { row, created, enrichProfile, bizNo };
+  } finally {
+    setAddLeadLoading(false);
+  }
+  if (ok && result) {
     closeAddLeadModal();
-
-    if (bizNo && !enrichProfile && !findCompanyByBizNo(bizNo)) {
-      showToast("공고가 추가됐습니다. bizno.net에서 회사를 찾지 못해 이름은 수동 등록 상태입니다.");
+    const { row, created, enrichProfile, bizNo: savedBizNo } = result;
+    if (savedBizNo && !enrichProfile && !findCompanyByBizNo(savedBizNo)) {
+      showToast(
+        nameHint
+          ? `공고가 추가됐습니다. 사업자 조회에 실패해 입력한 회사명(${nameHint})으로 등록했습니다.`
+          : "공고가 추가됐습니다. bizno.net에서 회사를 찾지 못해 이름은 수동 등록 상태입니다."
+      );
     } else if (created) {
       showToast(enrichProfile ? "공고와 회사(사업자 조회)가 추가되었습니다." : "공고와 회사가 추가되었습니다.");
     } else {
       showToast("기존 회사에 공고가 추가되었습니다.");
     }
-
     const target = state.rows.find((r) => r.companyId === row.companyId) ?? row;
     openDetail(target, "posts");
-  } finally {
-    if (submitBtn) submitBtn.disabled = false;
   }
 }
 
