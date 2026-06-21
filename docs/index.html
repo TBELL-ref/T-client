@@ -97,9 +97,12 @@
               <span data-icon="rotate"></span>
             </button>
             <div class="search-row-sort">
+              <div class="search-row-reorder admin-only hidden">
+                <button type="button" id="notionReorderStart" class="btn-ghost btn-sm">No. 순서 변경</button>
+              </div>
               <select id="sort" class="select-pill" aria-label="정렬">
                 <option value="priority">우선순위순</option>
-                <option value="notion">Notion No.순</option>
+                <option value="notion">순번 순</option>
                 <option value="grade">등급순</option>
                 <option value="new">신규 추가순</option>
                 <option value="recent">최근 등록순</option>
@@ -171,13 +174,10 @@
             <button type="button" data-tab="excluded" class="tab">제외</button>
           </div>
         </nav>
-        <div class="tabs-bar-actions admin-only hidden">
-          <button type="button" id="notionReorderStart" class="btn-ghost btn-sm">No. 순서 변경</button>
-        </div>
       </div>
 
       <div id="notionReorderBar" class="notion-reorder-bar hidden" aria-hidden="true">
-        <p class="notion-reorder-hint">☰ 핸들을 드래그해 Notion No. 순서를 바꾸세요. 행 클릭은 상세로 이동하지 않습니다.</p>
+        <p class="notion-reorder-hint">☰ 핸들을 드래그해 순번을 바꾸세요. 행 클릭은 상세로 이동하지 않습니다.</p>
         <div class="notion-reorder-actions">
           <button type="button" id="notionReorderCancel" class="btn-ghost btn-sm">취소</button>
           <button type="button" id="notionReorderSave" class="btn-primary btn-sm">순서 저장</button>

@@ -965,7 +965,14 @@ body {
 }
 
 .search-row-sort {
-  min-width: 132px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.search-row-reorder {
+  flex-shrink: 0;
 }
 
 .search-row-sort .select-pill,
@@ -1200,7 +1207,7 @@ body {
   flex-shrink: 0;
 }
 
-body.notion-reorder-active .tabs-bar-actions {
+body.notion-reorder-active .search-row-reorder {
   display: none;
 }
 

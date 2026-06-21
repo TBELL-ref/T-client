@@ -417,7 +417,7 @@ function updateNotionReorderUi() {
   const admin = window.TClientAdmin?.isUnlocked?.();
   const onTab = isNotionReorderTab();
   startBtn?.classList.toggle("hidden", !admin || !onTab || isNotionReorderActive());
-  startBtn?.closest(".tabs-bar-actions")?.classList.toggle("hidden", !admin || !onTab);
+  startBtn?.closest(".search-row-reorder")?.classList.toggle("hidden", !admin || !onTab);
   bar?.classList.toggle("hidden", !isNotionReorderActive());
   bar?.setAttribute("aria-hidden", isNotionReorderActive() ? "false" : "true");
   document.body.classList.toggle("notion-reorder-active", isNotionReorderActive());
