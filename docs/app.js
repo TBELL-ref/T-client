@@ -339,6 +339,19 @@ const PIPELINE_STAGE_SHORT_LABEL = {
   contract: "계약"
 };
 
+const PIPELINE_STAGE_ICON = {
+  candidate: "user",
+  test_in_progress: "flask",
+  proposal: "send",
+  meeting: "users",
+  contract: "fileText"
+};
+
+function pipelineStageIconHtml(stageId, size = 18) {
+  const icon = PIPELINE_STAGE_ICON[stageId] ?? "circle";
+  return `<span class="pipeline-step-icon" aria-hidden="true">${iconSvg(icon, size)}</span>`;
+}
+
 function renderPipelineStageStepper(row, { edit = false } = {}) {
   const P = pipelineLabels();
   const stages = P.PIPELINE_STAGES ?? [];
@@ -352,13 +365,7 @@ function renderPipelineStageStepper(row, { edit = false } = {}) {
     const state = idx < currentIdx ? "done" : idx === currentIdx ? "current" : "upcoming";
     const tip = labels[stageId] ?? PIPELINE_STAGE_SHORT_LABEL[stageId] ?? stageId;
     const displayLabel = labels[stageId] ?? PIPELINE_STAGE_SHORT_LABEL[stageId] ?? stageId;
-    const nodeInner =
-      state === "done"
-        ? `<span class="pipeline-step-check" aria-hidden="true">${iconSvg("check", 14)}</span>`
-        : state === "current"
-          ? `<span class="pipeline-step-ring" aria-hidden="true"></span>`
-          : `<span class="pipeline-step-num" aria-hidden="true">${idx}</span>`;
-    const stepInner = `<div class="pipeline-step-node">${nodeInner}</div><span class="pipeline-step-label">${escapeHtml(displayLabel)}</span>`;
+    const stepInner = `<div class="pipeline-step-node">${pipelineStageIconHtml(stageId)}</div><span class="pipeline-step-label">${escapeHtml(displayLabel)}</span>`;
     return edit
       ? `<button type="button" class="pipeline-step is-${state}" data-pipeline-stage-btn="${escapeAttr(stageId)}" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">${stepInner}</button>`
       : `<div class="pipeline-step is-${state}" role="listitem" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">${stepInner}</div>`;
@@ -431,15 +438,6 @@ function syncPipelineStepperUi(root = byId("detailBody")) {
     const state = idx < currentIdx ? "done" : idx === currentIdx ? "current" : "upcoming";
     btn.classList.remove("is-done", "is-current", "is-upcoming");
     btn.classList.add(`is-${state}`);
-    const node = btn.querySelector(".pipeline-step-node");
-    if (!node) return;
-    if (state === "done") {
-      node.innerHTML = `<span class="pipeline-step-check" aria-hidden="true">${iconSvg("check", 14)}</span>`;
-    } else if (state === "current") {
-      node.innerHTML = `<span class="pipeline-step-ring" aria-hidden="true"></span>`;
-    } else {
-      node.innerHTML = `<span class="pipeline-step-num" aria-hidden="true">${idx}</span>`;
-    }
   });
 }
 
