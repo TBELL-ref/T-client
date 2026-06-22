@@ -576,13 +576,67 @@ body {
 }
 
 .kpi-card-clickable:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid #64748b;
   outline-offset: 2px;
 }
 
 .kpi-card-active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px rgba(0, 196, 113, 0.2);
+  transform: translateY(-1px);
+}
+
+[data-kpi-id="total"].kpi-card-active,
+[data-kpi-id="posts"].kpi-card-active {
+  border-color: #64748b;
+  box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.28);
+  background: #f8fafc;
+}
+
+[data-kpi-id="excluded"].kpi-card-active {
+  border-color: #64748b;
+  box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.28);
+  background: #f1f5f9;
+}
+
+[data-kpi-id="recommended"].kpi-card-active {
+  border-color: #d97706;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.45), 0 6px 16px rgba(217, 119, 6, 0.18);
+  background: #fffbeb;
+}
+
+[data-kpi-id="inProgress"].kpi-card-active {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.45), 0 6px 16px rgba(37, 99, 235, 0.18);
+  background: #eff6ff;
+}
+
+[data-kpi-id="contractWon"].kpi-card-active {
+  border-color: #059669;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.45), 0 6px 16px rgba(5, 150, 105, 0.18);
+  background: #ecfdf5;
+}
+
+[data-kpi-id="recommended"].kpi-card-active .kpi-card-value {
+  color: #b45309;
+}
+
+[data-kpi-id="inProgress"].kpi-card-active .kpi-card-value {
+  color: #1d4ed8;
+}
+
+[data-kpi-id="contractWon"].kpi-card-active .kpi-card-value {
+  color: #047857;
+}
+
+[data-kpi-id="recommended"].kpi-card-clickable:focus-visible {
+  outline-color: #d97706;
+}
+
+[data-kpi-id="inProgress"].kpi-card-clickable:focus-visible {
+  outline-color: #2563eb;
+}
+
+[data-kpi-id="contractWon"].kpi-card-clickable:focus-visible {
+  outline-color: #059669;
 }
 
 .kpi-card-muted {

@@ -23,7 +23,8 @@ const state = {
   leadsPage: 1,
   newPage: 1,
   postsPage: 1,
-  excludedPage: 1
+  excludedPage: 1,
+  actionKpiFocus: "inProgress"
 };
 
 const PAGE_SIZE = 10;
@@ -2691,15 +2692,30 @@ function bindPortfolioMap() {
   });
 }
 
-function highlightActionKpiCards() {
-  const tabKpiIds = {
-    leads: ["total"],
-    posts: ["posts"],
-    recommended: ["recommended"],
-    in_progress: ["inProgress", "contractWon"],
-    excluded: ["excluded"]
+function defaultActionKpiForTab(tabId) {
+  const map = {
+    leads: "total",
+    posts: "posts",
+    recommended: "recommended",
+    in_progress: "inProgress",
+    excluded: "excluded"
   };
-  const activeIds = new Set(tabKpiIds[state.activeTab] ?? []);
+  return map[tabId] ?? null;
+}
+
+function activeActionKpiIds() {
+  const tab = state.activeTab;
+  if (tab === "in_progress") {
+    const focus = state.actionKpiFocus;
+    if (focus === "contractWon" || focus === "inProgress") return [focus];
+    return ["inProgress"];
+  }
+  const id = defaultActionKpiForTab(tab);
+  return id ? [id] : [];
+}
+
+function highlightActionKpiCards() {
+  const activeIds = new Set(activeActionKpiIds());
   byId("dashboard")?.querySelectorAll("[data-kpi-id]").forEach((card) => {
     card.classList.toggle("kpi-card-active", activeIds.has(card.dataset.kpiId));
   });
@@ -2730,7 +2746,7 @@ function bindActionKpiCards() {
     const card = e.target?.closest?.("[data-kpi-id]");
     if (!card) return;
     const tabId = ACTION_KPI_TAB_MAP[card.dataset.kpiId];
-    if (tabId) switchTab(tabId, { resetFilters: true });
+    if (tabId) switchTab(tabId, { resetFilters: true, kpiFocus: card.dataset.kpiId });
   });
   dash.addEventListener("keydown", (e) => {
     const card = e.target?.closest?.("[data-kpi-id]");
@@ -2738,7 +2754,7 @@ function bindActionKpiCards() {
     const tabId = ACTION_KPI_TAB_MAP[card.dataset.kpiId];
     if (!tabId) return;
     e.preventDefault();
-    switchTab(tabId, { resetFilters: true });
+    switchTab(tabId, { resetFilters: true, kpiFocus: card.dataset.kpiId });
   });
 }
 
@@ -2972,10 +2988,10 @@ function renderActionKpiCards(kpi) {
   const cards = [
     { id: "total", icon: "building", value: kpi.total, label: "전체 활성", tone: "muted" },
     { id: "posts", icon: "fileText", value: kpi.posts, label: "공고", tone: "muted" },
+    { id: "excluded", icon: "ban", value: kpi.excluded, label: "제외", tone: "muted" },
     { id: "recommended", icon: "target", value: kpi.recommended, label: "추천", tone: "emphasis-3" },
     { id: "inProgress", icon: "fileText", value: kpi.inProgress, label: "진행", tone: "emphasis-2" },
-    { id: "contractWon", icon: "briefcase", value: kpi.contractWon, label: "계약 성공", tone: "emphasis-1" },
-    { id: "excluded", icon: "ban", value: kpi.excluded, label: "제외", tone: "muted" }
+    { id: "contractWon", icon: "briefcase", value: kpi.contractWon, label: "계약 성공", tone: "emphasis-1" }
   ];
 
   return `<div class="action-kpi-grid">${cards
@@ -4162,7 +4178,7 @@ function paintMetaBanner() {
     : `<span class="meta-updated muted">갱신일 없음</span>`;
 }
 
-function switchTab(tabId, { resetFilters: shouldReset = false } = {}) {
+function switchTab(tabId, { resetFilters: shouldReset = false, kpiFocus = undefined } = {}) {
   const tabIds = ["in_progress", "recommended", "new", "leads", "posts", "excluded"];
   if (!tabIds.includes(tabId)) return;
   if (isNotionReorderActive() && tabId !== state.notionReorder?.tab) cancelNotionReorder();
@@ -4172,6 +4188,7 @@ function switchTab(tabId, { resetFilters: shouldReset = false } = {}) {
     b.classList.toggle("active", b.dataset.tab === tabId);
   });
   state.activeTab = tabId;
+  state.actionKpiFocus = kpiFocus !== undefined ? kpiFocus : defaultActionKpiForTab(tabId);
   window.__TCLIENT_ACTIVE_TAB = tabId;
   state.leadsPage = 1;
   state.newPage = 1;
