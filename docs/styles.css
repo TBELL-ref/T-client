@@ -5765,6 +5765,24 @@ body.detail-drawer-open .app {
   transform: translateY(-1px);
 }
 
+.pipeline-closed-toggle,
+.pipeline-closed-view {
+  display: inline-flex;
+  align-items: center;
+}
+
+.pipeline-closed-toggle.is-edit {
+  cursor: pointer;
+}
+
+.pipeline-closed-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
 .pipeline-closed-icon {
   width: 30px;
   height: 30px;
