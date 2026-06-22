@@ -351,14 +351,14 @@ function renderPipelineStageStepper(row, { edit = false } = {}) {
     const idx = i + 1;
     const state = idx < currentIdx ? "done" : idx === currentIdx ? "current" : "upcoming";
     const tip = labels[stageId] ?? PIPELINE_STAGE_SHORT_LABEL[stageId] ?? stageId;
-    const shortLabel = PIPELINE_STAGE_SHORT_LABEL[stageId] ?? tip;
+    const displayLabel = labels[stageId] ?? PIPELINE_STAGE_SHORT_LABEL[stageId] ?? stageId;
     const nodeInner =
       state === "done"
-        ? `<span class="pipeline-step-check" aria-hidden="true">${iconSvg("check", 11)}</span>`
+        ? `<span class="pipeline-step-check" aria-hidden="true">${iconSvg("check", 14)}</span>`
         : state === "current"
           ? `<span class="pipeline-step-ring" aria-hidden="true"></span>`
           : `<span class="pipeline-step-num" aria-hidden="true">${idx}</span>`;
-    const stepInner = `<div class="pipeline-step-node">${nodeInner}</div><span class="pipeline-step-label">${escapeHtml(shortLabel)}</span>`;
+    const stepInner = `<div class="pipeline-step-node">${nodeInner}</div><span class="pipeline-step-label">${escapeHtml(displayLabel)}</span>`;
     return edit
       ? `<button type="button" class="pipeline-step is-${state}" data-pipeline-stage-btn="${escapeAttr(stageId)}" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">${stepInner}</button>`
       : `<div class="pipeline-step is-${state}" role="listitem" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">${stepInner}</div>`;
@@ -434,7 +434,7 @@ function syncPipelineStepperUi(root = byId("detailBody")) {
     const node = btn.querySelector(".pipeline-step-node");
     if (!node) return;
     if (state === "done") {
-      node.innerHTML = `<span class="pipeline-step-check" aria-hidden="true">${iconSvg("check", 11)}</span>`;
+      node.innerHTML = `<span class="pipeline-step-check" aria-hidden="true">${iconSvg("check", 14)}</span>`;
     } else if (state === "current") {
       node.innerHTML = `<span class="pipeline-step-ring" aria-hidden="true"></span>`;
     } else {
