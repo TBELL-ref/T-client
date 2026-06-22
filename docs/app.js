@@ -351,16 +351,17 @@ function renderPipelineStageStepper(row, { edit = false } = {}) {
     const idx = i + 1;
     const state = idx < currentIdx ? "done" : idx === currentIdx ? "current" : "upcoming";
     const tip = labels[stageId] ?? PIPELINE_STAGE_SHORT_LABEL[stageId] ?? stageId;
+    const shortLabel = PIPELINE_STAGE_SHORT_LABEL[stageId] ?? tip;
     const nodeInner =
       state === "done"
         ? `<span class="pipeline-step-check" aria-hidden="true">${iconSvg("check", 11)}</span>`
         : state === "current"
           ? `<span class="pipeline-step-ring" aria-hidden="true"></span>`
           : `<span class="pipeline-step-num" aria-hidden="true">${idx}</span>`;
-    const node = `<div class="pipeline-step-node">${nodeInner}</div>`;
+    const stepInner = `<div class="pipeline-step-node">${nodeInner}</div><span class="pipeline-step-label">${escapeHtml(shortLabel)}</span>`;
     return edit
-      ? `<button type="button" class="pipeline-step is-${state}" data-pipeline-stage-btn="${escapeAttr(stageId)}" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">${node}</button>`
-      : `<div class="pipeline-step is-${state}" role="listitem" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">${node}</div>`;
+      ? `<button type="button" class="pipeline-step is-${state}" data-pipeline-stage-btn="${escapeAttr(stageId)}" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">${stepInner}</button>`
+      : `<div class="pipeline-step is-${state}" role="listitem" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">${stepInner}</div>`;
   });
 
   return `${hidden}<div class="pipeline-stepper-shell">
@@ -1016,8 +1017,10 @@ function renderDrawerStatsCompact(row) {
 function renderDetailHeaderSub(row) {
   const line1 = companySubline(row);
   const memo = `${row.salesMemo ?? row.manualNotes ?? ""}`.trim();
-  if (!memo) return escapeHtml(line1);
-  return `${escapeHtml(line1)}<span class="detail-header-memo">${escapeHtml(memo)}</span>`;
+  const parts = [];
+  if (line1) parts.push(`<span class="detail-header-meta">${escapeHtml(line1)}</span>`);
+  if (memo) parts.push(`<span class="detail-header-memo">${escapeHtml(memo)}</span>`);
+  return parts.join("");
 }
 
 function captureDetailOpenSections() {
