@@ -4031,6 +4031,15 @@ tbody tr.row-manual {
     grid-template-columns: 1fr;
   }
 
+  .sales-pipeline-bar {
+    gap: 8px;
+    padding: 7px 8px;
+  }
+
+  .pipeline-stepper {
+    justify-content: flex-start;
+  }
+
   .search-row-actions {
     width: 100%;
     justify-content: flex-end;
@@ -5465,15 +5474,302 @@ body.detail-drawer-open .app {
 
 .sales-row-bar {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sales-pipeline-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sales-pipeline-bar {
+  display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px 12px;
-  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e8edf3;
+}
+
+.pipeline-status-col,
+.pipeline-closed-col {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.pipeline-status-col {
+  padding-right: 8px;
+  border-right: 1px solid #e8edf3;
+}
+
+.pipeline-closed-col {
+  padding-left: 2px;
+}
+
+.pipeline-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pipeline-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pipeline-status-tag-pending {
+  color: #64748b;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+}
+
+.pipeline-status-tag-pending .pipeline-status-dot {
+  background: #94a3b8;
+}
+
+.pipeline-status-tag-active {
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #86efac;
+}
+
+.pipeline-status-tag-active .pipeline-status-dot {
+  background: #10b981;
+}
+
+.pipeline-status-tag-on_hold {
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+
+.pipeline-status-tag-on_hold .pipeline-status-dot {
+  background: #f59e0b;
+}
+
+.pipeline-status-tag-excluded {
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+}
+
+.pipeline-status-tag-excluded .pipeline-status-dot {
+  background: #94a3b8;
+}
+
+.pipeline-status-select {
+  height: 26px;
+  min-width: 68px;
+  padding: 0 8px;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: #fff;
+  color: #334155;
+}
+
+.pipeline-stepper-shell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
+.pipeline-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+}
+
+.pipeline-stepper.is-edit .pipeline-step {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font: inherit;
+  padding: 0;
+}
+
+.pipeline-step {
+  flex: 0 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  z-index: 1;
+}
+
+.pipeline-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: calc(50% + 12px);
+  width: 14px;
+  height: 2px;
+  transform: translateY(-50%);
+  background: #e2e8f0;
+  border-radius: 999px;
+  z-index: 0;
+}
+
+.pipeline-step.is-done:not(:last-child)::after {
+  background: #10b981;
+}
+
+.pipeline-step-node {
+  position: relative;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #dbe3ee;
+  background: #fff;
+  color: #fff;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pipeline-step-num {
+  font-size: 0.58rem;
+  font-weight: 800;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+.pipeline-step-ring {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.pipeline-step-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.pipeline-step-check .icon {
+  width: 11px;
+  height: 11px;
+  stroke-width: 3;
+}
+
+.pipeline-step.is-done .pipeline-step-node {
+  background: #10b981;
+  border-color: #059669;
+}
+
+.pipeline-step.is-current .pipeline-step-node {
+  background: #fff;
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.pipeline-step.is-upcoming .pipeline-step-node {
+  background: #fff;
+  border-color: #dbe3ee;
+}
+
+.pipeline-stepper.is-edit .pipeline-step:hover .pipeline-step-node {
+  border-color: #6ee7b7;
+}
+
+.pipeline-closed-toggle,
+.pipeline-closed-view {
+  display: inline-flex;
+  align-items: center;
+}
+
+.pipeline-closed-toggle.is-edit {
+  cursor: pointer;
+}
+
+.pipeline-closed-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.pipeline-closed-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  color: #cbd5e1;
+}
+
+.pipeline-closed-toggle.is-edit:hover .pipeline-closed-icon {
+  border-color: #cbd5e1;
+  color: #94a3b8;
+}
+
+.pipeline-closed-toggle.is-on .pipeline-closed-icon,
+.pipeline-closed-view.is-on .pipeline-closed-icon {
+  background: #fff1f2;
+  border-color: #fda4af;
+  color: #e11d48;
+}
+
+.sales-closed-reason-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.sales-closed-reason-row .inline-label {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.sales-closed-reason-row .inline-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.sales-edit-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sales-contact-grid {
+  margin-top: 0;
 }
 
 .sales-row-contact {
   flex: 1;
   min-width: 0;
+  padding: 0 2px;
 }
 
 .sales-row-pipeline {
@@ -6054,12 +6350,7 @@ body.detail-drawer-open .app {
 
 .pipeline-stage-delivery,
 .pipeline-stage-result_delivery,
-.pipeline-stage-result_report {
-  color: #7c3aed;
-  background: #f5f3ff;
-  border: 1px solid #ddd6fe;
-}
-
+.pipeline-stage-result_report,
 .pipeline-stage-proposal {
   color: #c2410c;
   background: #fff7ed;

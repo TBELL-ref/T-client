@@ -33,7 +33,7 @@ const PRESETS = [
   { id: "grade-a", label: "A등급", apply: () => setFilters({ grade: "A", exclude: "active" }, { keepPreset: true }) },
   { id: "stage-candidate", label: "후보", apply: () => setFilters({ pipelineStage: "candidate", exclude: "active" }, { keepPreset: true }) },
   { id: "stage-test", label: "테스트 진행", apply: () => setFilters({ pipelineStage: "test_in_progress", exclude: "active" }, { keepPreset: true }) },
-  { id: "stage-proposal", label: "제안", apply: () => setFilters({ pipelineStage: "proposal", exclude: "active" }, { keepPreset: true }) },
+  { id: "stage-proposal", label: "전달·제안", apply: () => setFilters({ pipelineStage: "proposal", exclude: "active" }, { keepPreset: true }) },
   { id: "contract-won", label: "계약성공", apply: () => setFilters({ pipelineStatus: "closed", exclude: "active" }, { keepPreset: true }) },
   { id: "contact", label: "담당자 확보", apply: () => setFilters({ contact: "yes", exclude: "active" }, { keepPreset: true }) },
   { id: "startup", label: "스타트업·미확인", apply: () => setFilters({ tier: "startup", exclude: "active" }, { keepPreset: true }) },
@@ -298,6 +298,169 @@ function pipelineSelectOptions(kind, selected) {
   const list = kind === "stage" ? P.PIPELINE_STAGES ?? [] : P.PIPELINE_STATUSES ?? [];
   const labels = kind === "stage" ? P.PIPELINE_STAGE_LABEL ?? {} : P.PIPELINE_STATUS_LABEL ?? {};
   return list.map((id) => `<option value="${escapeAttr(id)}"${selected === id ? " selected" : ""}>${escapeHtml(labels[id] ?? id)}</option>`).join("");
+}
+
+function pipelineOperationalStatuses() {
+  return (pipelineLabels().PIPELINE_STATUSES ?? []).filter((s) => s !== "closed");
+}
+
+function pipelineStatusForTag(status) {
+  const resolved = pipelineLabels().resolvePipelineStatus?.(status) ?? status;
+  if (resolved === "closed") return "active";
+  return resolved;
+}
+
+function pipelineStageStepIndex(stage) {
+  const P = pipelineLabels();
+  const resolved = P.resolvePipelineStage?.(stage) ?? stage;
+  return P.PIPELINE_STAGE_ORDER?.[resolved] ?? 1;
+}
+
+function renderPipelineStatusTag(row, { edit = false } = {}) {
+  const { pipelineStatus } = resolveRowPipeline(row);
+  const tagStatus = pipelineStatusForTag(pipelineStatus);
+  const label = pipelineLabels().pipelineStatusLabel?.(tagStatus) ?? tagStatus;
+  if (edit) {
+    return `<div class="pipeline-status-col">${pipelineStatusSelectOperational("edit-pipeline-status", tagStatus)}</div>`;
+  }
+  return `<div class="pipeline-status-col">
+    <span class="pipeline-status-tag pipeline-status-tag-${tagStatus}" title="상태: ${escapeAttr(label)}">
+      <span class="pipeline-status-dot" aria-hidden="true"></span>
+      ${escapeHtml(label)}
+    </span>
+  </div>`;
+}
+
+const PIPELINE_STAGE_SHORT_LABEL = {
+  candidate: "후보",
+  test_in_progress: "테스트",
+  proposal: "전달·제안",
+  meeting: "미팅",
+  contract: "계약"
+};
+
+function renderPipelineStageStepper(row, { edit = false } = {}) {
+  const P = pipelineLabels();
+  const stages = P.PIPELINE_STAGES ?? [];
+  const labels = P.PIPELINE_STAGE_LABEL ?? {};
+  const { pipelineStage } = resolveRowPipeline(row);
+  const currentIdx = pipelineStageStepIndex(pipelineStage);
+  const hidden = edit ? `<input type="hidden" id="edit-pipeline-stage" value="${escapeAttr(pipelineStage)}" />` : "";
+
+  const items = stages.map((stageId, i) => {
+    const idx = i + 1;
+    const state = idx < currentIdx ? "done" : idx === currentIdx ? "current" : "upcoming";
+    const tip = labels[stageId] ?? PIPELINE_STAGE_SHORT_LABEL[stageId] ?? stageId;
+    const nodeInner =
+      state === "done"
+        ? `<span class="pipeline-step-check" aria-hidden="true">${iconSvg("check", 11)}</span>`
+        : state === "current"
+          ? `<span class="pipeline-step-ring" aria-hidden="true"></span>`
+          : `<span class="pipeline-step-num" aria-hidden="true">${idx}</span>`;
+    const node = `<div class="pipeline-step-node">${nodeInner}</div>`;
+    return edit
+      ? `<button type="button" class="pipeline-step is-${state}" data-pipeline-stage-btn="${escapeAttr(stageId)}" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">${node}</button>`
+      : `<div class="pipeline-step is-${state}" role="listitem" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">${node}</div>`;
+  });
+
+  return `${hidden}<div class="pipeline-stepper-shell">
+    <div class="pipeline-stepper${edit ? " is-edit" : ""}" role="${edit ? "group" : "list"}" aria-label="영업 단계">${items.join("")}</div>
+  </div>`;
+}
+
+function renderPipelineClosedControl(row, { edit = false } = {}) {
+  const { pipelineStatus, closedReason } = resolveRowPipeline(row);
+  const isClosed = pipelineStatus === "closed";
+  const reasonLabel = closedReason ? pipelineLabels().closedReasonLabel?.(closedReason) ?? closedReason : "";
+  const title = isClosed ? (reasonLabel ? `종결: ${reasonLabel}` : "종결") : "미종결";
+
+  if (edit) {
+    return `<div class="pipeline-closed-col">
+      <label class="pipeline-closed-toggle is-edit${isClosed ? " is-on" : ""}" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}">
+        <input type="checkbox" id="edit-pipeline-closed" class="pipeline-closed-input"${isClosed ? " checked" : ""} />
+        <span class="pipeline-closed-icon" aria-hidden="true">${iconSvg("archive", 12)}</span>
+      </label>
+    </div>`;
+  }
+
+  return `<div class="pipeline-closed-col">
+    <span class="pipeline-closed-view${isClosed ? " is-on" : ""}" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}">
+      <span class="pipeline-closed-icon" aria-hidden="true">${iconSvg("archive", 12)}</span>
+    </span>
+  </div>`;
+}
+
+function renderSalesPipelineBar(row, { edit = false } = {}) {
+  const pipeline = resolveRowPipeline(row);
+  const isClosed = pipeline.pipelineStatus === "closed";
+  const closedReasonRow = edit
+    ? `<div class="sales-closed-reason-row${isClosed ? "" : " hidden"}" id="sales-closed-reason-row">
+        <span class="inline-label">종결 사유</span>
+        ${closedReasonSelect("edit-closed-reason", pipeline.closedReason ?? "")}
+      </div>`
+    : "";
+
+  return `<div class="sales-pipeline-shell">
+    <div class="sales-pipeline-bar">
+      ${renderPipelineStatusTag(row, { edit })}
+      ${renderPipelineStageStepper(row, { edit })}
+      ${renderPipelineClosedControl(row, { edit })}
+    </div>${closedReasonRow}
+  </div>`;
+}
+
+function pipelineStatusSelectOperational(id, value) {
+  const P = pipelineLabels();
+  const list = pipelineOperationalStatuses();
+  const labels = P.PIPELINE_STATUS_LABEL ?? {};
+  const resolved = pipelineStatusForTag(value);
+  return `<select id="${escapeAttr(id)}" class="pipeline-status-select">${list
+    .map((s) => `<option value="${escapeAttr(s)}"${resolved === s ? " selected" : ""}>${escapeHtml(labels[s] ?? s)}</option>`)
+    .join("")}</select>`;
+}
+
+function syncPipelineStepperUi(root = byId("detailBody")) {
+  const hidden = root?.querySelector("#edit-pipeline-stage");
+  const stepper = root?.querySelector(".pipeline-stepper.is-edit");
+  if (!hidden || !stepper) return;
+  const currentIdx = pipelineStageStepIndex(hidden.value);
+  const steps = stepper.querySelectorAll("[data-pipeline-stage-btn]");
+  steps.forEach((btn, i) => {
+    const idx = i + 1;
+    const state = idx < currentIdx ? "done" : idx === currentIdx ? "current" : "upcoming";
+    btn.classList.remove("is-done", "is-current", "is-upcoming");
+    btn.classList.add(`is-${state}`);
+    const node = btn.querySelector(".pipeline-step-node");
+    if (!node) return;
+    if (state === "done") {
+      node.innerHTML = `<span class="pipeline-step-check" aria-hidden="true">${iconSvg("check", 11)}</span>`;
+    } else if (state === "current") {
+      node.innerHTML = `<span class="pipeline-step-ring" aria-hidden="true"></span>`;
+    } else {
+      node.innerHTML = `<span class="pipeline-step-num" aria-hidden="true">${idx}</span>`;
+    }
+  });
+}
+
+function bindSalesPipelineControls() {
+  const body = byId("detailBody");
+  if (!body || body.dataset.pipelineBound === "1") return;
+  body.dataset.pipelineBound = "1";
+
+  body.addEventListener("click", (e) => {
+    const stageBtn = e.target?.closest?.("[data-pipeline-stage-btn]");
+    if (!stageBtn || !isSectionEdit("sales")) return;
+    e.preventDefault();
+    const hidden = byId("edit-pipeline-stage");
+    if (hidden) hidden.value = stageBtn.dataset.pipelineStageBtn;
+    syncPipelineStepperUi(body);
+  });
+
+  body.addEventListener("change", (e) => {
+    if (e.target?.id !== "edit-pipeline-closed") return;
+    byId("sales-closed-reason-row")?.classList.toggle("hidden", !e.target.checked);
+    e.target.closest(".pipeline-closed-toggle")?.classList.toggle("is-on", e.target.checked);
+  });
 }
 
 function renderStarRating(filled, total = 5) {
@@ -988,8 +1151,8 @@ function renderContactStrip(c, email) {
 
 function renderSalesRowView(c, email, row) {
   return `<div class="sales-row-bar">
+    ${renderSalesPipelineBar(row)}
     <div class="sales-row-contact">${renderContactStrip(c, email)}</div>
-    <div class="sales-row-pipeline">${renderPipelineSummary(row)}</div>
   </div>`;
 }
 
@@ -1295,6 +1458,8 @@ async function saveDetailSection(row, section) {
   }
 
   if (section === "sales") {
+    const isClosed = Boolean(byId("edit-pipeline-closed")?.checked);
+    const operationalStatus = byId("edit-pipeline-status")?.value ?? "pending";
     await persistCompany(
       {
         contact: {
@@ -1305,8 +1470,8 @@ async function saveDetailSection(row, section) {
       },
       salesPatch({
         pipelineStage: byId("edit-pipeline-stage")?.value ?? "",
-        pipelineStatus: byId("edit-pipeline-status")?.value ?? "",
-        closedReason: byId("edit-closed-reason")?.value ?? ""
+        pipelineStatus: isClosed ? "closed" : operationalStatus,
+        closedReason: isClosed ? byId("edit-closed-reason")?.value ?? "" : ""
       })
     );
     return;
@@ -2333,7 +2498,6 @@ function computePipelineKpi(rows) {
   const stages = window.TPipeline?.PIPELINE_STAGES ?? [
     "candidate",
     "test_in_progress",
-    "delivery",
     "proposal",
     "meeting",
     "contract"
@@ -3227,7 +3391,6 @@ function renderDetailBody(row, admin = false) {
   const e = window.TClientAdmin?.getEntry(row.companyId) ?? {};
   const p = { ...(row.profile ?? {}), ...(e.profile ?? {}) };
   const c = row.contact ?? {};
-  const pipeline = resolveRowPipeline(row);
   const tierVal = e.companyTier || row.companyTier || "";
   const email = c.email || row.email || "";
   const pool = poolClassOf(row);
@@ -3277,13 +3440,13 @@ function renderDetailBody(row, admin = false) {
       ]);
 
   const salesBody = editSales
-    ? `<div class="detail-form-grid cols-2 detail-form-compact sales-edit-grid">
-        <div class="inline-row"><span class="inline-label">단계</span>${pipelineStageSelect("edit-pipeline-stage", pipeline.pipelineStage)}</div>
-        <div class="inline-row"><span class="inline-label">상태</span>${pipelineStatusSelect("edit-pipeline-status", pipeline.pipelineStatus)}</div>
-        <div class="inline-row span-2"><span class="inline-label">종결</span>${closedReasonSelect("edit-closed-reason", row.closedReason ?? "")}</div>
-        <div class="inline-row"><span class="inline-label">이름</span>${inlineInput("edit-contact-name", c.name ?? "")}</div>
-        <div class="inline-row"><span class="inline-label">이메일</span>${inlineInput("edit-contact-email", email, "email")}</div>
-        <div class="inline-row"><span class="inline-label">전화</span>${inlineInput("edit-contact-phone", c.phone ?? "", "tel")}</div>
+    ? `<div class="sales-edit-stack">
+        ${renderSalesPipelineBar(row, { edit: true })}
+        <div class="detail-form-grid cols-2 detail-form-compact sales-contact-grid">
+          <div class="inline-row"><span class="inline-label">이름</span>${inlineInput("edit-contact-name", c.name ?? "")}</div>
+          <div class="inline-row"><span class="inline-label">이메일</span>${inlineInput("edit-contact-email", email, "email")}</div>
+          <div class="inline-row"><span class="inline-label">전화</span>${inlineInput("edit-contact-phone", c.phone ?? "", "tel")}</div>
+        </div>
       </div>`
     : renderSalesRowView(c, email, row);
   const salesWithMeetings = `<div class="sales-section-stack">${salesBody}${renderMeetingsEmbed(row, admin)}</div>`;
@@ -4045,6 +4208,7 @@ function bindModal() {
   window.openMergeModal = openMergeModal;
   bindDetailHeaderEdits();
   bindDetailSectionEdits();
+  bindSalesPipelineControls();
   bindDetailSectionToggles();
   byId("detailBody")?.addEventListener("click", (e) => {
     const btn = e.target?.closest?.(".post-delete-btn");

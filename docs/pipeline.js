@@ -6,7 +6,6 @@
   const PIPELINE_STAGES = [
     "candidate",
     "test_in_progress",
-    "delivery",
     "proposal",
     "meeting",
     "contract"
@@ -15,8 +14,7 @@
   const PIPELINE_STAGE_LABEL = {
     candidate: "후보",
     test_in_progress: "테스트 진행",
-    delivery: "전달",
-    proposal: "제안",
+    proposal: "전달·제안",
     meeting: "미팅",
     contract: "계약"
   };
@@ -24,16 +22,14 @@
   const PIPELINE_STAGE_ORDER = {
     candidate: 1,
     test_in_progress: 2,
-    delivery: 3,
-    proposal: 4,
-    meeting: 5,
-    contract: 6
+    proposal: 3,
+    meeting: 4,
+    contract: 5
   };
 
   /** Stages that imply "진행" classification (not 후보). */
   const IN_PROGRESS_STAGES = new Set([
     "test_in_progress",
-    "delivery",
     "proposal",
     "meeting",
     "contract"
@@ -43,8 +39,9 @@
     candidate_pool: "candidate",
     candidate: "candidate",
     test_run: "test_in_progress",
-    result_delivery: "delivery",
-    result_report: "delivery",
+    result_delivery: "proposal",
+    result_report: "proposal",
+    delivery: "proposal",
     proposal: "proposal",
     contract_negotiation: "contract",
     contract_won: "contract",
@@ -186,7 +183,7 @@
     return isRecommendedLead(row) && !isInProgressLead(row);
   }
 
-  /** 진행 탭: is_recommended + 테스트/제안/미팅/계약/전달 단계 */
+  /** 진행 탭: is_recommended + 테스트/전달·제안/미팅/계약 단계 */
   function rowMatchesInProgressTab(row) {
     return isRecommendedLead(row) && isInProgressLead(row);
   }
