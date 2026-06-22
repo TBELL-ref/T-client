@@ -2200,7 +2200,7 @@ button {
 }
 
 #mergeModal.modal-stack {
-  z-index: 1350;
+  z-index: 1450;
 }
 
 body.merge-open {
@@ -4121,7 +4121,7 @@ body.detail-drawer-open .app {
 .detail-drawer {
   position: fixed;
   inset: 0;
-  z-index: 1200;
+  z-index: 1400;
   pointer-events: none;
 }
 
@@ -4753,16 +4753,17 @@ body.detail-drawer-open .app {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding-top: 4px;
 }
 
-.drawer-action-btn.drawer-action-primary {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
-
-.drawer-action-btn.drawer-action-primary:hover {
-  background: var(--accent-hover);
+.detail-summary-edit-actions .detail-sec-btn {
+  height: 32px;
+  min-width: 52px;
+  padding: 0 12px;
+  font-size: 12px;
+  border-radius: 8px;
 }
 
 .drawer-action-btn.is-active {
@@ -5344,7 +5345,7 @@ body.detail-drawer-open .app {
 }
 
 .detail-drawer.drawer-backstack {
-  z-index: 1100;
+  z-index: 1380;
   pointer-events: none;
 }
 
