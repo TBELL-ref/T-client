@@ -354,12 +354,18 @@ function getRecommendedRows() {
     });
 }
 
+function sortCuratedTabRows(rows) {
+  const mode = byId("sort")?.value || "notion";
+  if (mode === "notion") return sortByNotionPriority(rows);
+  return sortRows(rows);
+}
+
 function sortRecommendedRows(rows) {
-  return sortByNotionPriority(rows);
+  return sortCuratedTabRows(rows);
 }
 
 function sortInProgressRows(rows) {
-  return sortByNotionPriority(rows);
+  return sortCuratedTabRows(rows);
 }
 
 function sortByNotionPriority(rows) {
@@ -2062,11 +2068,30 @@ function syncCustomSelects() {
     const opt = sel.options[sel.selectedIndex];
     if (trigger && opt) trigger.textContent = opt.textContent.trim();
     wrap?.querySelectorAll(".cselect-opt").forEach((li) => {
+      const option = sel.querySelector(`option[value="${CSS.escape(li.dataset.value)}"]`);
+      const hidden = option?.hidden || option?.disabled;
+      li.hidden = hidden;
+      li.style.display = hidden ? "none" : "";
       const on = li.dataset.value === sel.value;
       li.classList.toggle("active", on);
       li.setAttribute("aria-selected", on ? "true" : "false");
     });
   });
+}
+
+function updateSortOptionsForTab(tab = state.activeTab) {
+  const sortEl = byId("sort");
+  if (!sortEl) return;
+  const onCuratedTab = NOTION_REORDER_TABS.has(tab);
+  sortEl.querySelectorAll("option").forEach((opt) => {
+    if (opt.value === "notion") {
+      opt.hidden = !onCuratedTab;
+      opt.disabled = !onCuratedTab;
+    }
+  });
+  if (sortEl.value === "priority" || sortEl.value === "grade") sortEl.value = "score";
+  if (!onCuratedTab && sortEl.value === "notion") sortEl.value = "score";
+  syncCustomSelects();
 }
 
 function toggleFilterAdvanced(force) {
@@ -2098,7 +2123,8 @@ function resetTabFilters() {
 function resetFilters() {
   resetTabFilters();
   const sortEl = byId("sort");
-  if (sortEl) sortEl.value = "priority";
+  if (sortEl) sortEl.value = NOTION_REORDER_TABS.has(state.activeTab) ? "notion" : "score";
+  updateSortOptionsForTab();
   refreshViews();
 }
 
@@ -2710,13 +2736,9 @@ function passesFilters(row) {
   return true;
 }
 
-function rowIsNew(row) {
-  const pool = poolClassOf(row);
-  return pool !== "recommended" && pool !== "in_progress" && pool !== "hidden";
-}
-
 function sortRows(rows) {
-  const mode = byId("sort")?.value || "priority";
+  let mode = byId("sort")?.value || "score";
+  if (mode === "priority" || mode === "grade") mode = "score";
   const list = [...rows];
 
   list.sort((a, b) => {
@@ -2728,36 +2750,32 @@ function sortRows(rows) {
       return displayName(a).localeCompare(displayName(b), "ko");
     }
 
-    if (mode === "priority") {
+    if (mode === "score") {
+      const gradeOrder = { A: 3, B: 2, C: 1 };
+      const diff = (gradeOrder[b.leadGrade] ?? 0) - (gradeOrder[a.leadGrade] ?? 0);
+      if (diff !== 0) return diff;
+      const byScore = priorityValue(b) - priorityValue(a);
+      if (byScore !== 0) return byScore;
       const sa = pipelineLabels().stageOrder?.(a.pipelineStage) ?? 0;
       const sb = pipelineLabels().stageOrder?.(b.pipelineStage) ?? 0;
       if (sa !== sb) return sb - sa;
-      if (a.excluded !== b.excluded) return a.excluded ? 1 : -1;
-      const byScore = priorityValue(b) - priorityValue(a);
-      if (byScore !== 0) return byScore;
       return displayName(a).localeCompare(displayName(b), "ko");
     }
 
     if (mode === "recent") {
-      const byRecent = new Date(displayCollectedAt(b) || 0) - new Date(displayCollectedAt(a) || 0);
-      if (byRecent !== 0) return byRecent;
-      return displayName(a).localeCompare(displayName(b), "ko");
-    }
-
-    if (mode === "new") {
-      const aNew = rowIsNew(a) ? 1 : 0;
-      const bNew = rowIsNew(b) ? 1 : 0;
-      if (aNew !== bNew) return bNew - aNew;
-      const byFirst = new Date(displayCollectedAt(b) || 0) - new Date(displayCollectedAt(a) || 0);
+      const byLast = new Date(b.lastCollectedAt || 0) - new Date(a.lastCollectedAt || 0);
+      if (byLast !== 0) return byLast;
+      const byFirst = new Date(b.firstCollectedAt || 0) - new Date(a.firstCollectedAt || 0);
       if (byFirst !== 0) return byFirst;
       return displayName(a).localeCompare(displayName(b), "ko");
     }
 
-    if (mode === "grade") {
-      const gradeOrder = { A: 3, B: 2, C: 1 };
-      const diff = (gradeOrder[b.leadGrade] ?? 0) - (gradeOrder[a.leadGrade] ?? 0);
-      if (diff !== 0) return diff;
-      return priorityValue(b) - priorityValue(a);
+    if (mode === "new") {
+      const byFirst = new Date(b.firstCollectedAt || 0) - new Date(a.firstCollectedAt || 0);
+      if (byFirst !== 0) return byFirst;
+      const byLast = new Date(b.lastCollectedAt || 0) - new Date(a.lastCollectedAt || 0);
+      if (byLast !== 0) return byLast;
+      return displayName(a).localeCompare(displayName(b), "ko");
     }
 
     if (mode === "name") {
@@ -4116,6 +4134,7 @@ function switchTab(tabId, { resetFilters: shouldReset = false } = {}) {
   const tabular = tabId === "recommended" || tabId === "new" || tabId === "in_progress";
   toolbar?.classList.toggle("toolbar-candidates", tabular);
   if (tabular && state.filtersOpen) toggleFilterAdvanced(false);
+  updateSortOptionsForTab(tabId);
   refreshViews();
 }
 
@@ -4130,6 +4149,7 @@ function bindTabs() {
 function refreshViews() {
   window.__TCLIENT_ROWS = state.rows;
   window.__TCLIENT_ACTIVE_TAB = state.activeTab;
+  updateSortOptionsForTab();
   paintMetaBanner();
   renderKpi();
   window.TDetailPanel?.renderTabPanels?.(state.activeTab);
