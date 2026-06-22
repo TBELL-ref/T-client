@@ -32,7 +32,10 @@
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      throw new Error(`Supabase ${fn} 실패 (${res.status}). ${detail}`);
+      const err = new Error(`Supabase ${fn} 실패 (${res.status}). ${detail}`);
+      err.status = res.status;
+      err.detail = detail;
+      throw err;
     }
     const text = await res.text();
     if (!text) return null;
@@ -83,6 +86,35 @@
     });
   }
 
+  function isMissingRpcError(err) {
+    const text = `${err?.detail ?? err?.message ?? ""}`;
+    return err?.status === 404 || /PGRST202|Could not find the function/i.test(text);
+  }
+
+  async function getSyncJobStatus(jobName) {
+    const idle = { status: "idle" };
+    const legacyFn =
+      jobName === "notion_push"
+        ? "get_notion_push_status"
+        : jobName === "notion_sync"
+          ? "get_notion_sync_status"
+          : null;
+
+    try {
+      return (await rpc("get_sync_job_status", { p_job_name: jobName })) ?? idle;
+    } catch (err) {
+      if (!isMissingRpcError(err)) throw err;
+      if (legacyFn) {
+        try {
+          return (await rpc(legacyFn)) ?? idle;
+        } catch (legacyErr) {
+          if (!isMissingRpcError(legacyErr)) throw legacyErr;
+        }
+      }
+      return idle;
+    }
+  }
+
   window.TSupabase = {
     getPublishedSnapshot: () => rpc("get_published_snapshot"),
     getLeadDashboard: () => rpc("get_lead_dashboard"),
@@ -93,8 +125,9 @@
     getConfigKeywords: () => rpc("get_config_keywords"),
     checkEmailAllowed: (email) => rpc("check_email_allowed", { addr: email }),
     getCrawlStatus: () => rpc("get_crawl_status"),
-    getNotionSyncStatus: () => rpc("get_notion_sync_status"),
-    getNotionPushStatus: () => rpc("get_notion_push_status"),
+    getNotionSyncStatus: () => getSyncJobStatus("notion_sync"),
+    getNotionPushStatus: () => getSyncJobStatus("notion_push"),
+    getSyncJobStatus,
     requestCrawl: () => rpc("request_crawl", {}, { auth: true }),
     saveOverrides: (doc) => rpc("save_overrides_doc", { doc }, { auth: true }),
     upsertCompanyEdit: (companyId, patch) =>
