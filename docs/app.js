@@ -378,6 +378,40 @@ function sortByNotionPriority(rows) {
 
 const NOTION_REORDER_TABS = new Set(["recommended", "in_progress"]);
 
+const TAB_DEFAULT_SORT = {
+  in_progress: "notion",
+  recommended: "notion",
+  new: "new",
+  leads: "recent",
+  posts: "recent",
+  excluded: "score"
+};
+
+function defaultSortForTab(tab = state.activeTab) {
+  return TAB_DEFAULT_SORT[tab] ?? "score";
+}
+
+function applySortForTab(tab = state.activeTab, { forceDefault = false } = {}) {
+  const sortEl = byId("sort");
+  if (!sortEl) return;
+  const onCuratedTab = NOTION_REORDER_TABS.has(tab);
+  sortEl.querySelectorAll("option").forEach((opt) => {
+    if (opt.value === "notion") {
+      opt.hidden = !onCuratedTab;
+      opt.disabled = !onCuratedTab;
+    }
+  });
+  if (sortEl.value === "priority" || sortEl.value === "grade") sortEl.value = "score";
+  if (forceDefault || (!onCuratedTab && sortEl.value === "notion")) {
+    sortEl.value = defaultSortForTab(tab);
+  }
+  syncCustomSelects();
+}
+
+function updateSortOptionsForTab(tab = state.activeTab) {
+  applySortForTab(tab, { forceDefault: false });
+}
+
 function isNotionReorderTab(tab = state.activeTab) {
   return NOTION_REORDER_TABS.has(tab);
 }
@@ -2079,21 +2113,6 @@ function syncCustomSelects() {
   });
 }
 
-function updateSortOptionsForTab(tab = state.activeTab) {
-  const sortEl = byId("sort");
-  if (!sortEl) return;
-  const onCuratedTab = NOTION_REORDER_TABS.has(tab);
-  sortEl.querySelectorAll("option").forEach((opt) => {
-    if (opt.value === "notion") {
-      opt.hidden = !onCuratedTab;
-      opt.disabled = !onCuratedTab;
-    }
-  });
-  if (sortEl.value === "priority" || sortEl.value === "grade") sortEl.value = "score";
-  if (!onCuratedTab && sortEl.value === "notion") sortEl.value = "score";
-  syncCustomSelects();
-}
-
 function toggleFilterAdvanced(force) {
   const panel = byId("filterAdvanced");
   const btn = byId("filterToggleBtn");
@@ -2122,9 +2141,7 @@ function resetTabFilters() {
 
 function resetFilters() {
   resetTabFilters();
-  const sortEl = byId("sort");
-  if (sortEl) sortEl.value = NOTION_REORDER_TABS.has(state.activeTab) ? "notion" : "score";
-  updateSortOptionsForTab();
+  applySortForTab(state.activeTab, { forceDefault: true });
   refreshViews();
 }
 
@@ -4119,6 +4136,7 @@ function switchTab(tabId, { resetFilters: shouldReset = false } = {}) {
   if (!tabIds.includes(tabId)) return;
   if (isNotionReorderActive() && tabId !== state.notionReorder?.tab) cancelNotionReorder();
   if (shouldReset) resetTabFilters();
+  applySortForTab(tabId, { forceDefault: shouldReset });
   document.querySelectorAll(".tabs-bar .tab").forEach((b) => {
     b.classList.toggle("active", b.dataset.tab === tabId);
   });
@@ -4134,7 +4152,6 @@ function switchTab(tabId, { resetFilters: shouldReset = false } = {}) {
   const tabular = tabId === "recommended" || tabId === "new" || tabId === "in_progress";
   toolbar?.classList.toggle("toolbar-candidates", tabular);
   if (tabular && state.filtersOpen) toggleFilterAdvanced(false);
-  updateSortOptionsForTab(tabId);
   refreshViews();
 }
 
@@ -4890,11 +4907,13 @@ async function boot() {
     byId("filterResetBtn")?.addEventListener("click", resetFilters);
     document.querySelector(".toolbar")?.classList.toggle("toolbar-candidates", ["new", "recommended", "in_progress"].includes(state.activeTab));
     const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
-    if (tabFromUrl && byId(tabFromUrl)) {
-      switchTab(tabFromUrl, { resetFilters: false });
-    }
     window.TUiSelect?.init();
-    refreshViews();
+    if (tabFromUrl && byId(tabFromUrl)) {
+      switchTab(tabFromUrl, { resetFilters: true });
+    } else {
+      applySortForTab(state.activeTab, { forceDefault: true });
+      refreshViews();
+    }
     updateNotionReorderUi();
   } catch (err) {
     byId("meta").textContent = "로드 실패";
