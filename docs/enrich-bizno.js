@@ -18,6 +18,12 @@
     return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
   }
 
+  function formatBizNoDisplay(bizNo) {
+    const digits = `${bizNo ?? ""}`.replace(/\D/g, "");
+    if (digits.length === 10) return formatBizNo(digits);
+    return `${bizNo ?? ""}`.trim();
+  }
+
   function cleanCellValue(value) {
     return `${value ?? ""}`
       .replace(/※.*$/, "")
@@ -195,7 +201,7 @@
   function profileToUi(p) {
     return {
       companyNameLegal: p.company_name_legal ?? "",
-      bizNo: p.biz_no ?? "",
+      bizNo: formatBizNoDisplay(p.biz_no ?? ""),
       bizType: p.biz_type ?? "",
       bizItem: p.biz_item ?? "",
       companyScale: p.company_scale ?? "",
@@ -212,6 +218,7 @@
     fetchProfileByBizNo,
     normalizeBizNoDigits,
     formatBizNo,
+    formatBizNoDisplay,
     profileToUi
   };
 })();

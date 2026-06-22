@@ -898,7 +898,7 @@ function renderProfileEnrichStrip(p, admin) {
         <div class="inline-row bizno-fetch-line">
           <span class="inline-label">사업자번호</span>
           <div class="bizno-fetch-controls">
-            ${inlineInput("edit-prof-bizno", p.bizNo ?? "", "text", "000-00-00000")}
+            ${inlineInput("edit-prof-bizno", formatBizNoDisplay(p.bizNo ?? ""), "text", "000-00-00000")}
             <button type="button" class="btn-primary btn-sm" id="btn-enrich-bizno">정보 자동 수집</button>
           </div>
         </div>
@@ -912,7 +912,7 @@ function renderProfileSection(row, sectionEdit = false, p = {}, domain = "", adm
     ["서비스 주소", "edit-prof-service-url", p.serviceUrl || p.service_url],
     ["도메인", "edit-prof-domain", domain],
     ["법인명", "edit-prof-legal", p.companyNameLegal],
-    ["사업자번호", "edit-prof-bizno", p.bizNo],
+    ["사업자번호", "edit-prof-bizno", formatBizNoDisplay(p.bizNo)],
     ["업태", "edit-prof-type", p.bizType],
     ["종목", "edit-prof-item", p.bizItem],
     ["기업규모", "edit-prof-scale", p.companyScale],
@@ -1351,7 +1351,7 @@ async function saveDetailSection(row, section) {
         serviceName: byId("edit-prof-service")?.value.trim(),
         serviceUrl: byId("edit-prof-service-url")?.value.trim(),
         companyNameLegal: byId("edit-prof-legal")?.value.trim(),
-        bizNo: byId("edit-prof-bizno")?.value.trim(),
+        bizNo: formatBizNoDisplay(byId("edit-prof-bizno")?.value.trim()),
         bizType: byId("edit-prof-type")?.value.trim(),
         bizItem: byId("edit-prof-item")?.value.trim(),
         companyScale: byId("edit-prof-scale")?.value.trim(),
@@ -1661,7 +1661,8 @@ function reloadRowsWithAdmin() {
       ...row,
       isNewFromLastCrawl: state.newCompanyIds.has(row.companyId)
     });
-    return window.TClientAdmin ? window.TClientAdmin.applyToRow(enriched) : enriched;
+    const applied = window.TClientAdmin ? window.TClientAdmin.applyToRow(enriched) : enriched;
+    return withFormattedProfileBizNo(applied);
   });
   state.rows = refreshManualScores(state.rows);
 }
@@ -1721,6 +1722,20 @@ function normalizeBizNoDigits(bizNo) {
   return `${bizNo ?? ""}`.replace(/\D/g, "");
 }
 
+function formatBizNoDisplay(bizNo) {
+  if (window.TEnrichBizno?.formatBizNoDisplay) return window.TEnrichBizno.formatBizNoDisplay(bizNo);
+  const digits = normalizeBizNoDigits(bizNo);
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+  return `${bizNo ?? ""}`.trim();
+}
+
+function withFormattedProfileBizNo(row) {
+  if (!row?.profile?.bizNo) return row;
+  const formatted = formatBizNoDisplay(row.profile.bizNo);
+  if (formatted === row.profile.bizNo) return row;
+  return { ...row, profile: { ...row.profile, bizNo: formatted } };
+}
+
 function normalizeCompanyNameKey(name) {
   return `${name ?? ""}`
     .toLowerCase()
@@ -1743,7 +1758,7 @@ function profilePatchFromEnrich(p) {
   if (!p) return null;
   return {
     companyNameLegal: p.companyNameLegal ?? "",
-    bizNo: p.bizNo ?? "",
+    bizNo: formatBizNoDisplay(p.bizNo ?? ""),
     bizType: p.bizType ?? "",
     bizItem: p.bizItem ?? "",
     companyScale: p.companyScale ?? "",
@@ -1848,7 +1863,10 @@ function postUrlExists(url) {
 }
 
 function attachBizNoToCompany(companyId, bizNo, enrichProfile = null) {
-  const patch = { profile: { ...(enrichProfile ?? {}), bizNo: bizNo || enrichProfile?.bizNo || "" } };
+  const formatted = formatBizNoDisplay(bizNo || enrichProfile?.bizNo || "");
+  const patch = {
+    profile: { ...(enrichProfile ?? {}), ...(formatted ? { bizNo: formatted } : {}) }
+  };
   window.TClientAdmin.setEntry(companyId, patch);
   if (enrichProfile?.companyNameLegal) {
     window.TClientAdmin.setEntry(companyId, { companyNameKo: enrichProfile.companyNameLegal });
@@ -2024,7 +2042,7 @@ function buildManualCompanyRow({ companyNameKo, domain = "", bizNo = "", profile
     companyTierLabel: "-",
     domain: domainClean,
     domainVerified: Boolean(domainClean),
-    profile: profile ?? (bizNo ? { bizNo: `${bizNo}`.trim() } : {}),
+    profile: profile ?? (bizNo ? { bizNo: formatBizNoDisplay(bizNo) } : {}),
     profileComplete: Boolean(profile?.bizItem || profile?.bizNo || profile?.homepage || bizNo),
     lastCollectedAt: now,
     leadGrade: "C",
@@ -3987,6 +4005,10 @@ function bindAddLeadModal() {
   byId("btnAddLead")?.addEventListener("click", openAddLeadModal);
   byId("add-lead-submit")?.addEventListener("click", submitAddLead);
   byId("add-lead-post-url")?.addEventListener("input", syncAddLeadNoPostHint);
+  byId("add-lead-bizno")?.addEventListener("blur", (e) => {
+    const formatted = formatBizNoDisplay(e.target.value.trim());
+    if (formatted) e.target.value = formatted;
+  });
   modal.querySelectorAll("[data-close-add]").forEach((el) => {
     el.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -4013,6 +4035,15 @@ function bindModal() {
     if (!btn || !state.detailRow || !window.TClientAdmin?.isUnlocked()) return;
     deletePostFromCompany(state.detailRow, btn.dataset.postUrl, btn.dataset.postManual === "1");
   });
+  byId("detailBody")?.addEventListener(
+    "blur",
+    (e) => {
+      if (e.target?.id !== "edit-prof-bizno") return;
+      const formatted = formatBizNoDisplay(e.target.value.trim());
+      if (formatted) e.target.value = formatted;
+    },
+    true
+  );
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (isMergeModalOpen()) {
