@@ -5185,53 +5185,11 @@ function bindNotionSyncModal() {
 }
 
 const USER_MANUAL_PDF = "assets/t-client-user-manual.pdf";
-const USER_MANUAL_FILENAME = "T-Client 사용자 매뉴얼.pdf";
-
-function openManualModal() {
-  closeAdminPopover();
-  const modal = byId("manualModal");
-  modal?.classList.remove("hidden");
-  modal?.setAttribute("aria-hidden", "false");
-  hydrateIcons(modal);
-}
-
-function closeManualModal() {
-  const modal = byId("manualModal");
-  modal?.classList.add("hidden");
-  modal?.setAttribute("aria-hidden", "true");
-}
-
-function viewUserManual() {
-  window.open(USER_MANUAL_PDF, "_blank", "noopener,noreferrer");
-  closeManualModal();
-}
-
-function downloadUserManual() {
-  const link = document.createElement("a");
-  link.href = USER_MANUAL_PDF;
-  link.download = USER_MANUAL_FILENAME;
-  link.rel = "noopener";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  closeManualModal();
-}
 
 function bindManualModal() {
   byId("adminManualDownloadBtn")?.addEventListener("click", () => {
-    openManualModal();
-  });
-
-  document.querySelectorAll("[data-close-manual]").forEach((el) => {
-    el.addEventListener("click", () => closeManualModal());
-  });
-
-  byId("manualViewBtn")?.addEventListener("click", () => {
-    viewUserManual();
-  });
-
-  byId("manualDownloadBtn")?.addEventListener("click", () => {
-    downloadUserManual();
+    closeAdminPopover();
+    window.open(USER_MANUAL_PDF, "_blank", "noopener,noreferrer");
   });
 }
 
