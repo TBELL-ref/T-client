@@ -18,6 +18,9 @@ const state = {
   contactEditIndex: null,
   contactAddOpen: false,
   mergeSourceRow: null,
+  detailBusy: false,
+  mergeBusy: false,
+  addLeadBusy: false,
   notionReorder: null,
   filtersOpen: false,
   tableSort: { column: "priorityScore", direction: "desc" },
@@ -1549,6 +1552,43 @@ function setDetailLoading(show, text = "처리 중…") {
   byId("detailDrawer")?.classList.toggle("drawer-busy", show);
 }
 
+async function withDetailBusy(text, fn) {
+  if (state.detailBusy) return;
+  state.detailBusy = true;
+  setDetailLoading(true, text);
+  try {
+    return await fn();
+  } finally {
+    state.detailBusy = false;
+    setDetailLoading(false);
+  }
+}
+
+async function withButtonBusy(btn, busyLabel, fn) {
+  if (!btn || btn.disabled) return;
+  const prevText = btn.textContent;
+  btn.disabled = true;
+  if (busyLabel) btn.textContent = busyLabel;
+  try {
+    return await fn();
+  } finally {
+    btn.disabled = false;
+    if (busyLabel && prevText != null) btn.textContent = prevText;
+  }
+}
+
+function setMergeLoading(show, text = "병합 중…") {
+  const panel = byId("mergeModal")?.querySelector(".modal-panel");
+  const layer = byId("mergeLoading");
+  const label = byId("mergeLoadingText");
+  if (!layer) return;
+  if (label) label.textContent = text;
+  layer.classList.toggle("hidden", !show);
+  layer.setAttribute("aria-hidden", show ? "false" : "true");
+  panel?.classList.toggle("modal-busy", show);
+  state.mergeBusy = show;
+}
+
 function finishDetailSave(companyId, { toastMessage = "정상 저장되었습니다.", exitSection = null } = {}) {
   if (exitSection) setSectionEdit(exitSection, false);
   reloadRowsWithAdmin();
@@ -1662,59 +1702,61 @@ async function runEnrichBizNo(row) {
     return;
   }
 
-  if (btn) btn.disabled = true;
-  setDetailLoading(true, "회사 정보를 수집하고 있습니다…");
+  if (state.detailBusy) return;
 
-  try {
-    setEnrichBiznoStatus("서버에서 bizno.net 조회 중 (GitHub Actions)…");
-    const waited = await waitForServerEnrich(row, bizNo, digits);
-    if (waited.ok) {
-      await applyEnrichedProfile(row, waited.profile);
-      return;
+  await withDetailBusy("회사 정보를 수집하고 있습니다…", async () => {
+    if (btn) btn.disabled = true;
+    try {
+      setEnrichBiznoStatus("서버에서 bizno.net 조회 중 (GitHub Actions)…");
+      const waited = await waitForServerEnrich(row, bizNo, digits);
+      if (waited.ok) {
+        await applyEnrichedProfile(row, waited.profile);
+        return;
+      }
+
+      setEnrichBiznoStatus("서버 조회 실패 — 브라우저로 재시도…");
+      const browserResult = await window.TEnrichBizno.fetchProfileByBizNo(bizNo, { maxMs: 12000 });
+      if (browserResult.ok) {
+        await applyEnrichedProfile(row, browserResult.profile);
+        return;
+      }
+
+      setEnrichBiznoStatus(
+        browserResult.message || "bizno.net에서 정보를 찾지 못했습니다. 번호를 확인하세요.",
+        true
+      );
+      showToast("사업자 정보 수집에 실패했습니다.", "error");
+    } catch (err) {
+      setEnrichBiznoStatus(err.message || "수집 오류", true);
+      showToast(err.message || "수집 오류", "error");
+    } finally {
+      if (btn) btn.disabled = false;
     }
-
-    setEnrichBiznoStatus("서버 조회 실패 — 브라우저로 재시도…");
-    const browserResult = await window.TEnrichBizno.fetchProfileByBizNo(bizNo, { maxMs: 12000 });
-    if (browserResult.ok) {
-      await applyEnrichedProfile(row, browserResult.profile);
-      return;
-    }
-
-    setEnrichBiznoStatus(
-      browserResult.message || "bizno.net에서 정보를 찾지 못했습니다. 번호를 확인하세요.",
-      true
-    );
-    showToast("사업자 정보 수집에 실패했습니다.", "error");
-  } catch (err) {
-    setEnrichBiznoStatus(err.message || "수집 오류", true);
-    showToast(err.message || "수집 오류", "error");
-  } finally {
-    setDetailLoading(false);
-    if (btn) btn.disabled = false;
-  }
+  });
 }
 
 async function runRecalcScore(row) {
-  if (!window.TClientAdmin?.recalculateCompanyScore) return;
+  if (!window.TClientAdmin?.recalculateCompanyScore || state.detailBusy) return;
   const btn = byId("btn-recalc-score");
-  if (btn) btn.disabled = true;
-  setDetailLoading(true, "점수를 재집계합니다…");
-  try {
-    const fresh = state.rows.find((r) => r.companyId === row.companyId) ?? row;
-    const result = window.TClientAdmin.recalculateCompanyScore(fresh);
-    finishDetailSave(row.companyId, {
-      toastMessage: `점수 재집계 완료 (${result.score}점 · ${result.grade}등급)`,
-      exitSection: null
-    });
-  } catch (err) {
-    showToast(err.message || "재집계 실패", "error");
-  } finally {
-    setDetailLoading(false);
-    if (btn) btn.disabled = false;
-  }
+  await withDetailBusy("점수를 재집계합니다…", async () => {
+    if (btn) btn.disabled = true;
+    try {
+      const fresh = state.rows.find((r) => r.companyId === row.companyId) ?? row;
+      const result = window.TClientAdmin.recalculateCompanyScore(fresh);
+      finishDetailSave(row.companyId, {
+        toastMessage: `점수 재집계 완료 (${result.score}점 · ${result.grade}등급)`,
+        exitSection: null
+      });
+    } catch (err) {
+      showToast(err.message || "재집계 실패", "error");
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
 }
 
 async function saveDetailSection(row, section) {
+  return withDetailBusy("저장 중…", async () => {
   const cid = row.companyId;
   const pool = document.querySelector('input[name="edit-pool-class"]:checked')?.value ?? "normal";
   const prevSm = window.TSalesManagement?.get(cid) ?? {};
@@ -1840,6 +1882,7 @@ async function saveDetailSection(row, section) {
     await persistCompany(overridePatch);
     return;
   }
+  });
 }
 
 function bindDetailHeaderEdits() {
@@ -1929,9 +1972,11 @@ function bindDetailSectionEdits() {
         list[idx] = updated;
       }
       try {
-        await persistContactsPatch(row, list);
-        state.contactEditIndex = null;
-        state.contactAddOpen = false;
+        await withDetailBusy("담당자 저장 중…", async () => {
+          await persistContactsPatch(row, list);
+          state.contactEditIndex = null;
+          state.contactAddOpen = false;
+        });
         showToast("담당자 정보가 저장되었습니다.");
       } catch (err) {
         showToast(err.message || "담당자 저장 실패", "error");
@@ -1955,8 +2000,10 @@ function bindDetailSectionEdits() {
       if (idx < 0 || idx >= list.length) return;
       list.splice(idx, 1);
       try {
-        await persistContactsPatch(row, list);
-        if (state.contactEditIndex === idx) state.contactEditIndex = null;
+        await withDetailBusy("담당자 삭제 중…", async () => {
+          await persistContactsPatch(row, list);
+          if (state.contactEditIndex === idx) state.contactEditIndex = null;
+        });
         showToast("담당자가 삭제되었습니다.");
       } catch (err) {
         showToast(err.message || "담당자 삭제 실패", "error");
@@ -2006,8 +2053,10 @@ function bindDetailSectionEdits() {
     if (fileDelBtn && isSectionEdit("progress")) {
       e.preventDefault();
       try {
-        await window.TCompanyFiles.remove(fileDelBtn.dataset.fileId, row.companyId, fileDelBtn.dataset.storagePath || "");
-        void hydrateDetailExtras(row);
+        await withDetailBusy("파일 삭제 중…", async () => {
+          await window.TCompanyFiles.remove(fileDelBtn.dataset.fileId, row.companyId, fileDelBtn.dataset.storagePath || "");
+          await hydrateDetailExtras(row);
+        });
       } catch (err) {
         showToast(err.message || "파일 삭제 실패", "error");
       }
@@ -2023,15 +2072,17 @@ function bindDetailSectionEdits() {
         return;
       }
       try {
-        await window.TCompanyFiles.uploadFile(row.companyId, file, {
-          title: byId("edit-file-title")?.value.trim() || file.name
+        await withDetailBusy("파일 업로드 중…", async () => {
+          await window.TCompanyFiles.uploadFile(row.companyId, file, {
+            title: byId("edit-file-title")?.value.trim() || file.name
+          });
+          if (fileInput) fileInput.value = "";
+          const fileNameEl = byId("edit-file-name");
+          if (fileNameEl) fileNameEl.textContent = "없음";
+          const titleEl = byId("edit-file-title");
+          if (titleEl) titleEl.value = "";
+          await hydrateDetailExtras(row);
         });
-        if (fileInput) fileInput.value = "";
-        const fileNameEl = byId("edit-file-name");
-        if (fileNameEl) fileNameEl.textContent = "없음";
-        const titleEl = byId("edit-file-title");
-        if (titleEl) titleEl.value = "";
-        void hydrateDetailExtras(row);
         showToast("파일이 업로드되었습니다.");
       } catch (err) {
         showToast(err.message || "파일 업로드 실패", "error");
@@ -2070,9 +2121,11 @@ function bindDetailSectionEdits() {
       const patch = readMeetingCard(card);
       if (!patch?.id) return;
       try {
-        await window.TMeetingNotes.upsert(row.companyId, patch);
-        state.meetingEditId = null;
-        void hydrateDetailExtras(row);
+        await withDetailBusy("미팅 저장 중…", async () => {
+          await window.TMeetingNotes.upsert(row.companyId, patch);
+          state.meetingEditId = null;
+          await hydrateDetailExtras(row);
+        });
         showToast("미팅이 저장되었습니다.");
       } catch (err) {
         showToast(err.message || "미팅 저장 실패", "error");
@@ -2100,9 +2153,11 @@ function bindDetailSectionEdits() {
     if (meetingDelBtn && window.TClientAdmin?.isUnlocked?.()) {
       e.preventDefault();
       try {
-        await window.TMeetingNotes.remove(meetingDelBtn.dataset.noteId, row.companyId);
-        if (state.meetingEditId === meetingDelBtn.dataset.noteId) state.meetingEditId = null;
-        void hydrateDetailExtras(row);
+        await withDetailBusy("미팅 삭제 중…", async () => {
+          await window.TMeetingNotes.remove(meetingDelBtn.dataset.noteId, row.companyId);
+          if (state.meetingEditId === meetingDelBtn.dataset.noteId) state.meetingEditId = null;
+          await hydrateDetailExtras(row);
+        });
         showToast("미팅이 삭제되었습니다.");
       } catch (err) {
         showToast(err.message || "미팅 삭제 실패", "error");
@@ -2115,21 +2170,23 @@ function bindDetailSectionEdits() {
       const addRow = document.querySelector(".meeting-add-row");
       const schedule = readMeetingSchedule(addRow);
       try {
-        await window.TMeetingNotes.upsert(row.companyId, {
-          meetingAt: schedule.meetingAt,
-          durationHours: schedule.durationHours,
-          location: byId("edit-meeting-location")?.value.trim(),
-          attendees: byId("edit-meeting-attendees")?.value.trim(),
-          summary: byId("edit-meeting-summary")?.value.trim(),
-          nextAction: byId("edit-meeting-next")?.value.trim()
+        await withDetailBusy("미팅 추가 중…", async () => {
+          await window.TMeetingNotes.upsert(row.companyId, {
+            meetingAt: schedule.meetingAt,
+            durationHours: schedule.durationHours,
+            location: byId("edit-meeting-location")?.value.trim(),
+            attendees: byId("edit-meeting-attendees")?.value.trim(),
+            summary: byId("edit-meeting-summary")?.value.trim(),
+            nextAction: byId("edit-meeting-next")?.value.trim()
+          });
+          addRow?.querySelectorAll("input, select, textarea").forEach((el) => {
+            if (el.tagName === "SELECT") el.selectedIndex = 0;
+            else el.value = "";
+          });
+          await hydrateDetailExtras(row);
+          state.meetingAddOpen = false;
+          refreshMeetingsPanel(row);
         });
-        addRow?.querySelectorAll("input, select, textarea").forEach((el) => {
-          if (el.tagName === "SELECT") el.selectedIndex = 0;
-          else el.value = "";
-        });
-        void hydrateDetailExtras(row);
-        state.meetingAddOpen = false;
-        refreshMeetingsPanel(row);
         showToast("미팅 기록이 추가되었습니다.");
       } catch (err) {
         showToast(err.message || "미팅 저장 실패", "error");
@@ -4039,6 +4096,7 @@ async function openDetail(row, sectionToEdit = null) {
 }
 
 function closeDetail() {
+  if (state.detailBusy) return;
   state.detailRow = null;
   clearSectionEdits();
   clearMeetingUiState();
@@ -4316,7 +4374,7 @@ function deleteCompany(row) {
 }
 
 async function deleteCompanyAsync(row) {
-  if (!row?.companyId || !window.TClientAdmin?.isUnlocked()) return;
+  if (!row?.companyId || !window.TClientAdmin?.isUnlocked() || state.detailBusy) return;
 
   const admin = window.TClientAdmin;
   const name = displayName(row);
@@ -4324,22 +4382,24 @@ async function deleteCompanyAsync(row) {
   if (!window.confirm(`「${name}」 회사를 DB에서 완전히 삭제할까요?\n삭제 후에는 복구할 수 없습니다.`)) return;
 
   try {
-    const companyId = row.companyId;
-    await admin.markCompanyDeleted(companyId);
-    if (window.TCompanies?.isManualCompanyId?.(companyId)) {
+    await withDetailBusy("삭제 중…", async () => {
+      const companyId = row.companyId;
+      await admin.markCompanyDeleted(companyId);
+      if (window.TCompanies?.isManualCompanyId?.(companyId)) {
+        try {
+          await window.TCompanies.deleteManual(companyId);
+        } catch (err) {
+          if (!/not found/i.test(`${err.message ?? ""}`)) throw err;
+        }
+      }
       try {
-        await window.TCompanies.deleteManual(companyId);
+        await window.TCompanies.deleteCompany(companyId);
       } catch (err) {
         if (!/not found/i.test(`${err.message ?? ""}`)) throw err;
       }
-    }
-    try {
-      await window.TCompanies.deleteCompany(companyId);
-    } catch (err) {
-      if (!/not found/i.test(`${err.message ?? ""}`)) throw err;
-    }
-    window.TSalesManagement?.removeLocal?.(companyId);
-    await admin.flushPersist?.();
+      window.TSalesManagement?.removeLocal?.(companyId);
+      await admin.flushPersist?.();
+    });
   } catch (err) {
     showToast(err.message || "삭제 실패", "error");
     return;
@@ -4353,7 +4413,7 @@ async function deleteCompanyAsync(row) {
 }
 
 async function deletePostFromCompany(row, postUrl, isManualPost) {
-  if (!row?.companyId || !postUrl || !window.TClientAdmin?.isUnlocked()) return;
+  if (!row?.companyId || !postUrl || !window.TClientAdmin?.isUnlocked() || state.detailBusy) return;
 
   const admin = window.TClientAdmin;
   const companyName = displayName(row);
@@ -4362,23 +4422,25 @@ async function deletePostFromCompany(row, postUrl, isManualPost) {
   if (!window.confirm(`「${companyName}」 공고를 삭제할까요?`)) return;
 
   try {
-    admin.markPostDeleted(row.companyId, postUrl);
-    if (isManualPost) admin.removeManualPost(row.companyId, postUrl);
-    try {
-      await window.TCompanies.deleteJobPost(row.companyId, { url: postUrl, jobPostId: post?.id ?? "" });
-    } catch (err) {
-      if (!/not found/i.test(`${err.message ?? ""}`)) throw err;
-    }
-    await admin.flushPersist?.();
-    reloadRowsWithAdmin();
-    const updated = state.rows.find((r) => r.companyId === row.companyId);
-    if (updated && state.detailRow?.companyId === row.companyId) {
-      state.detailRow = updated;
-      paintDetailModal();
-    } else if (!updated) {
-      closeDetail();
-    }
-    refreshViews();
+    await withDetailBusy("공고 삭제 중…", async () => {
+      admin.markPostDeleted(row.companyId, postUrl);
+      if (isManualPost) admin.removeManualPost(row.companyId, postUrl);
+      try {
+        await window.TCompanies.deleteJobPost(row.companyId, { url: postUrl, jobPostId: post?.id ?? "" });
+      } catch (err) {
+        if (!/not found/i.test(`${err.message ?? ""}`)) throw err;
+      }
+      await admin.flushPersist?.();
+      reloadRowsWithAdmin();
+      const updated = state.rows.find((r) => r.companyId === row.companyId);
+      if (updated && state.detailRow?.companyId === row.companyId) {
+        state.detailRow = updated;
+        paintDetailModal();
+      } else if (!updated) {
+        closeDetail();
+      }
+      refreshViews();
+    });
     showToast("공고가 삭제되었습니다.");
   } catch (err) {
     showToast(err.message || "삭제 실패", "error");
@@ -4416,6 +4478,7 @@ function openMergeModal(row) {
 }
 
 function closeMergeModal() {
+  if (state.mergeBusy) return;
   const modal = byId("mergeModal");
   modal?.classList.add("hidden");
   modal?.setAttribute("aria-hidden", "true");
@@ -4461,6 +4524,7 @@ function confirmMergeToTarget(targetId) {
 }
 
 async function confirmMergeToTargetAsync(targetId) {
+  if (state.mergeBusy) return;
   const sourceRow = state.mergeSourceRow;
   const sourceId = sourceRow?.companyId;
   const targetRow = state.rows.find((r) => r.companyId === targetId);
@@ -4478,6 +4542,7 @@ async function confirmMergeToTargetAsync(targetId) {
     return;
   }
 
+  setMergeLoading(true, "병합 저장 중…");
   try {
     const targetEntry = window.TClientAdmin.getEntry(targetId);
     if (window.TSalesManagement?.mergeFromCompanies) {
@@ -4487,6 +4552,8 @@ async function confirmMergeToTargetAsync(targetId) {
   } catch (err) {
     showToast(err.message || "병합 저장 실패", "error");
     return;
+  } finally {
+    setMergeLoading(false);
   }
 
   closeMergeModal();
@@ -4516,6 +4583,7 @@ function bindMergeModal() {
   });
 
   byId("mergeResults")?.addEventListener("click", (e) => {
+    if (state.mergeBusy) return;
     const btn = e.target?.closest?.(".merge-pick-row");
     if (!btn?.dataset.mergeTarget) return;
     confirmMergeToTarget(btn.dataset.mergeTarget);
@@ -4582,11 +4650,11 @@ function bindModal() {
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (isMergeModalOpen()) {
-      closeMergeModal();
+      if (!state.mergeBusy) closeMergeModal();
       return;
     }
     const drawer = byId("detailDrawer");
-    if (drawer && !drawer.classList.contains("hidden")) closeDetail();
+    if (drawer && !drawer.classList.contains("hidden") && !state.detailBusy) closeDetail();
   });
 }
 
@@ -5301,55 +5369,64 @@ function bindAdmin() {
   });
 
   byId("adminLoginBtn")?.addEventListener("click", async () => {
+    const btn = byId("adminLoginBtn");
     const email = byId("adminEmail")?.value ?? "";
     const password = byId("adminPassword")?.value ?? "";
-    try {
-      await window.TClientAdmin.signIn(email, password);
-      setAdminUi(true);
-      setAdminStatus("");
-      closeAdminPopover();
-      reloadRowsWithAdmin();
-      showToast("로그인되었습니다.");
-      refreshViews();
-    } catch (err) {
-      showToast(err.message || String(err), "error");
-    }
+    await withButtonBusy(btn, "로그인 중…", async () => {
+      try {
+        await window.TClientAdmin.signIn(email, password);
+        setAdminUi(true);
+        setAdminStatus("");
+        closeAdminPopover();
+        reloadRowsWithAdmin();
+        showToast("로그인되었습니다.");
+        refreshViews();
+      } catch (err) {
+        showToast(err.message || String(err), "error");
+      }
+    });
   });
 
   byId("adminSetupEmailBtn")?.addEventListener("click", async () => {
+    const btn = byId("adminSetupEmailBtn");
     const email = byId("adminEmail")?.value ?? "";
     if (!`${email}`.trim()) {
       showToast("이메일을 입력하세요.", "error");
       return;
     }
-    try {
-      await window.TClientAdmin.sendPasswordSetupEmail(email);
-      showToast("비밀번호 설정 메일을 보냈습니다. 메일의 링크에서 비밀번호를 설정하세요.");
-    } catch (err) {
-      showToast(err.message || String(err), "error");
-    }
+    await withButtonBusy(btn, "발송 중…", async () => {
+      try {
+        await window.TClientAdmin.sendPasswordSetupEmail(email);
+        showToast("비밀번호 설정 메일을 보냈습니다. 메일의 링크에서 비밀번호를 설정하세요.");
+      } catch (err) {
+        showToast(err.message || String(err), "error");
+      }
+    });
   });
 
   byId("adminPasswordSaveBtn")?.addEventListener("click", async () => {
+    const btn = byId("adminPasswordSaveBtn");
     const pwd = byId("adminNewPassword")?.value ?? "";
     const confirm = byId("adminConfirmPassword")?.value ?? "";
     if (pwd !== confirm) {
       showToast("비밀번호 확인이 일치하지 않습니다.", "error");
       return;
     }
-    try {
-      await window.TClientAdmin.updatePassword(pwd);
-      showPasswordSetupUi(false);
-      setAdminUi(true);
-      setAdminStatus("");
-      closeAdminPopover();
-      await window.TClientAdmin.afterAuth?.();
-      reloadRowsWithAdmin();
-      showToast("비밀번호가 설정되었습니다. 이후부터는 이메일과 비밀번호로 로그인하세요.");
-      refreshViews();
-    } catch (err) {
-      showToast(err.message || String(err), "error");
-    }
+    await withButtonBusy(btn, "저장 중…", async () => {
+      try {
+        await window.TClientAdmin.updatePassword(pwd);
+        showPasswordSetupUi(false);
+        setAdminUi(true);
+        setAdminStatus("");
+        closeAdminPopover();
+        await window.TClientAdmin.afterAuth?.();
+        reloadRowsWithAdmin();
+        showToast("비밀번호가 설정되었습니다. 이후부터는 이메일과 비밀번호로 로그인하세요.");
+        refreshViews();
+      } catch (err) {
+        showToast(err.message || String(err), "error");
+      }
+    });
   });
 
   byId("adminPassword")?.addEventListener("keydown", (e) => {

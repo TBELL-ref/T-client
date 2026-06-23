@@ -3675,7 +3675,9 @@ tbody tr.row-manual {
 .modal-busy .modal-close,
 .modal-busy .btn-icon-edit,
 .modal-busy .detail-footer button,
-.modal-busy [data-close-add] {
+.modal-busy [data-close-add],
+.modal-busy [data-close-merge],
+.modal-busy .merge-pick-row {
   pointer-events: none;
   opacity: 0.5;
 }
@@ -6118,7 +6120,8 @@ body.detail-drawer-open .app {
   pointer-events: none;
 }
 
-.drawer-busy .detail-drawer-body {
+.drawer-busy .detail-drawer-body,
+.drawer-busy .detail-drawer-header {
   opacity: 0.55;
   pointer-events: none;
 }

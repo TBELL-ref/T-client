@@ -465,16 +465,21 @@
     });
     byId("detailNewToggle")?.addEventListener("change", async (e) => {
       if (!isLoggedIn()) return;
+      const toggle = e.target;
+      if (toggle.disabled) return;
       const row = window.__TCLIENT_DETAIL_ROW;
       if (!row?.companyId) return;
-      const isNew = Boolean(e.target.checked);
+      const isNew = Boolean(toggle.checked);
+      toggle.disabled = true;
       try {
         await window.TCompanyUserState.setNewState(row.companyId, isNew);
         window.TDetailPanel?.refreshTabs?.();
         if (typeof window.refreshViews === "function") window.refreshViews();
       } catch (err) {
         console.warn("[user-state] setNewState failed", err);
-        e.target.checked = !isNew;
+        toggle.checked = !isNew;
+      } finally {
+        toggle.disabled = false;
       }
     });
   }
