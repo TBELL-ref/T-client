@@ -11,6 +11,28 @@
 
   const PERSIST_DELAY_MS = 900;
 
+  function normalizeContactEntry(raw = {}) {
+    return {
+      name: `${raw.name ?? ""}`.trim(),
+      email: `${raw.email ?? ""}`.trim(),
+      phone: `${raw.phone ?? ""}`.trim()
+    };
+  }
+
+  function normalizeContactPatch(contact = {}, fallbackEmail = "") {
+    const contacts = Array.isArray(contact.contacts)
+      ? contact.contacts.map(normalizeContactEntry).filter((c) => c.name || c.email || c.phone)
+      : [];
+    const base = normalizeContactEntry({
+      name: contact.name,
+      email: contact.email ?? fallbackEmail,
+      phone: contact.phone
+    });
+    const list = contacts.length ? contacts : base.name || base.email || base.phone ? [base] : [];
+    const primary = list[0] ?? { name: "", email: "", phone: "" };
+    return { ...primary, contacts: list };
+  }
+
   function normalizeEntry(raw = {}) {
     return {
       companyNameKo: raw.companyNameKo ?? "",
@@ -20,11 +42,7 @@
       leadGrade: raw.leadGrade ?? "",
       priorityScore: raw.priorityScore ?? "",
       scoreReason: raw.scoreReason ?? "",
-      contact: {
-        name: raw.contact?.name ?? "",
-        email: raw.contact?.email ?? raw.email ?? "",
-        phone: raw.contact?.phone ?? ""
-      },
+      contact: normalizeContactPatch(raw.contact ?? {}, raw.email ?? ""),
       notes: raw.notes ?? "",
       excludeReason: raw.excludeReason ?? "",
       favorite: Boolean(raw.favorite),
@@ -49,10 +67,13 @@
 
   function setLocal(companyId, patch) {
     const prev = get(companyId) ?? normalizeEntry({});
+    const nextContact = patch.contact
+      ? normalizeContactPatch({ ...prev.contact, ...patch.contact })
+      : prev.contact;
     const next = normalizeEntry({
       ...prev,
       ...patch,
-      contact: { ...prev.contact, ...(patch.contact ?? {}) },
+      contact: nextContact,
       profile: { ...prev.profile, ...(patch.profile ?? {}) },
       scoreParts: { ...prev.scoreParts, ...(patch.scoreParts ?? {}) },
       extraPosts: patch.extraPosts ?? prev.extraPosts,
@@ -68,10 +89,19 @@
   }
 
   function mergeEntry(a, b) {
+    const mergedContact = { ...(a.contact ?? {}), ...(b.contact ?? {}) };
+    const contacts = [
+      ...(Array.isArray(a.contact?.contacts) ? a.contact.contacts : []),
+      ...(Array.isArray(b.contact?.contacts) ? b.contact.contacts : [])
+    ].filter((c, i, arr) => {
+      const key = `${c.name}|${c.email}|${c.phone}`;
+      return key !== "||" && arr.findIndex((x) => `${x.name}|${x.email}|${x.phone}` === key) === i;
+    });
+    if (contacts.length) mergedContact.contacts = contacts;
     return normalizeEntry({
       ...a,
       ...b,
-      contact: { ...(a.contact ?? {}), ...(b.contact ?? {}) },
+      contact: mergedContact,
       profile: { ...(a.profile ?? {}), ...(b.profile ?? {}) },
       scoreParts: { ...(a.scoreParts ?? {}), ...(b.scoreParts ?? {}) },
       extraPosts: [...(a.extraPosts ?? []), ...(b.extraPosts ?? [])].filter(

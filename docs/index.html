@@ -25,6 +25,7 @@
     <script defer src="./company-edits.js"></script>
     <script defer src="./company-user-state.js"></script>
     <script defer src="./company-files.js"></script>
+    <script defer src="./meeting-picker.js"></script>
     <script defer src="./meeting-notes.js"></script>
     <script defer src="./detail-panel.js"></script>
     <script defer src="./admin.js"></script>
@@ -140,20 +141,18 @@
             <option value="yes">확보</option>
             <option value="no">미확보</option>
           </select>
-          <select id="exclude" class="select-pill" aria-label="제외">
-            <option value="">제외 전체</option>
-            <option value="active">활성</option>
-            <option value="excluded">제외</option>
-          </select>
           <select id="tier" class="select-pill" aria-label="규모">
             <option value="">규모 전체</option>
             <option value="startup">스타트업·미확인</option>
             <option value="mid">중견</option>
             <option value="enterprise">대기업</option>
           </select>
-        </div>
-        <div class="toolbar-row">
-          <div id="presets" class="presets"></div>
+          <select id="bizStatus" class="select-pill" aria-label="사업자 상태">
+            <option value="">사업자 전체</option>
+            <option value="active">계속사업</option>
+            <option value="closed">폐업·휴업</option>
+            <option value="unknown">미수집</option>
+          </select>
         </div>
         </div>
       </section>
@@ -210,21 +209,22 @@
             </div>
             <div class="drawer-header-actions">
               <div class="drawer-quick-actions drawer-quick-actions-header">
-                <button type="button" id="detailMergeBtn" class="drawer-action-btn" data-title-active="병합" title="병합">
+                <button type="button" id="detailMergeBtn" class="drawer-action-btn drawer-action-btn-icon" data-title-active="병합" title="병합" aria-label="병합">
                   <span data-icon="layers"></span>
-                  <span>병합</span>
                 </button>
-                <button type="button" id="detailEditBtn" class="drawer-action-btn" data-title-active="요약 수정" title="요약 수정">
+                <button type="button" id="detailEditBtn" class="drawer-action-btn drawer-action-btn-icon" data-title-active="요약 수정" title="요약 수정" aria-label="요약 수정">
                   <span data-icon="pencil"></span>
-                  <span>수정</span>
                 </button>
                 <div id="detailSummaryEditActions" class="detail-summary-edit-actions hidden">
-                  <button type="button" id="detail-summary-cancel" class="detail-sec-btn detail-sec-btn-ghost">취소</button>
-                  <button type="button" id="detail-summary-save" class="detail-sec-btn detail-sec-btn-primary">저장</button>
+                  <button type="button" id="detail-summary-cancel" class="drawer-action-btn drawer-action-btn-icon" title="취소" aria-label="취소">
+                    <span data-icon="x"></span>
+                  </button>
+                  <button type="button" id="detail-summary-save" class="drawer-action-btn drawer-action-btn-icon drawer-action-btn-primary" title="저장" aria-label="저장">
+                    <span data-icon="check"></span>
+                  </button>
                 </div>
-                <button type="button" id="detailDeleteBtn" class="drawer-action-btn drawer-action-danger" data-title-active="삭제" title="삭제">
+                <button type="button" id="detailDeleteBtn" class="drawer-action-btn drawer-action-btn-icon drawer-action-btn-danger" data-title-active="삭제" title="삭제" aria-label="삭제">
                   <span data-icon="trash"></span>
-                  <span>삭제</span>
                 </button>
               </div>
               <button type="button" class="drawer-close-btn" data-close-detail="1" aria-label="닫기">
@@ -391,6 +391,37 @@
         </div>
         <footer class="detail-footer notion-sync-modal-footer">
           <button type="button" class="btn-ghost btn-sm" data-close-notion-sync="1">취소</button>
+        </footer>
+      </div>
+    </div>
+
+    <div id="manualModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close-manual="1"></div>
+      <div class="modal-panel modal-panel-sm notion-sync-modal-panel" role="dialog" aria-labelledby="manualModalTitle">
+        <header class="modal-header">
+          <div>
+            <p class="merge-modal-eyebrow">User Guide</p>
+            <h2 id="manualModalTitle">T-Client 사용자 매뉴얼</h2>
+          </div>
+          <button type="button" class="modal-close" data-close-manual="1" aria-label="닫기">
+            <span data-icon="x"></span>
+          </button>
+        </header>
+        <div class="modal-body notion-sync-modal-body">
+          <p class="muted notion-sync-modal-hint">Vol.01 플랫폼 소개 · PDF 매뉴얼</p>
+          <div class="notion-sync-choices" role="group" aria-label="매뉴얼 열기 방식">
+            <button type="button" id="manualViewBtn" class="notion-sync-choice">
+              <span class="notion-sync-choice-title">새 창에서 보기</span>
+              <span class="notion-sync-choice-desc">브라우저에서 PDF를 바로 엽니다.</span>
+            </button>
+            <button type="button" id="manualDownloadBtn" class="notion-sync-choice">
+              <span class="notion-sync-choice-title">다운로드</span>
+              <span class="notion-sync-choice-desc">「T-Client 사용자 매뉴얼.pdf」로 저장합니다.</span>
+            </button>
+          </div>
+        </div>
+        <footer class="detail-footer notion-sync-modal-footer">
+          <button type="button" class="btn-ghost btn-sm" data-close-manual="1">닫기</button>
         </footer>
       </div>
     </div>

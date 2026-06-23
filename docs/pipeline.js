@@ -52,7 +52,7 @@
 
   const PIPELINE_STATUS_LABEL = {
     pending: "대기",
-    active: "진행",
+    active: "진행 중",
     on_hold: "보류",
     closed: "종결",
     excluded: "제외"

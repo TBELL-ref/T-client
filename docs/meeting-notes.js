@@ -9,6 +9,7 @@
       id: row.id,
       companyId: row.companyId ?? row.company_id,
       meetingAt: row.meetingAt ?? row.meeting_at ?? null,
+      durationHours: row.durationHours ?? row.duration_hours ?? null,
       location: row.location ?? "",
       attendees: row.attendees ?? "",
       summary: row.summary ?? "",

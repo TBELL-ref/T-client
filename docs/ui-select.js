@@ -6,6 +6,7 @@
     document.querySelectorAll(".cselect-menu").forEach((m) => {
       if (m !== except) m.classList.add("hidden");
     });
+    window.TMeetingPicker?.closeAllPanels?.();
   }
 
   function enhanceSelect(sel) {
@@ -68,7 +69,7 @@
   }
 
   function init(root = document) {
-    root.querySelectorAll("select.select-pill").forEach(enhanceSelect);
+    root.querySelectorAll("select.select-pill, select.meeting-schedule-select").forEach(enhanceSelect);
   }
 
   document.addEventListener("click", () => closeAllMenus());

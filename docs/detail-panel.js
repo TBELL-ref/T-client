@@ -42,7 +42,8 @@
 
   function newBadge(row) {
     if (!isRowAccountNew(row)) return "";
-    return `<span class="badge badge-new" title="${isLoggedIn() ? "아직 열지 않은 회사" : "직전 크롤 신규"}">신규</span>`;
+    const title = isLoggedIn() ? "아직 열지 않은 회사" : "직전 크롤 신규";
+    return `<span class="meta-chip badge-new-icon" title="${escapeAttr(title)}" aria-label="신규"><span class="badge-new-mark">NEW</span></span>`;
   }
 
   function isMainTab(row) {
@@ -120,7 +121,7 @@
   }
 
   function companyCell(row, { showPoolBadge = false } = {}) {
-    return V().renderCompanyCell?.(row, { showPoolBadge }) ?? escapeHtml(displayName(row));
+    return V().renderCompanyCell?.(row, { showPoolBadge, showManualBadge: false, compactMeta: true }) ?? escapeHtml(displayName(row));
   }
 
   function emailCell(row) {
@@ -287,7 +288,7 @@
     }
     panel.querySelectorAll("tr.lead-row-click").forEach((tr) => {
       tr.addEventListener("click", (e) => {
-        if (e.target.closest("a, button")) return;
+        if (e.target.closest("a, button, summary, .cell-opinion-details")) return;
         const id = tr.dataset.openCompany;
         const row = getRows().find((r) => r.companyId === id);
         if (row) (window.openDetail ?? open)?.(row);

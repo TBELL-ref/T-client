@@ -9,13 +9,14 @@ const state = {
   manualReviewQueue: [],
   failureSummary: {},
   gradeSummary: {},
-  activePreset: "",
   activeTab: "in_progress",
   detailRow: null,
   detailEditSections: {},
   detailOpenSections: new Set(),
   meetingEditId: null,
   meetingAddOpen: false,
+  contactEditIndex: null,
+  contactAddOpen: false,
   mergeSourceRow: null,
   notionReorder: null,
   filtersOpen: false,
@@ -28,21 +29,6 @@ const state = {
 };
 
 const PAGE_SIZE = 10;
-
-const PRESETS = [
-  { id: "grade-a", label: "A등급", apply: () => setFilters({ grade: "A", exclude: "active" }, { keepPreset: true }) },
-  { id: "stage-candidate", label: "후보", apply: () => setFilters({ pipelineStage: "candidate", exclude: "active" }, { keepPreset: true }) },
-  { id: "stage-test", label: "테스트 진행", apply: () => setFilters({ pipelineStage: "test_in_progress", exclude: "active" }, { keepPreset: true }) },
-  { id: "stage-proposal", label: "전달·제안", apply: () => setFilters({ pipelineStage: "proposal", exclude: "active" }, { keepPreset: true }) },
-  { id: "contract-won", label: "계약성공", apply: () => setFilters({ pipelineStatus: "closed", exclude: "active" }, { keepPreset: true }) },
-  { id: "contact", label: "담당자 확보", apply: () => setFilters({ contact: "yes", exclude: "active" }, { keepPreset: true }) },
-  { id: "startup", label: "스타트업·미확인", apply: () => setFilters({ tier: "startup", exclude: "active" }, { keepPreset: true }) },
-  {
-    id: "all",
-    label: "전체",
-    apply: () => setFilters({ grade: "", pipelineStage: "", pipelineStatus: "", contact: "", exclude: "", tier: "" }, { keepPreset: true })
-  }
-];
 
 const GRADE_COLORS = { A: "#00c471", B: "#3b82f6", C: "#94a3b8" };
 
@@ -147,16 +133,135 @@ function richTextareaField(id, value, placeholder = "", rows = 3, extraAttrs = "
   </div>`;
 }
 
-function toDatetimeLocalValue(iso) {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  } catch {
-    return "";
+function isoToMeetingParts(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const pad = (n) => String(n).padStart(2, "0");
+  let y = d.getFullYear();
+  let mo = d.getMonth() + 1;
+  let day = d.getDate();
+  let h = d.getHours();
+  let m = d.getMinutes();
+  if (m < 15) m = 0;
+  else if (m < 45) m = 30;
+  else {
+    m = 0;
+    h += 1;
+    if (h >= 24) {
+      const next = new Date(y, mo - 1, day + 1, 0, 0, 0, 0);
+      y = next.getFullYear();
+      mo = next.getMonth() + 1;
+      day = next.getDate();
+      h = 0;
+    }
   }
+  return {
+    date: `${y}-${pad(mo)}-${pad(day)}`,
+    time: `${pad(h)}:${pad(m)}`,
+    hour: h,
+    minute: m
+  };
+}
+
+function formatMeetingTimeLabel(hour, minute) {
+  const period = hour < 12 ? "오전" : "오후";
+  const h12 = hour % 12 || 12;
+  return `${period} ${h12}:${String(minute).padStart(2, "0")}`;
+}
+
+function normalizeMeetingDateInput(raw) {
+  const s = `${raw ?? ""}`.trim();
+  if (!s) return "";
+  const m = s.match(/^(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})$/);
+  if (!m) return "";
+  const pad = (n) => String(Number(n)).padStart(2, "0");
+  return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
+}
+
+function timePartsFromHourMinute(hour, minute) {
+  const period = hour < 12 ? "am" : "pm";
+  const hour12 = hour % 12 || 12;
+  const mm = minute >= 45 ? 0 : minute >= 15 ? 30 : 0;
+  return { period, hour: String(hour12), minute: String(mm) };
+}
+
+function composeTimeFromParts(period, hourStr, minuteStr) {
+  if (!period || !hourStr || minuteStr === "") return "";
+  const h12 = Number.parseInt(hourStr, 10);
+  const mm = Number.parseInt(minuteStr, 10);
+  if (!Number.isFinite(h12) || h12 < 1 || h12 > 12 || ![0, 30].includes(mm)) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  let h24;
+  if (period === "am") h24 = h12 === 12 ? 0 : h12;
+  else h24 = h12 === 12 ? 12 : h12 + 12;
+  return `${pad(h24)}:${pad(mm)}`;
+}
+
+function readMeetingSchedule(root) {
+  return window.TMeetingPicker?.readSchedule(root) ?? { meetingAt: null, durationHours: null };
+}
+
+function initMeetingFormSelects(root = document) {
+  window.TMeetingPicker?.init(root);
+}
+
+function mpickerDateField(id, value) {
+  const dateVal = `${value ?? ""}`.slice(0, 10);
+  return window.TMeetingPicker?.renderDatePicker?.(dateVal, { id }) ?? inlineInput(id, dateVal, "date");
+}
+
+function readMpickerDateIso(id) {
+  const v = window.TMeetingPicker?.readDateValue?.(id) ?? "";
+  return v ? `${v}T00:00:00Z` : "";
+}
+
+function meetingScheduleFieldsHtml(iso, durationHours) {
+  return window.TMeetingPicker?.renderScheduleFields(iso, durationHours) ?? "";
+}
+
+function parseMeetingDateTime(dateStr, timeStr) {
+  const date = `${dateStr ?? ""}`.trim();
+  const time = `${timeStr ?? ""}`.trim();
+  if (!date || !time) return null;
+  const [y, mo, d] = date.split("-").map(Number);
+  const [hh, mm] = time.split(":").map(Number);
+  if (![y, mo, d, hh, mm].every(Number.isFinite)) return null;
+  const dt = new Date(y, mo - 1, d, hh, mm, 0, 0);
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt.toISOString();
+}
+
+function parseMeetingDuration(raw) {
+  const v = `${raw ?? ""}`.trim();
+  if (!v) return null;
+  const n = Number.parseFloat(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function formatMeetingDuration(hours) {
+  const n = Number.parseFloat(hours);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  if (n === 0.5) return "30분";
+  const whole = Math.floor(n);
+  const half = n - whole >= 0.49;
+  if (half && whole === 0) return "30분";
+  if (half) return `${whole}시간 30분`;
+  return `${whole}시간`;
+}
+
+function meetingDurationSelectValue(hours) {
+  const n = Number.parseFloat(hours);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return String(n);
+}
+
+function formatMeetingAt(iso) {
+  const parts = isoToMeetingParts(iso);
+  if (!parts) return "";
+  const [y, mo, day] = parts.date.split("-").map(Number);
+  const dateStr = new Date(y, mo - 1, day).toLocaleDateString("ko-KR");
+  return `${dateStr} ${formatMeetingTimeLabel(parts.hour, parts.minute)}`;
 }
 
 function clearMeetingUiState() {
@@ -164,12 +269,22 @@ function clearMeetingUiState() {
   state.meetingAddOpen = false;
 }
 
+function clearContactUiState() {
+  state.contactEditIndex = null;
+  state.contactAddOpen = false;
+}
+
+function detailIconBtn(icon, title, { className = "", attrs = "", size = 16 } = {}) {
+  return `<button type="button" class="detail-icon-btn${className ? ` ${className}` : ""}" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" ${attrs}>${iconSvg(icon, size)}</button>`;
+}
+
 function readMeetingCard(card) {
   if (!card) return null;
-  const at = card.querySelector('[data-meeting-field="at"]')?.value;
+  const schedule = readMeetingSchedule(card);
   return {
     id: card.dataset.noteId,
-    meetingAt: at ? new Date(at).toISOString() : null,
+    meetingAt: schedule.meetingAt,
+    durationHours: schedule.durationHours,
     location: card.querySelector('[data-meeting-field="location"]')?.value.trim() ?? "",
     attendees: card.querySelector('[data-meeting-field="attendees"]')?.value.trim() ?? "",
     summary: card.querySelector('[data-meeting-field="summary"]')?.value.trim() ?? "",
@@ -186,30 +301,37 @@ function refreshMeetingsPanel(row) {
   }
   const admin = window.TClientAdmin?.isUnlocked?.();
   embed.outerHTML = renderMeetingsEmbed(row, admin);
+  const freshEmbed = document.querySelector(`[data-company-meetings="${row.companyId}"]`);
+  initMeetingFormSelects(freshEmbed);
   void hydrateDetailExtras(row);
 }
 
 function renderMeetingEditCard(n) {
   const summaryId = `meeting-summary-${n.id}`;
   return `<li class="meeting-mini-item meeting-edit-card" data-note-id="${escapeAttr(n.id)}">
-    <div class="detail-form-grid cols-2 detail-form-compact meeting-edit-fields">
-      <div class="inline-row"><span class="inline-label">일시</span><input type="datetime-local" class="inline-field" data-meeting-field="at" value="${escapeAttr(toDatetimeLocalValue(n.meetingAt))}" /></div>
+    <div class="detail-form-grid cols-2 detail-form-compact meeting-edit-fields meeting-form-surface">
+      <div class="inline-row span-2 meeting-schedule-row">
+        <span class="inline-label">일시</span>
+        ${meetingScheduleFieldsHtml(n.meetingAt, n.durationHours)}
+      </div>
       <div class="inline-row"><span class="inline-label">장소</span><input type="text" class="inline-field" data-meeting-field="location" value="${escapeAttr(n.location ?? "")}" /></div>
       <div class="inline-row span-2"><span class="inline-label">참석</span><input type="text" class="inline-field" data-meeting-field="attendees" value="${escapeAttr(n.attendees ?? "")}" /></div>
       <div class="inline-row span-2 inline-row-top"><span class="inline-label">요약</span>${richTextareaField(summaryId, n.summary ?? "", "미팅 내용", 3, 'data-meeting-field="summary"')}</div>
       <div class="inline-row span-2"><span class="inline-label">다음</span><input type="text" class="inline-field" data-meeting-field="next" value="${escapeAttr(n.nextAction ?? "")}" /></div>
     </div>
     <div class="meeting-edit-actions">
-      <button type="button" class="detail-sec-btn detail-sec-btn-primary meeting-save-btn" data-note-id="${escapeAttr(n.id)}">저장</button>
-      <button type="button" class="detail-sec-btn detail-sec-btn-ghost meeting-cancel-btn">취소</button>
-      <button type="button" class="btn-ghost btn-sm meeting-del-btn" data-note-id="${escapeAttr(n.id)}">삭제</button>
+      ${detailIconBtn("check", "저장", { className: "detail-icon-btn-primary meeting-save-btn", attrs: `data-note-id="${escapeAttr(n.id)}"`, size: 15 })}
+      ${detailIconBtn("x", "취소", { className: "meeting-cancel-btn", size: 15 })}
+      ${detailIconBtn("trash", "삭제", { className: "detail-icon-btn-danger meeting-del-btn", attrs: `data-note-id="${escapeAttr(n.id)}"`, size: 15 })}
     </div>
   </li>`;
 }
 
 function renderMeetingViewItem(n, admin) {
   if (admin && state.meetingEditId === n.id) return renderMeetingEditCard(n);
-  const date = escapeHtml(formatDate(n.meetingAt) || "일시 미정");
+  const when = formatMeetingAt(n.meetingAt) || "일시 미정";
+  const dur = formatMeetingDuration(n.durationHours);
+  const date = escapeHtml(dur ? `${when} · ${dur}` : when);
   const next = n.nextAction ? richTextHtml(n.nextAction) : '<span class="muted">—</span>';
   const metaParts = [];
   if (n.location) metaParts.push(`<div class="meeting-mini-meta">장소 · ${escapeHtml(n.location)}</div>`);
@@ -220,8 +342,8 @@ function renderMeetingViewItem(n, admin) {
   const body = bodyParts.length ? bodyParts.join("") : '<span class="muted">내용 없음</span>';
   const actions = admin
     ? `<div class="meeting-item-actions">
-        <button type="button" class="detail-sec-btn detail-sec-btn-ghost meeting-edit-btn" data-note-id="${escapeAttr(n.id)}">수정</button>
-        <button type="button" class="btn-ghost btn-sm meeting-del-btn" data-note-id="${escapeAttr(n.id)}">삭제</button>
+        ${detailIconBtn("pencil", "수정", { className: "meeting-edit-btn", attrs: `data-note-id="${escapeAttr(n.id)}"`, size: 15 })}
+        ${detailIconBtn("trash", "삭제", { className: "detail-icon-btn-danger meeting-del-btn", attrs: `data-note-id="${escapeAttr(n.id)}"`, size: 15 })}
       </div>`
     : "";
   return `<li class="meeting-mini-item">
@@ -257,15 +379,26 @@ function candidateOpinionText(row) {
 }
 
 function candidateOpinionHtml(row) {
-  const memo = `${row.memo ?? row.salesMemo ?? ""}`.trim();
-  if (memo) return `<div class="cell-opinion text-preline">${multilineHtml(memo)}</div>`;
-  const pros = `${row.candidatePros ?? ""}`.trim();
-  const cons = `${row.candidateCons ?? ""}`.trim();
-  const parts = [];
-  if (pros) parts.push(pros);
-  if (cons) parts.push(cons);
-  if (!parts.length) return '<span class="muted">—</span>';
-  return `<div class="cell-opinion text-preline">${multilineHtml(parts.join("\n"))}</div>`;
+  const text = candidateOpinionText(row);
+  if (!text || text === "-") return '<span class="muted">—</span>';
+  return `<div class="cell-opinion text-preline">${multilineHtml(text.trim())}</div>`;
+}
+
+function renderDetailHeaderMemo(memo) {
+  const plain = `${memo ?? ""}`.trim();
+  if (!plain) return "";
+  const lines = plain.split(/\r?\n/);
+  const needsToggle = lines.length > 1;
+  if (!needsToggle) {
+    return `<span class="detail-header-memo">${escapeHtml(plain)}</span>`;
+  }
+  return `<details class="detail-header-memo-details">
+    <summary class="detail-header-memo-summary">
+      <span class="detail-header-memo-preview">${escapeHtml(lines[0])}…</span>
+      <span class="detail-header-memo-chevron" aria-hidden="true">${iconSvg("chevron", 14)}</span>
+    </summary>
+    <div class="detail-header-memo-full text-preline">${multilineHtml(plain)}</div>
+  </details>`;
 }
 
 function testPeriodDisplay(row) {
@@ -347,7 +480,7 @@ const PIPELINE_STAGE_ICON = {
   contract: "fileText"
 };
 
-function pipelineStageIconHtml(stageId, size = 18) {
+function pipelineStageIconHtml(stageId, size = 16) {
   const icon = PIPELINE_STAGE_ICON[stageId] ?? "circle";
   return `<span class="pipeline-step-icon" aria-hidden="true">${iconSvg(icon, size)}</span>`;
 }
@@ -365,7 +498,9 @@ function renderPipelineStageStepper(row, { edit = false } = {}) {
     const state = idx < currentIdx ? "done" : idx === currentIdx ? "current" : "upcoming";
     const tip = labels[stageId] ?? PIPELINE_STAGE_SHORT_LABEL[stageId] ?? stageId;
     const displayLabel = labels[stageId] ?? PIPELINE_STAGE_SHORT_LABEL[stageId] ?? stageId;
-    const stepInner = `<div class="pipeline-step-node">${pipelineStageIconHtml(stageId)}</div><span class="pipeline-step-label">${escapeHtml(displayLabel)}</span>`;
+    const doneBadge =
+      state === "done" ? `<span class="pipeline-step-done-badge" aria-hidden="true">${iconSvg("check", 8)}</span>` : "";
+    const stepInner = `<div class="pipeline-step-node">${pipelineStageIconHtml(stageId)}${doneBadge}</div><span class="pipeline-step-label">${escapeHtml(displayLabel)}</span>`;
     return edit
       ? `<button type="button" class="pipeline-step is-${state}" data-pipeline-stage-btn="${escapeAttr(stageId)}" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">${stepInner}</button>`
       : `<div class="pipeline-step is-${state}" role="listitem" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">${stepInner}</div>`;
@@ -376,44 +511,31 @@ function renderPipelineStageStepper(row, { edit = false } = {}) {
   </div>`;
 }
 
-function renderPipelineClosedControl(row, { edit = false } = {}) {
+function renderPipelineMetaCol(row, { edit = false } = {}) {
+  return `<div class="pipeline-meta-col">
+    ${renderPipelineStatusTag(row, { edit })}
+    ${renderPipelineClosedReasonCol(row, { edit })}
+  </div>`;
+}
+
+function renderPipelineClosedReasonCol(row, { edit = false } = {}) {
   const { pipelineStatus, closedReason } = resolveRowPipeline(row);
-  const isClosed = pipelineStatus === "closed";
-  const reasonLabel = closedReason ? pipelineLabels().closedReasonLabel?.(closedReason) ?? closedReason : "";
-  const title = isClosed ? (reasonLabel ? `종결: ${reasonLabel}` : "종결") : "미종결";
-
   if (edit) {
-    return `<div class="pipeline-closed-col">
-      <label class="pipeline-closed-toggle is-edit${isClosed ? " is-on" : ""}" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}">
-        <input type="checkbox" id="edit-pipeline-closed" class="pipeline-closed-input"${isClosed ? " checked" : ""} />
-        <span class="pipeline-closed-icon" aria-hidden="true">${iconSvg("archive", 12)}</span>
-      </label>
-    </div>`;
+    return `<div class="pipeline-closed-reason-col">${closedReasonSelect("edit-closed-reason", closedReason ?? "")}</div>`;
   }
-
-  return `<div class="pipeline-closed-col">
-    <span class="pipeline-closed-view${isClosed ? " is-on" : ""}" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}">
-      <span class="pipeline-closed-icon" aria-hidden="true">${iconSvg("archive", 12)}</span>
-    </span>
+  if (pipelineStatus !== "closed" || !closedReason) return "";
+  const label = pipelineLabels().closedReasonLabel?.(closedReason) ?? closedReason;
+  return `<div class="pipeline-closed-reason-col">
+    <span class="pipeline-closed-reason-tag" title="종결 사유: ${escapeAttr(label)}">${escapeHtml(label)}</span>
   </div>`;
 }
 
 function renderSalesPipelineBar(row, { edit = false } = {}) {
-  const pipeline = resolveRowPipeline(row);
-  const isClosed = pipeline.pipelineStatus === "closed";
-  const closedReasonRow = edit
-    ? `<div class="sales-closed-reason-row${isClosed ? "" : " hidden"}" id="sales-closed-reason-row">
-        <span class="inline-label">종결 사유</span>
-        ${closedReasonSelect("edit-closed-reason", pipeline.closedReason ?? "")}
-      </div>`
-    : "";
-
   return `<div class="sales-pipeline-shell">
     <div class="sales-pipeline-bar">
-      ${renderPipelineStatusTag(row, { edit })}
       ${renderPipelineStageStepper(row, { edit })}
-      ${renderPipelineClosedControl(row, { edit })}
-    </div>${closedReasonRow}
+      ${renderPipelineMetaCol(row, { edit })}
+    </div>
   </div>`;
 }
 
@@ -438,6 +560,20 @@ function syncPipelineStepperUi(root = byId("detailBody")) {
     const state = idx < currentIdx ? "done" : idx === currentIdx ? "current" : "upcoming";
     btn.classList.remove("is-done", "is-current", "is-upcoming");
     btn.classList.add(`is-${state}`);
+    const node = btn.querySelector(".pipeline-step-node");
+    if (!node) return;
+    let badge = node.querySelector(".pipeline-step-done-badge");
+    if (state === "done") {
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "pipeline-step-done-badge";
+        badge.setAttribute("aria-hidden", "true");
+        badge.innerHTML = iconSvg("check", 8);
+        node.appendChild(badge);
+      }
+    } else {
+      badge?.remove();
+    }
   });
 }
 
@@ -455,11 +591,6 @@ function bindSalesPipelineControls() {
     syncPipelineStepperUi(body);
   });
 
-  body.addEventListener("change", (e) => {
-    if (e.target?.id !== "edit-pipeline-closed") return;
-    byId("sales-closed-reason-row")?.classList.toggle("hidden", !e.target.checked);
-    e.target.closest(".pipeline-closed-toggle")?.classList.toggle("is-on", e.target.checked);
-  });
 }
 
 function renderStarRating(filled, total = 5) {
@@ -827,31 +958,51 @@ function tierBadge(row) {
   const label = row.companyTierLabel || "-";
   const tier = row.companyTier || "unknown";
   if (label === "-") return "";
+  const scale = `${row.profile?.companyScale ?? ""}`.trim();
   const hint =
     tier === "enterprise"
-      ? "대기업 — 스타트업 타깃 아님"
+      ? scale && /대/.test(scale) ? `대기업 (${scale}) — 스타트업 타깃 아님` : "대기업 — 스타트업 타깃 아님"
       : tier === "mid"
-        ? "중견 — 우선순위 낮음"
+        ? scale && /중/.test(scale) ? `중견 (${scale}) — 우선순위 낮음` : "중견 — 우선순위 낮음"
         : tier === "startup"
-          ? "스타트업 후보"
-          : "규모 미확인";
+          ? scale && /(중소|소|스타트)/.test(scale) ? `스타트업 (${scale})` : "스타트업 후보"
+          : scale || "규모 미확인";
   return `<span class="tier-badge tier-${tier}" title="${escapeHtml(hint)}">${escapeHtml(label)}</span>`;
 }
 
 const PORTAL_HOST_HINT = /jobkorea|saramin|wanted\.co\.kr/i;
 
-function scaleBadge(row) {
-  const scale = row.profile?.companyScale;
-  if (!scale) return "";
-  return `<span class="scale-badge" title="기업규모">${escapeHtml(scale)}</span>`;
+function scaleRedundantWithTier(row) {
+  const tier = row.companyTier || "unknown";
+  const scale = `${row.profile?.companyScale ?? ""}`.trim();
+  if (!scale || tier === "unknown") return false;
+  if (tier === "enterprise" && /대기업|^대$/.test(scale)) return true;
+  if (tier === "mid" && /중견|^중$/.test(scale)) return true;
+  if (tier === "startup" && /(중소|스타트|^소$)/.test(scale)) return true;
+  return false;
 }
 
-function bizStatusBadge(row) {
+function scaleBadge(row) {
+  const scale = row.profile?.companyScale;
+  if (!scale || scaleRedundantWithTier(row)) return "";
+  const short = scale.length > 3 ? scale.slice(0, 2) : scale;
+  return `<span class="scale-badge" title="기업규모: ${escapeAttr(scale)}">${escapeHtml(short)}</span>`;
+}
+
+function bizStatusBadge(row, { compact = false } = {}) {
   const status = row.profile?.bizStatus;
   if (!status) return "";
   const closed = /폐업|휴업|말소/.test(status);
   const cls = closed ? "biz-status-closed" : "biz-status-active";
-  return `<span class="biz-status-badge ${cls}">${escapeHtml(status.split(/\s+/)[0])}</span>`;
+  if (compact || /계속/.test(status)) {
+    const icon = closed ? iconSvg("ban", 11) : iconSvg("building", 11);
+    return `<span class="meta-chip biz-status-badge ${cls}" title="${escapeAttr(status)}">${icon}</span>`;
+  }
+  return `<span class="biz-status-badge ${cls}" title="${escapeAttr(status)}">${escapeHtml(status.split(/\s+/)[0])}</span>`;
+}
+
+function companyMetaChips(row, { compact = false } = {}) {
+  return [tierBadge(row), scaleBadge(row), bizStatusBadge(row, { compact })].filter(Boolean).join("");
 }
 
 function serviceName(row) {
@@ -865,12 +1016,45 @@ function serviceUrl(row) {
 }
 
 function contactEmail(row) {
-  const c = row.contact ?? {};
-  const email = `${c.email || row.email || ""}`.trim();
+  const list = normalizeContactList(row);
+  for (const c of list) {
+    if (c.email && c.email.includes("@")) return c.email;
+    if (c.name && c.name.includes("@")) return c.name;
+  }
+  const email = `${row.email ?? ""}`.trim();
   if (email && email.includes("@")) return email;
-  const name = `${c.name || ""}`.trim();
-  if (name.includes("@")) return name;
   return "";
+}
+
+function normalizeContactEntry(raw = {}) {
+  return {
+    name: `${raw.name ?? ""}`.trim(),
+    email: `${raw.email ?? ""}`.trim(),
+    phone: `${raw.phone ?? ""}`.trim()
+  };
+}
+
+function hasContactData(c) {
+  return Boolean(c?.name || c?.email || c?.phone);
+}
+
+function normalizeContactList(row) {
+  const c = row.contact ?? {};
+  if (Array.isArray(c.contacts) && c.contacts.length) {
+    return c.contacts.map(normalizeContactEntry).filter(hasContactData);
+  }
+  const single = normalizeContactEntry({
+    name: c.name,
+    email: c.email || row.email || "",
+    phone: c.phone
+  });
+  return hasContactData(single) ? [single] : [];
+}
+
+function buildContactPatch(contacts) {
+  const list = contacts.map(normalizeContactEntry).filter(hasContactData);
+  const primary = list[0] ?? { name: "", email: "", phone: "" };
+  return { ...primary, contacts: list };
 }
 
 function companySubline(row) {
@@ -905,12 +1089,42 @@ function inlineTextarea(id, value, placeholder = "", rows = 4) {
   return `<textarea id="${escapeAttr(id)}" class="inline-field inline-textarea" rows="${rows}" placeholder="${escapeAttr(placeholder)}">${escapeHtml(value ?? "")}</textarea>`;
 }
 
-function inlineSelect(id, value, options) {
+function inlineSelect(id, value, options, extraClass = "") {
   const current = `${value ?? ""}`;
+  const cls = extraClass ? `inline-field inline-select ${extraClass}` : "inline-field inline-select";
   const opts = options
     .map(([v, l]) => `<option value="${escapeAttr(v)}"${current === `${v}` ? " selected" : ""}>${escapeHtml(l)}</option>`)
     .join("");
-  return `<select id="${id}" class="inline-field inline-select">${opts}</select>`;
+  return `<select id="${id}" class="${cls}">${opts}</select>`;
+}
+
+function tierSelectCompact(id, value) {
+  return inlineSelect(
+    id,
+    value,
+    [
+      ["", "자동"],
+      ["startup", "소"],
+      ["mid", "중"],
+      ["enterprise", "대"],
+      ["unknown", "?"]
+    ],
+    "summary-tier-select"
+  );
+}
+
+function gradeSelectCompact(id, value) {
+  return inlineSelect(
+    id,
+    value,
+    [
+      ["", "—"],
+      ["A", "A"],
+      ["B", "B"],
+      ["C", "C"]
+    ],
+    "score-grade-select"
+  );
 }
 
 function scoreSelectValue(value) {
@@ -952,9 +1166,9 @@ function detailSectionCard(title, body, sectionKey, extraClass = "", { icon = "f
   const actionBtns =
     admin && editable && sectionKey
       ? `<div class="detail-section-actions${editing ? " is-editing" : ""}">${editing
-          ? `<button type="button" class="detail-sec-btn detail-sec-btn-ghost" data-section-cancel="${escapeAttr(sectionKey)}">취소</button>
-             <button type="button" class="detail-sec-btn detail-sec-btn-primary" data-section-save="${escapeAttr(sectionKey)}">저장</button>`
-          : `<button type="button" class="detail-sec-btn detail-sec-btn-edit" data-section-edit="${escapeAttr(sectionKey)}">수정</button>`}</div>`
+          ? `${detailIconBtn("x", "취소", { attrs: `data-section-cancel="${escapeAttr(sectionKey)}"` })}
+             ${detailIconBtn("check", "저장", { className: "detail-icon-btn-primary", attrs: `data-section-save="${escapeAttr(sectionKey)}"` })}`
+          : detailIconBtn("pencil", "수정", { attrs: `data-section-edit="${escapeAttr(sectionKey)}"` })}</div>`
       : "";
   const actions = headerExtra || actionBtns ? `<div class="drawer-section-head-actions">${headerExtra}${actionBtns}</div>` : "";
 
@@ -1017,7 +1231,7 @@ function renderDetailHeaderSub(row) {
   const memo = `${row.salesMemo ?? row.manualNotes ?? ""}`.trim();
   const parts = [];
   if (line1) parts.push(`<span class="detail-header-meta">${escapeHtml(line1)}</span>`);
-  if (memo) parts.push(`<span class="detail-header-memo">${escapeHtml(memo)}</span>`);
+  if (memo) parts.push(renderDetailHeaderMemo(memo));
   return parts.join("");
 }
 
@@ -1133,28 +1347,97 @@ function closedReasonSelect(id, value) {
   const list = P.CLOSED_REASONS ?? [];
   const labels = P.CLOSED_REASON_LABEL ?? {};
   const resolved = P.resolveClosedReason?.(value) ?? "";
-  const opts = [['', '(없음)'], ...list.map((r) => [r, labels[r] ?? r])];
-  return `<select id="${escapeAttr(id)}" class="inline-field">${opts
+  const opts = [['', '미종결'], ...list.map((r) => [r, labels[r] ?? r])];
+  return `<select id="${escapeAttr(id)}" class="pipeline-status-select pipeline-closed-reason-select">${opts
     .map(([v, l]) => `<option value="${escapeAttr(v)}"${resolved === v ? " selected" : ""}>${escapeHtml(l)}</option>`)
     .join("")}</select>`;
 }
 
-function renderContactStrip(c, email) {
+function renderContactItem(c) {
   const parts = [];
   if (c.name) parts.push(`<span class="sales-contact-name">${escapeHtml(c.name)}</span>`);
-  if (email) {
-    parts.push(`<a class="link sales-contact-email" href="mailto:${escapeAttr(email)}">${escapeHtml(email)}</a>`);
+  if (c.email) {
+    parts.push(`<a class="link sales-contact-email" href="mailto:${escapeAttr(c.email)}">${escapeHtml(c.email)}</a>`);
   }
   if (c.phone) parts.push(`<span class="sales-contact-phone">${escapeHtml(c.phone)}</span>`);
-  if (!parts.length) return '<span class="muted sales-contact-empty">담당자 정보 없음</span>';
-  return `<div class="sales-contact-strip">${parts.join('<span class="sales-contact-sep" aria-hidden="true">|</span>')}</div>`;
+  return parts.join('<span class="sales-contact-sep" aria-hidden="true">|</span>');
 }
 
-function renderSalesRowView(c, email, row) {
-  return `<div class="sales-row-bar">
-    ${renderSalesPipelineBar(row)}
-    <div class="sales-row-contact">${renderContactStrip(c, email)}</div>
+function readContactCard(card) {
+  if (!card) return normalizeContactEntry({});
+  return normalizeContactEntry({
+    name: card.querySelector('[data-contact-field="name"]')?.value,
+    email: card.querySelector('[data-contact-field="email"]')?.value,
+    phone: card.querySelector('[data-contact-field="phone"]')?.value
+  });
+}
+
+async function persistContactsPatch(row, contacts) {
+  const cid = row.companyId;
+  window.TClientAdmin.setEntry(cid, { contact: buildContactPatch(contacts) });
+  await window.TClientAdmin.flushPersist?.();
+  reloadRowsWithAdmin();
+  refreshViews();
+  const updated = state.rows.find((r) => r.companyId === cid) ?? row;
+  state.detailRow = updated;
+  window.__TCLIENT_DETAIL_ROW = updated;
+  refreshContactsPanel(updated);
+}
+
+function refreshContactsPanel(row) {
+  if (!row?.companyId) return;
+  const embed = document.querySelector(`[data-company-contacts="${row.companyId}"]`);
+  if (!embed) {
+    paintDetailModal();
+    return;
+  }
+  const admin = window.TClientAdmin?.isUnlocked?.();
+  embed.outerHTML = renderContactsEmbed(row, admin);
+  hydrateIcons(byId("detailBody"));
+}
+
+function renderContactEditCard(c, index, { isNew = false } = {}) {
+  return `<div class="sales-contact-item sales-contact-edit-card" data-contact-index="${index}"${isNew ? ' data-contact-new="1"' : ""}>
+    <div class="detail-form-grid cols-3 detail-form-compact sales-contact-edit-fields">
+      <div class="inline-row"><span class="inline-label">이름</span><input type="text" class="inline-field" data-contact-field="name" value="${escapeAttr(c.name ?? "")}" placeholder="이름" /></div>
+      <div class="inline-row"><span class="inline-label">이메일</span><input type="email" class="inline-field" data-contact-field="email" value="${escapeAttr(c.email ?? "")}" placeholder="이메일" /></div>
+      <div class="inline-row"><span class="inline-label">전화</span><input type="tel" class="inline-field" data-contact-field="phone" value="${escapeAttr(c.phone ?? "")}" placeholder="전화" /></div>
+    </div>
+    <div class="contact-edit-actions">
+      ${detailIconBtn("check", "저장", { className: "detail-icon-btn-primary contact-save-btn", attrs: `data-contact-index="${index}"`, size: 15 })}
+      ${detailIconBtn("x", "취소", { className: "contact-cancel-btn", size: 15 })}
+    </div>
   </div>`;
+}
+
+function renderContactViewItem(c, index, admin) {
+  if (admin && state.contactEditIndex === index) return renderContactEditCard(c, index);
+  const actions = admin
+    ? `<div class="contact-item-actions">
+        ${detailIconBtn("pencil", "수정", { className: "contact-edit-btn", attrs: `data-contact-index="${index}"`, size: 15 })}
+        ${detailIconBtn("trash", "삭제", { className: "detail-icon-btn-danger contact-del-btn", attrs: `data-contact-index="${index}"`, size: 15 })}
+      </div>`
+    : "";
+  return `<div class="sales-contact-item" data-contact-index="${index}">
+    <div class="sales-contact-item-body">${renderContactItem(c)}</div>
+    ${actions}
+  </div>`;
+}
+
+function renderContactsEmbed(row, admin) {
+  const addOpen = state.contactAddOpen && state.detailRow?.companyId === row.companyId;
+  const list = normalizeContactList(row);
+  const toolbar = `<div class="contact-toolbar">
+    <span class="sales-subsection-label">담당자 정보</span>
+    ${admin ? detailIconBtn(addOpen ? "x" : "plus", addOpen ? "추가 취소" : "담당자 추가", { attrs: 'id="contact-add-toggle"', size: 16 }) : ""}
+  </div>`;
+  const items = list.map((c, i) => renderContactViewItem(c, i, admin)).join("");
+  const addRow = addOpen ? renderContactEditCard({ name: "", email: "", phone: "" }, list.length, { isNew: true }) : "";
+  const body =
+    list.length || addOpen
+      ? `<div class="sales-contacts-list">${items}${addRow}</div>`
+      : `<p class="muted detail-empty-hint sales-contact-empty">담당자 정보 없음</p>`;
+  return `<div class="sales-contacts-embed" data-company-contacts="${escapeAttr(row.companyId)}">${toolbar}${body}</div>`;
 }
 
 function renderTestView(row) {
@@ -1169,7 +1452,21 @@ function renderTestView(row) {
 
 function renderScoreSection(row, edit, admin = false) {
   const breakdown = row.scoreBreakdown ?? [];
+  const entry = window.TClientAdmin?.getEntry(row.companyId) ?? {};
+  const gradeVal = entry.leadGrade || row.leadGrade || "";
+  const totalGradeRow = edit
+    ? `<label class="score-edit-row score-edit-row-inline score-edit-total score-edit-head-row">
+        <span class="score-edit-label">총점 · 등급</span>
+        <div class="score-total-grade-row">
+          ${inlineInput("edit-score-total", row.priorityScore, "number")}
+          ${gradeSelectCompact("edit-grade", gradeVal)}
+        </div>
+      </label>`
+    : "";
   if (!breakdown.length && !row.scoreReason) {
+    if (edit) {
+      return `${totalGradeRow}<p class="muted detail-empty-hint">점수 세부 항목 없음</p>`;
+    }
     return `<p class="muted detail-empty-hint">점수 정보 없음</p>`;
   }
   if (edit && breakdown.length) {
@@ -1182,12 +1479,7 @@ function renderScoreSection(row, edit, admin = false) {
           <input type="number" class="inline-field score-part-input" data-score-part="${escapeAttr(b.part)}" value="${escapeAttr(val)}" placeholder="${escapeAttr(defaultPts)}" />
         </label>`;
       })
-      .join("")}
-      <label class="score-edit-row score-edit-row-inline score-edit-total">
-        <span class="score-edit-label">총점</span>
-        ${inlineInput("edit-score-total", row.priorityScore, "number")}
-      </label>
-    </div>`;
+      .join("")}${totalGradeRow}</div>`;
   }
   const lines = breakdown.length
     ? breakdown
@@ -1208,21 +1500,23 @@ function renderScoreSection(row, edit, admin = false) {
 
 function renderMeetingsEmbed(row, admin) {
   const addOpen = state.meetingAddOpen && state.detailRow?.companyId === row.companyId;
-  const toolbar = admin
-    ? `<div class="meeting-toolbar">
-        <button type="button" class="detail-sec-btn detail-sec-btn-edit" id="meeting-add-toggle">${addOpen ? "추가 취소" : "미팅 추가"}</button>
-      </div>`
-    : "";
+  const toolbar = `<div class="meeting-toolbar">
+    <span class="sales-subsection-label">미팅 기록</span>
+    ${admin ? detailIconBtn(addOpen ? "x" : "plus", addOpen ? "추가 취소" : "미팅 추가", { attrs: 'id="meeting-add-toggle"', size: 16 }) : ""}
+  </div>`;
   const addForm =
     admin && addOpen
-      ? `<div class="detail-form-grid cols-2 detail-form-compact meeting-add-row">
-          <div class="inline-row"><span class="inline-label">일시</span><input type="datetime-local" id="edit-meeting-at" class="inline-field" /></div>
+      ? `<div class="detail-form-grid cols-2 detail-form-compact meeting-add-row meeting-form-surface">
+          <div class="inline-row span-2 meeting-schedule-row">
+            <span class="inline-label">일시</span>
+            ${meetingScheduleFieldsHtml(null, null)}
+          </div>
           <div class="inline-row"><span class="inline-label">장소</span>${inlineInput("edit-meeting-location", "", "text")}</div>
           <div class="inline-row span-2"><span class="inline-label">참석</span>${inlineInput("edit-meeting-attendees", "", "text")}</div>
           <div class="inline-row span-2 inline-row-top"><span class="inline-label">요약</span>${richTextareaField("edit-meeting-summary", "", "미팅 내용", 3)}</div>
           <div class="inline-row span-2"><span class="inline-label">다음</span>${inlineInput("edit-meeting-next", "", "text")}</div>
         </div>
-        <p class="meeting-add-actions"><button type="button" class="detail-sec-btn detail-sec-btn-primary" id="meeting-add-btn">등록</button></p>`
+        <div class="meeting-add-actions">${detailIconBtn("check", "등록", { className: "detail-icon-btn-primary", attrs: 'id="meeting-add-btn"', size: 15 })}</div>`
       : "";
   return `<div class="sales-meetings-embed" data-company-meetings="${escapeAttr(row.companyId)}">
     ${toolbar}
@@ -1443,7 +1737,6 @@ async function saveDetailSection(row, section) {
       {
         companyNameKo: byId("edit-name-ko")?.value.trim(),
         companyTier: byId("edit-tier")?.value,
-        leadGrade: byId("edit-grade")?.value,
         excludeReason: byId("edit-exclude")?.value.trim()
       },
       salesPatch({
@@ -1459,20 +1752,15 @@ async function saveDetailSection(row, section) {
   }
 
   if (section === "sales") {
-    const isClosed = Boolean(byId("edit-pipeline-closed")?.checked);
+    const closedReason = byId("edit-closed-reason")?.value ?? "";
+    const isClosed = Boolean(closedReason);
     const operationalStatus = byId("edit-pipeline-status")?.value ?? "pending";
     await persistCompany(
-      {
-        contact: {
-          name: byId("edit-contact-name")?.value.trim(),
-          email: byId("edit-contact-email")?.value.trim(),
-          phone: byId("edit-contact-phone")?.value.trim()
-        }
-      },
+      null,
       salesPatch({
         pipelineStage: byId("edit-pipeline-stage")?.value ?? "",
         pipelineStatus: isClosed ? "closed" : operationalStatus,
-        closedReason: isClosed ? byId("edit-closed-reason")?.value ?? "" : ""
+        closedReason: isClosed ? closedReason : ""
       })
     );
     return;
@@ -1482,8 +1770,8 @@ async function saveDetailSection(row, section) {
     await persistCompany(
       null,
       salesPatch({
-        testStartedAt: byId("edit-test-started")?.value ? `${byId("edit-test-started").value}T00:00:00Z` : "",
-        testEndedAt: byId("edit-test-ended")?.value ? `${byId("edit-test-ended").value}T00:00:00Z` : "",
+        testStartedAt: readMpickerDateIso("edit-test-started"),
+        testEndedAt: readMpickerDateIso("edit-test-ended"),
         testNotes: byId("edit-test-notes")?.value.trim()
       })
     );
@@ -1491,8 +1779,18 @@ async function saveDetailSection(row, section) {
   }
 
   if (section === "eval") {
+    const gradeEl = byId("edit-grade");
+    const gradePatch = gradeEl ? { leadGrade: gradeEl.value } : {};
+    const parts = {};
+    document.querySelectorAll(".score-part-input").forEach((inp) => {
+      const v = inp.value.trim();
+      if (v !== "") parts[inp.dataset.scorePart] = v;
+    });
+    const total = byId("edit-score-total")?.value.trim() ?? "";
+    if (total !== "") parts._total = total;
+    const companyPatch = { ...gradePatch, ...(Object.keys(parts).length ? { scoreParts: parts } : {}) };
     await persistCompany(
-      null,
+      Object.keys(companyPatch).length ? companyPatch : null,
       salesPatch({
         recommendScore: parseStarSelect(byId("edit-cand-score")?.value),
         pilotDifficulty: parseStarSelect(byId("edit-cand-pilot")?.value),
@@ -1501,14 +1799,6 @@ async function saveDetailSection(row, section) {
         evaluationNotes: byId("edit-eval-notes")?.value.trim()
       })
     );
-    const parts = {};
-    document.querySelectorAll(".score-part-input").forEach((inp) => {
-      const v = inp.value.trim();
-      if (v !== "") parts[inp.dataset.scorePart] = v;
-    });
-    const total = byId("edit-score-total")?.value.trim() ?? "";
-    if (total !== "") parts._total = total;
-    if (Object.keys(parts).length) await persistCompany({ scoreParts: parts });
     return;
   }
 
@@ -1587,6 +1877,10 @@ function bindDetailSectionEdits() {
   if (!body || body.dataset.sectionBound === "1") return;
   body.dataset.sectionBound = "1";
 
+  body.addEventListener("change", (e) => {
+    if (e.target?.id === "edit-tier") syncSummaryTierChip(e.target);
+  });
+
   body.addEventListener("click", async (e) => {
     const row = state.detailRow;
     if (!row) return;
@@ -1596,8 +1890,78 @@ function bindDetailSectionEdits() {
       e.stopPropagation();
     }
 
-    if (e.target?.closest?.(".meeting-mini-details summary")) {
+    if (e.target?.closest?.(".meeting-mini-details summary, .cell-opinion-details summary")) {
       e.stopPropagation();
+    }
+
+    const contactEditBtn = e.target?.closest?.(".contact-edit-btn");
+    if (contactEditBtn && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      state.contactEditIndex = Number.parseInt(contactEditBtn.dataset.contactIndex, 10);
+      state.contactAddOpen = false;
+      refreshContactsPanel(row);
+      return;
+    }
+
+    const contactCancelBtn = e.target?.closest?.(".contact-cancel-btn");
+    if (contactCancelBtn) {
+      e.preventDefault();
+      state.contactEditIndex = null;
+      state.contactAddOpen = false;
+      refreshContactsPanel(row);
+      return;
+    }
+
+    const contactSaveBtn = e.target?.closest?.(".contact-save-btn");
+    if (contactSaveBtn && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      const card = contactSaveBtn.closest(".sales-contact-edit-card");
+      const updated = readContactCard(card);
+      if (!hasContactData(updated)) {
+        showToast("이름, 이메일, 전화 중 하나 이상 입력하세요.", "error");
+        return;
+      }
+      const list = normalizeContactList(row);
+      const idx = Number.parseInt(card?.dataset.contactIndex ?? contactSaveBtn.dataset.contactIndex, 10);
+      if (card?.dataset.contactNew === "1" || Number.isNaN(idx)) {
+        list.push(updated);
+      } else {
+        list[idx] = updated;
+      }
+      try {
+        await persistContactsPatch(row, list);
+        state.contactEditIndex = null;
+        state.contactAddOpen = false;
+        showToast("담당자 정보가 저장되었습니다.");
+      } catch (err) {
+        showToast(err.message || "담당자 저장 실패", "error");
+      }
+      return;
+    }
+
+    if (e.target?.closest?.("#contact-add-toggle") && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      state.contactAddOpen = !state.contactAddOpen;
+      if (state.contactAddOpen) state.contactEditIndex = null;
+      refreshContactsPanel(row);
+      return;
+    }
+
+    const contactDelBtn = e.target?.closest?.(".contact-del-btn");
+    if (contactDelBtn && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      const idx = Number.parseInt(contactDelBtn.dataset.contactIndex, 10);
+      const list = normalizeContactList(row);
+      if (idx < 0 || idx >= list.length) return;
+      list.splice(idx, 1);
+      try {
+        await persistContactsPatch(row, list);
+        if (state.contactEditIndex === idx) state.contactEditIndex = null;
+        showToast("담당자가 삭제되었습니다.");
+      } catch (err) {
+        showToast(err.message || "담당자 삭제 실패", "error");
+      }
+      return;
     }
 
     const editBtn = e.target?.closest?.("[data-section-edit]");
@@ -1748,21 +2112,21 @@ function bindDetailSectionEdits() {
 
     if (e.target?.closest?.("#meeting-add-btn") && window.TClientAdmin?.isUnlocked?.()) {
       e.preventDefault();
-      const at = byId("edit-meeting-at")?.value;
+      const addRow = document.querySelector(".meeting-add-row");
+      const schedule = readMeetingSchedule(addRow);
       try {
         await window.TMeetingNotes.upsert(row.companyId, {
-          meetingAt: at ? new Date(at).toISOString() : null,
+          meetingAt: schedule.meetingAt,
+          durationHours: schedule.durationHours,
           location: byId("edit-meeting-location")?.value.trim(),
           attendees: byId("edit-meeting-attendees")?.value.trim(),
           summary: byId("edit-meeting-summary")?.value.trim(),
           nextAction: byId("edit-meeting-next")?.value.trim()
         });
-        ["edit-meeting-at", "edit-meeting-location", "edit-meeting-attendees", "edit-meeting-summary", "edit-meeting-next"].forEach(
-          (id) => {
-            const el = byId(id);
-            if (el) el.value = "";
-          }
-        );
+        addRow?.querySelectorAll("input, select, textarea").forEach((el) => {
+          if (el.tagName === "SELECT") el.selectedIndex = 0;
+          else el.value = "";
+        });
         void hydrateDetailExtras(row);
         state.meetingAddOpen = false;
         refreshMeetingsPanel(row);
@@ -2243,10 +2607,12 @@ function rowTierClass(row) {
 }
 
 function contactDisplay(row) {
-  const c = row.contact ?? {};
-  if (c.name) return escapeHtml(c.name);
-  if (row.contactSecured === "yes") return "확보";
-  return "미확보";
+  const list = normalizeContactList(row);
+  if (!list.length) return row.contactSecured === "yes" ? "확보" : "미확보";
+  const first = list[0];
+  if (list.length === 1) return escapeHtml(first.name || first.email || "확보");
+  const label = first.name || first.email || "담당자";
+  return `${escapeHtml(label)} 외 ${list.length - 1}명`;
 }
 
 function companyNameById(id) {
@@ -2265,19 +2631,6 @@ function notionPriorityValue(row) {
 
 function hasFailedPosts(row) {
   return row.posts.some((p) => p.failureReason);
-}
-
-function setFilters(values, { keepPreset = false } = {}) {
-  Object.entries(values).forEach(([key, value]) => {
-    const el = byId(key);
-    if (el) el.value = value;
-  });
-  if (!keepPreset) state.activePreset = "";
-  state.leadsPage = 1;
-  state.postsPage = 1;
-  state.excludedPage = 1;
-  syncCustomSelects();
-  refreshViews();
 }
 
 function syncCustomSelects() {
@@ -2309,19 +2662,25 @@ function toggleFilterAdvanced(force) {
   state.filtersOpen = open;
 }
 
+function resolveBizStatusBucket(row) {
+  const status = `${row.profile?.bizStatus ?? ""}`.trim();
+  if (!status) return "unknown";
+  if (/폐업|휴업|말소/.test(status)) return "closed";
+  if (/계속/.test(status)) return "active";
+  return "unknown";
+}
+
 function resetTabFilters() {
   byId("search").value = "";
-  ["grade", "pipelineStage", "pipelineStatus", "contact", "exclude", "tier"].forEach((id) => {
+  ["grade", "pipelineStage", "pipelineStatus", "contact", "tier", "bizStatus"].forEach((id) => {
     const el = byId(id);
     if (el) el.value = "";
   });
-  state.activePreset = "";
   state.leadsPage = 1;
   state.postsPage = 1;
   state.excludedPage = 1;
   toggleFilterAdvanced(false);
   syncCustomSelects();
-  renderPresets();
 }
 
 function resetFilters() {
@@ -2929,17 +3288,16 @@ function passesFilters(row) {
   const stageFilter = byId("pipelineStage")?.value ?? "";
   const statusFilter = byId("pipelineStatus")?.value ?? "";
   const contact = byId("contact").value;
-  const exclude = byId("exclude").value;
+  const bizStatusFilter = byId("bizStatus")?.value ?? "";
   const { pipelineStage, pipelineStatus } = resolveRowPipeline(row);
 
-  const haystack = `${displayName(row)} ${row.companyName} ${row.domain} ${row.profile?.bizItem ?? ""} ${row.profile?.bizType ?? ""} ${row.profile?.companyScale ?? ""}`.toLowerCase();
+  const haystack = `${displayName(row)} ${row.companyName} ${row.domain} ${row.profile?.bizItem ?? ""} ${row.profile?.bizType ?? ""} ${row.profile?.companyScale ?? ""} ${row.profile?.bizStatus ?? ""}`.toLowerCase();
   if (q && !haystack.includes(q)) return false;
   if (grade && row.leadGrade !== grade) return false;
   if (stageFilter && pipelineStage !== stageFilter) return false;
   if (statusFilter && pipelineStatus !== statusFilter) return false;
   if (contact && row.contactSecured !== contact) return false;
-  if (exclude === "active" && row.excluded) return false;
-  if (exclude === "excluded" && !row.excluded) return false;
+  if (bizStatusFilter && resolveBizStatusBucket(row) !== bizStatusFilter) return false;
   const tierFilter = byId("tier")?.value;
   if (tierFilter === "startup" && !["startup", "unknown"].includes(row.companyTier)) return false;
   if (tierFilter === "enterprise" && row.companyTier !== "enterprise") return false;
@@ -3202,21 +3560,7 @@ function renderKpi() {
   renderDashboard();
 }
 
-function renderPresets() {
-  byId("presets").innerHTML = PRESETS.map(
-    (p) =>
-      `<button type="button" class="preset-btn${state.activePreset === p.id ? " active" : ""}" data-preset="${p.id}">${p.label}</button>`
-  ).join("");
-  byId("presets").querySelectorAll(".preset-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      state.activePreset = btn.dataset.preset;
-      PRESETS.find((p) => p.id === state.activePreset)?.apply();
-      renderPresets();
-    });
-  });
-}
-
-function renderCompanyCell(row, { showPoolBadge = true } = {}) {
+function renderCompanyCell(row, { showPoolBadge = true, showManualBadge = true, compactMeta = false } = {}) {
   const svc = serviceName(row);
   const svcUrl = serviceUrl(row);
   const svcHtml = svc
@@ -3224,15 +3568,14 @@ function renderCompanyCell(row, { showPoolBadge = true } = {}) {
       ? `<a class="cell-service link" href="${escapeAttr(svcUrl)}" target="_blank" rel="noreferrer">${escapeHtml(svc)}</a>`
       : `<span class="cell-service">${escapeHtml(svc)}</span>`
     : "";
+  const metaChips = companyMetaChips(row, { compact: compactMeta });
   return `<div class="cell-company">
       <div class="company-line">
         <strong>${escapeHtml(displayName(row))}</strong>
         ${newBadge(row)}
-        ${manualBadge(row)}
+        ${showManualBadge ? manualBadge(row) : ""}
         ${showPoolBadge ? poolClassBadge(row) : ""}
-        ${tierBadge(row)}
-        ${scaleBadge(row)}
-        ${bizStatusBadge(row)}
+        ${metaChips ? `<span class="company-meta-chips">${metaChips}</span>` : ""}
       </div>
       ${svcHtml}
       <span class="company-sub">${escapeHtml(companySubline(row))}</span>
@@ -3257,7 +3600,7 @@ function bindCompanyTablePanel(panel, { page, totalPages, pagerKey, onPage }) {
   bindPager(panel, { page, totalPages, pagerKey, onPage });
   panel.querySelectorAll("tr.lead-row-click").forEach((tr) => {
     tr.addEventListener("click", (e) => {
-      if (e.target.closest("a, button")) return;
+      if (e.target.closest("a, button, summary, .cell-opinion-details")) return;
       const row = state.rows.find((r) => r.companyId === tr.dataset.openCompany);
       if (row) openDetail(row);
     });
@@ -3358,10 +3701,10 @@ function refreshDetailAdminButtons() {
 }
 
 function renderDetailTitleHtml(row) {
-  const nameTags = [tierBadge(row), scaleBadge(row), bizStatusBadge(row)].filter(Boolean).join("");
+  const nameTags = companyMetaChips(row, { compact: true });
   const companyLine = `<span class="detail-title-row-inline">
     <span class="detail-title-company">${escapeHtml(displayName(row))}</span>
-    ${nameTags ? `<span class="detail-header-name-tags">${nameTags}</span>` : ""}
+    ${nameTags ? `<span class="detail-header-name-tags company-meta-chips">${nameTags}</span>` : ""}
   </span>`;
   const svc = serviceName(row);
   return svc ? `${companyLine}<span class="detail-title-service">${escapeHtml(svc)}</span>` : companyLine;
@@ -3388,6 +3731,57 @@ function paintDetailHeader(row) {
   hydrateIcons(byId("detailDrawer"));
 }
 
+function syncSummaryTierChip(select = byId("edit-tier")) {
+  const wrap = select?.closest?.(".summary-tier-chip");
+  if (!wrap) return;
+  wrap.classList.remove("is-tier-auto", "is-tier-startup", "is-tier-mid", "is-tier-enterprise", "is-tier-unknown");
+  const v = `${select.value ?? ""}`.trim();
+  wrap.classList.add(`is-tier-${v || "auto"}`);
+}
+
+function renderSummaryEditForm(row, e, tierVal, pool) {
+  const tierKey = tierVal || "auto";
+  const nameVal = e.companyNameKo || row.companyNameKo || "";
+  return `<div class="summary-edit-form">
+    <div class="summary-edit-head">
+      <div class="summary-name-field">
+        <input type="text" id="edit-name-ko" class="summary-name-input" value="${escapeAttr(nameVal)}" placeholder="회사명" autocomplete="organization" />
+        <div class="summary-tier-chip is-tier-${escapeAttr(tierKey)}" title="규모">
+          <span class="summary-tier-dot" aria-hidden="true"></span>
+          ${tierSelectCompact("edit-tier", tierVal)}
+        </div>
+      </div>
+      <div class="summary-pool-field">
+        <span class="summary-pool-label">분류</span>
+        <div class="summary-pool-segmented" role="group" aria-label="분류">
+          <label class="summary-pool-opt" data-pool="normal">
+            <input type="radio" name="edit-pool-class" value="normal"${pool === "normal" ? " checked" : ""} />
+            <span class="summary-pool-opt-inner">${iconSvg("user", 13)}<span>후보</span></span>
+          </label>
+          <label class="summary-pool-opt" data-pool="recommended">
+            <input type="radio" name="edit-pool-class" value="recommended"${pool === "recommended" ? " checked" : ""} />
+            <span class="summary-pool-opt-inner">${iconSvg("target", 13)}<span>추천</span></span>
+          </label>
+          <label class="summary-pool-opt" data-pool="hidden">
+            <input type="radio" name="edit-pool-class" value="hidden"${pool === "hidden" ? " checked" : ""} />
+            <span class="summary-pool-opt-inner">${iconSvg("archive", 13)}<span>숨김</span></span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="summary-edit-row">
+      <label class="summary-edit-field summary-edit-exclude" for="edit-exclude">
+        <span class="summary-field-label">제외 사유</span>
+        ${inlineInput("edit-exclude", e.excludeReason ?? row.excludeReason ?? "", "text", "없으면 비워두세요")}
+      </label>
+    </div>
+    <label class="summary-edit-field summary-edit-memo" for="edit-notes">
+      <span class="summary-field-label">의견</span>
+      ${inlineTextarea("edit-notes", row.salesMemo ?? row.manualNotes ?? "", "의견을 입력하세요", 3)}
+    </label>
+  </div>`;
+}
+
 function renderDetailBody(row, admin = false) {
   const e = window.TClientAdmin?.getEntry(row.companyId) ?? {};
   const p = { ...(row.profile ?? {}), ...(e.profile ?? {}) };
@@ -3403,54 +3797,13 @@ function renderDetailBody(row, admin = false) {
   const editProfile = isSectionEdit("profile");
   const editPosts = isSectionEdit("posts");
 
-  const summaryBlock = editSummary
-    ? `<div class="drawer-edit-form detail-form-grid">
-        <div class="drawer-field"><label class="drawer-field-label" for="edit-name-ko">회사명</label>${inlineInput("edit-name-ko", e.companyNameKo || row.companyNameKo)}</div>
-        <div class="drawer-field"><label class="drawer-field-label" for="edit-tier">규모</label>${inlineSelect("edit-tier", tierVal, [
-          ["", "(자동)"],
-          ["startup", "소·스타트업"],
-          ["mid", "중견"],
-          ["enterprise", "대기업"],
-          ["unknown", "미확인"]
-        ])}</div>
-        <div class="drawer-field"><label class="drawer-field-label" for="edit-grade">등급</label>${inlineSelect("edit-grade", e.leadGrade || row.leadGrade, [
-          ["", "(유지)"],
-          ["A", "A"],
-          ["B", "B"],
-          ["C", "C"]
-        ])}</div>
-        <div class="drawer-field drawer-field-wide">
-          <span class="drawer-field-label">분류</span>
-          <div class="pool-class-options pool-class-segmented">
-            <label><input type="radio" name="edit-pool-class" value="normal" ${pool === "normal" ? "checked" : ""} /> 후보</label>
-            <label><input type="radio" name="edit-pool-class" value="recommended" ${pool === "recommended" ? "checked" : ""} /> 추천</label>
-            <label><input type="radio" name="edit-pool-class" value="hidden" ${pool === "hidden" ? "checked" : ""} /> 숨김</label>
-          </div>
-        </div>
-        <div class="drawer-field"><label class="drawer-field-label" for="edit-exclude">제외 사유</label>${inlineInput("edit-exclude", e.excludeReason ?? row.excludeReason ?? "")}</div>
-        <div class="drawer-field drawer-field-wide"><label class="drawer-field-label" for="edit-notes">메모</label>${inlineInput("edit-notes", row.salesMemo ?? row.manualNotes ?? "")}</div>
-      </div>`
-    : detailKvGrid([
-        ["회사명", `<strong>${escapeHtml(displayName(row))}</strong>`],
-        ["규모", escapeHtml(tierLabelKo(tierVal))],
-        ["등급", escapeHtml(row.leadGrade || "-")],
-        ["분류", escapeHtml(poolClassLabel(pool))],
-        ...(row.notionPriority > 0 ? [["Notion No.", escapeHtml(String(row.notionPriority))]] : []),
-        ["제외", escapeHtml(row.excludeReason || "—")],
-        ["메모", escapeHtml(row.salesMemo ?? row.manualNotes ?? "—")]
-      ]);
+  const summaryBlock = editSummary ? renderSummaryEditForm(row, e, tierVal, pool) : "";
 
-  const salesBody = editSales
-    ? `<div class="sales-edit-stack">
-        ${renderSalesPipelineBar(row, { edit: true })}
-        <div class="detail-form-grid cols-2 detail-form-compact sales-contact-grid">
-          <div class="inline-row"><span class="inline-label">이름</span>${inlineInput("edit-contact-name", c.name ?? "")}</div>
-          <div class="inline-row"><span class="inline-label">이메일</span>${inlineInput("edit-contact-email", email, "email")}</div>
-          <div class="inline-row"><span class="inline-label">전화</span>${inlineInput("edit-contact-phone", c.phone ?? "", "tel")}</div>
-        </div>
-      </div>`
-    : renderSalesRowView(c, email, row);
-  const salesWithMeetings = `<div class="sales-section-stack">${salesBody}${renderMeetingsEmbed(row, admin)}</div>`;
+  const salesWithMeetings = `<div class="sales-section-stack">
+    ${renderSalesPipelineBar(row, { edit: editSales })}
+    ${renderContactsEmbed(row, admin)}
+    ${renderMeetingsEmbed(row, admin)}
+  </div>`;
 
   const evalViewBlock = editEval
     ? `<div class="detail-form-grid cols-2 detail-form-compact">
@@ -3470,8 +3823,8 @@ function renderDetailBody(row, admin = false) {
 
   const testBlock = editProgress
     ? `<div class="detail-form-grid cols-2 detail-form-compact">
-        <div class="inline-row"><span class="inline-label">시작</span>${inlineInput("edit-test-started", (row.testStartedAt ?? "").slice(0, 10), "date")}</div>
-        <div class="inline-row"><span class="inline-label">종료</span>${inlineInput("edit-test-ended", (row.testEndedAt ?? "").slice(0, 10), "date")}</div>
+        <div class="inline-row"><span class="inline-label">시작</span>${mpickerDateField("edit-test-started", row.testStartedAt)}</div>
+        <div class="inline-row"><span class="inline-label">종료</span>${mpickerDateField("edit-test-ended", row.testEndedAt)}</div>
         <div class="inline-row span-2 inline-row-top"><span class="inline-label">메모</span>${inlineTextarea("edit-test-notes", row.testNotes ?? "", "", 2)}</div>
       </div>`
     : renderTestView(row);
@@ -3556,7 +3909,7 @@ function renderDetailBody(row, admin = false) {
 
   const evalHeaderExtra =
     admin && !editEval
-      ? `<button type="button" class="detail-sec-btn detail-sec-btn-ghost" id="btn-recalc-score">재집계</button>`
+      ? detailIconBtn("rotate", "재집계", { attrs: 'id="btn-recalc-score"', size: 15 })
       : "";
   const sections = [];
   sections.push(detailSectionCard("영업 관리", salesWithMeetings, "sales", "", { icon: "briefcase", open: true }));
@@ -3582,11 +3935,6 @@ function renderDetailBody(row, admin = false) {
     ${row.excludeReason ? `<p class="warn detail-warn">제외 사유: ${escapeHtml(row.excludeReason)}</p>` : ""}`;
 }
 
-function tierLabelKo(tier) {
-  const map = { startup: "소·스타트업", mid: "중견", enterprise: "대기업", unknown: "미확인" };
-  return map[tier] ?? tier ?? "-";
-}
-
 async function hydrateDetailExtras(row) {
   if (!row?.companyId) return;
   const filesEl = document.querySelector(`[data-company-files="${row.companyId}"]`);
@@ -3600,7 +3948,7 @@ async function hydrateDetailExtras(row) {
     if (!meetListEl) return;
     meetListEl.innerHTML = notes.length
       ? `<ul class="meeting-list meeting-list-mini">${notes.map((n) => renderMeetingViewItem(n, admin)).join("")}</ul>`
-      : `<p class="muted detail-empty-hint">미팅 기록이 없습니다.${admin ? ' <button type="button" class="link-btn" id="meeting-add-toggle-inline">미팅 추가</button>' : ""}</p>`;
+      : `<p class="muted detail-empty-hint">미팅 기록이 없습니다.${admin ? ` ${detailIconBtn("plus", "미팅 추가", { attrs: 'id="meeting-add-toggle-inline"', size: 15 })}` : ""}</p>`;
   }
 
   function renderFileList(files) {
@@ -3630,6 +3978,7 @@ async function hydrateDetailExtras(row) {
   try {
     const notes = await window.TMeetingNotes.loadForCompany(row.companyId, true);
     renderMeetingList(notes);
+    if (meetEl) initMeetingFormSelects(meetEl);
     window.__TCLIENT_MEETING_CACHE = window.__TCLIENT_MEETING_CACHE ?? {};
     window.__TCLIENT_MEETING_CACHE[row.companyId] = notes;
   } catch {
@@ -3646,14 +3995,17 @@ function paintDetailModal() {
   openSections.forEach((key) => state.detailOpenSections.add(key));
   Object.keys(state.detailEditSections).forEach((key) => state.detailOpenSections.add(key));
   paintDetailHeader(row);
+  window.TMeetingPicker?.closeAllPanels?.();
   byId("detailBody").innerHTML = renderDetailBody(row, admin);
   applyDetailOpenSections(state.detailOpenSections);
   if (admin) {
     window.TUiSelect?.init(byId("detailDrawer"));
+    initMeetingFormSelects(byId("detailDrawer"));
   }
   void hydrateDetailExtras(row);
   void window.TDetailPanel?.syncNewToggle?.(row);
   hydrateIcons(byId("detailDrawer"));
+  syncSummaryTierChip();
   if (window.TDetailPanel) window.TDetailPanel.renderBody = renderDetailBody;
 }
 
@@ -3661,6 +4013,7 @@ async function openDetail(row, sectionToEdit = null) {
   state.detailRow = row;
   clearSectionEdits();
   clearMeetingUiState();
+  clearContactUiState();
   if (sectionToEdit && window.TClientAdmin?.isUnlocked?.()) {
     setSectionEdit(sectionToEdit, true);
   }
@@ -3689,6 +4042,7 @@ function closeDetail() {
   state.detailRow = null;
   clearSectionEdits();
   clearMeetingUiState();
+  clearContactUiState();
   state.detailOpenSections = new Set();
   window.__TCLIENT_DETAIL_ROW = null;
   window.__TCLIENT_DETAIL_EDIT = false;
@@ -4830,6 +5184,57 @@ function bindNotionSyncModal() {
   });
 }
 
+const USER_MANUAL_PDF = "assets/t-client-user-manual.pdf";
+const USER_MANUAL_FILENAME = "T-Client 사용자 매뉴얼.pdf";
+
+function openManualModal() {
+  closeAdminPopover();
+  const modal = byId("manualModal");
+  modal?.classList.remove("hidden");
+  modal?.setAttribute("aria-hidden", "false");
+  hydrateIcons(modal);
+}
+
+function closeManualModal() {
+  const modal = byId("manualModal");
+  modal?.classList.add("hidden");
+  modal?.setAttribute("aria-hidden", "true");
+}
+
+function viewUserManual() {
+  window.open(USER_MANUAL_PDF, "_blank", "noopener,noreferrer");
+  closeManualModal();
+}
+
+function downloadUserManual() {
+  const link = document.createElement("a");
+  link.href = USER_MANUAL_PDF;
+  link.download = USER_MANUAL_FILENAME;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  closeManualModal();
+}
+
+function bindManualModal() {
+  byId("adminManualDownloadBtn")?.addEventListener("click", () => {
+    openManualModal();
+  });
+
+  document.querySelectorAll("[data-close-manual]").forEach((el) => {
+    el.addEventListener("click", () => closeManualModal());
+  });
+
+  byId("manualViewBtn")?.addEventListener("click", () => {
+    viewUserManual();
+  });
+
+  byId("manualDownloadBtn")?.addEventListener("click", () => {
+    downloadUserManual();
+  });
+}
+
 function bindCrawlModal() {
   byId("adminOpenCrawlModal")?.addEventListener("click", () => {
     openCrawlModal();
@@ -5019,12 +5424,9 @@ function bindAdmin() {
     }
   });
 
-  byId("adminManualDownloadBtn")?.addEventListener("click", () => {
-    showToast("준비중입니다.");
-  });
-
   bindCrawlModal();
   bindNotionSyncModal();
+  bindManualModal();
 
   byId("notionReorderStart")?.addEventListener("click", startNotionReorder);
   byId("notionReorderCancel")?.addEventListener("click", cancelNotionReorder);
@@ -5076,14 +5478,12 @@ async function boot() {
 
     hydrateIcons();
 
-    ["search", "grade", "pipelineStage", "pipelineStatus", "contact", "exclude", "tier", "sort"].forEach((id) => {
+    ["search", "grade", "pipelineStage", "pipelineStatus", "contact", "tier", "bizStatus", "sort"].forEach((id) => {
       const el = byId(id);
       if (!el) return;
       el.addEventListener("input", () => {
-        state.activePreset = "";
         state.leadsPage = 1;
         state.postsPage = 1;
-        renderPresets();
         refreshViews();
       });
     });
@@ -5113,7 +5513,6 @@ async function boot() {
         /* ignore poll errors */
       }
     }, 90000);
-    renderPresets();
     bindTabs();
     bindActionKpiCards();
     byId("filterToggleBtn")?.addEventListener("click", () => toggleFilterAdvanced());

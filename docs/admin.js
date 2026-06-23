@@ -891,7 +891,16 @@
     }
 
     const mergedContact = { ...(dst.contact ?? {}) };
+    const mergedContacts = [
+      ...(Array.isArray(dst.contact?.contacts) ? dst.contact.contacts : []),
+      ...(Array.isArray(src.contact?.contacts) ? src.contact.contacts : [])
+    ].filter((c, i, arr) => {
+      const key = `${c?.name ?? ""}|${c?.email ?? ""}|${c?.phone ?? ""}`;
+      return key !== "||" && arr.findIndex((x) => `${x?.name ?? ""}|${x?.email ?? ""}|${x?.phone ?? ""}` === key) === i;
+    });
+    if (mergedContacts.length) mergedContact.contacts = mergedContacts;
     for (const [k, v] of Object.entries(src.contact ?? {})) {
+      if (k === "contacts") continue;
       if (mergedContact[k] === undefined || mergedContact[k] === null || mergedContact[k] === "") mergedContact[k] = v;
     }
 
@@ -1276,19 +1285,31 @@
     }
 
     const contact = entry.contact ?? {};
-    next.contact = {
+    const contacts = Array.isArray(contact.contacts)
+      ? contact.contacts
+          .map((c) => ({
+            name: `${c.name ?? ""}`.trim(),
+            email: `${c.email ?? ""}`.trim(),
+            phone: `${c.phone ?? ""}`.trim()
+          }))
+          .filter((c) => c.name || c.email || c.phone)
+      : [];
+    const primary = contacts[0] ?? {
       name: contact.name ?? row.contact?.name ?? "",
       email: contact.email ?? row.contact?.email ?? row.email ?? "",
       phone: contact.phone ?? row.contact?.phone ?? ""
     };
-    if (next.contact.email) {
-      next.email = next.contact.email;
+    next.contact = contacts.length ? { ...primary, contacts } : { ...primary };
+    const primaryEmail = primary.email || (primary.name.includes("@") ? primary.name : "");
+    const anyEmail = contacts.some((c) => c.email) || primaryEmail;
+    if (anyEmail) {
+      next.email = contacts.find((c) => c.email)?.email || primaryEmail;
       next.contactSecured = "yes";
     } else if (entry.email) {
       next.email = entry.email;
       next.contactSecured = "yes";
     }
-    if (next.contact.name || next.contact.phone) next.contactSecured = "yes";
+    if (contacts.some((c) => c.name || c.phone) || primary.name || primary.phone) next.contactSecured = "yes";
 
     if (entry.notes) next.manualNotes = entry.notes;
     if (entry.excludeReason) {
