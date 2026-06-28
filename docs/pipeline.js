@@ -201,6 +201,13 @@
     return false;
   }
 
+  /** Summary edit radios only support normal/recommended/hidden — map 진행 → 추천. */
+  function poolClassForSummaryEdit(row = {}) {
+    const cls = poolClassOf(row);
+    if (cls === "in_progress") return "recommended";
+    return cls;
+  }
+
   window.TPipeline = {
     PIPELINE_STAGES,
     PIPELINE_STAGE_LABEL,
@@ -232,6 +239,7 @@
     rowMatchesRecommendedTab,
     rowMatchesInProgressTab,
     rowMatchesCandidatePool,
-    rowMatchesExcludedTab
+    rowMatchesExcludedTab,
+    poolClassForSummaryEdit
   };
 })();

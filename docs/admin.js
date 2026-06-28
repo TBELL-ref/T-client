@@ -682,17 +682,6 @@
       }
     }
 
-    if (window.TCompanies?.recoverSalesFromSnapshot) {
-      try {
-        const recovered = await window.TCompanies.recoverSalesFromSnapshot();
-        if (recovered?.recovered > 0) {
-          console.info("[sales] recovered from published_snapshot", recovered);
-        }
-      } catch (err) {
-        console.warn("[sales] recover_sales_from_published_snapshot", err);
-      }
-    }
-
     await window.TSalesManagement?.loadAll?.(true);
     await window.TCompanyEdits?.loadAll?.(true);
   }

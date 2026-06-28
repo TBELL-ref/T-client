@@ -585,13 +585,33 @@ function bindSalesPipelineControls() {
   if (!body || body.dataset.pipelineBound === "1") return;
   body.dataset.pipelineBound = "1";
 
-  body.addEventListener("click", (e) => {
+  body.addEventListener("click", async (e) => {
     const stageBtn = e.target?.closest?.("[data-pipeline-stage-btn]");
     if (!stageBtn || !isSectionEdit("sales")) return;
     e.preventDefault();
     const hidden = byId("edit-pipeline-stage");
     if (hidden) hidden.value = stageBtn.dataset.pipelineStageBtn;
     syncPipelineStepperUi(body);
+
+    const row = state.detailRow;
+    if (!row || !window.TClientAdmin?.isUnlocked?.() || state.detailBusy) return;
+    const closedReason = byId("edit-closed-reason")?.value ?? "";
+    const isClosed = Boolean(closedReason);
+    const operationalStatus = byId("edit-pipeline-status")?.value ?? row.pipelineStatus ?? "pending";
+    try {
+      await window.TSalesManagement.upsert(
+        row.companyId,
+        {
+          pipelineStage: hidden?.value ?? row.pipelineStage,
+          pipelineStatus: isClosed ? "closed" : operationalStatus,
+          closedReason: isClosed ? closedReason : ""
+        },
+        row
+      );
+      finishDetailSave(row.companyId, { exitSection: null, toastMessage: "" });
+    } catch (err) {
+      showToast(err.message || "단계 저장 실패", "error");
+    }
   });
 
 }
@@ -630,6 +650,14 @@ function candidateIndustryLabel(row) {
 
 function poolClassOf(row) {
   return window.TPipeline?.poolClassOf?.(row) ?? window.TDetailPanel?.poolClassOf?.(row) ?? "normal";
+}
+
+function poolClassForSummaryEdit(row) {
+  return window.TPipeline?.poolClassForSummaryEdit?.(row) ?? poolClassOf(row);
+}
+
+function readSummaryPoolSelection(row) {
+  return document.querySelector('input[name="edit-pool-class"]:checked')?.value ?? poolClassForSummaryEdit(row);
 }
 
 function poolClassLabel(cls) {
@@ -1758,7 +1786,7 @@ async function runRecalcScore(row) {
 async function saveDetailSection(row, section) {
   return withDetailBusy("저장 중…", async () => {
   const cid = row.companyId;
-  const pool = document.querySelector('input[name="edit-pool-class"]:checked')?.value ?? "normal";
+  const pool = readSummaryPoolSelection(row);
   const prevSm = window.TSalesManagement?.get(cid) ?? {};
 
   const salesPatch = (fields) => fields;
@@ -3845,7 +3873,7 @@ function renderDetailBody(row, admin = false) {
   const c = row.contact ?? {};
   const tierVal = e.companyTier || row.companyTier || "";
   const email = c.email || row.email || "";
-  const pool = poolClassOf(row);
+  const pool = poolClassForSummaryEdit(row);
 
   const editSummary = isSectionEdit("summary");
   const editSales = isSectionEdit("sales");
