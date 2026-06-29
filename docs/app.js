@@ -1097,10 +1097,11 @@ function revenueLabel(row) {
 function formatRevenueHtml(rev) {
   const text = `${rev ?? ""}`.trim();
   if (!text) return "";
-  const breakAt = text.indexOf(" (");
+  const breakAt = text.indexOf("(");
   if (breakAt === -1) return escapeHtml(text);
-  const main = text.slice(0, breakAt);
-  const suffix = text.slice(breakAt + 1);
+  const main = text.slice(0, breakAt).trimEnd();
+  const suffix = text.slice(breakAt);
+  if (!main) return escapeHtml(text);
   return `${escapeHtml(main)}<br />${escapeHtml(suffix)}`;
 }
 
