@@ -1089,7 +1089,8 @@ function buildContactPatch(contacts) {
 }
 
 function revenueLabel(row) {
-  const p = row.profile ?? {};
+  const e = window.TClientAdmin?.getEntry?.(row.companyId) ?? {};
+  const p = { ...(row.profile ?? {}), ...(e.profile ?? {}) };
   return `${p.revenueLabel ?? p.revenue_label ?? row.revenueLabel ?? ""}`.trim();
 }
 
@@ -1827,11 +1828,13 @@ async function saveDetailSection(row, section) {
   };
 
   if (section === "summary") {
+    const revenueVal = byId("edit-revenue")?.value.trim() ?? "";
     await persistCompany(
       {
         companyNameKo: byId("edit-name-ko")?.value.trim(),
         companyTier: byId("edit-tier")?.value,
-        excludeReason: byId("edit-exclude")?.value.trim()
+        excludeReason: byId("edit-exclude")?.value.trim(),
+        profile: { revenueLabel: revenueVal }
       },
       salesPatch({
         isHidden: pool === "hidden",
@@ -3824,7 +3827,10 @@ function paintDetailHeader(row) {
   const sub = byId("detailHeaderSub");
   if (sub) {
     sub.innerHTML = renderDetailHeaderSub(row);
-    sub.classList.toggle("hidden", !companySubline(row) && !`${row.salesMemo ?? row.manualNotes ?? ""}`.trim());
+    sub.classList.toggle(
+      "hidden",
+      !companySubline(row) && !revenueLabel(row) && !`${row.salesMemo ?? row.manualNotes ?? ""}`.trim()
+    );
   }
   const chips = byId("detailHeaderChips");
   if (chips) {
@@ -3851,6 +3857,7 @@ function syncSummaryTierChip(select = byId("edit-tier")) {
 function renderSummaryEditForm(row, e, tierVal, pool) {
   const tierKey = tierVal || "auto";
   const nameVal = e.companyNameKo || row.companyNameKo || "";
+  const revenueVal = revenueLabel(row);
   return `<div class="summary-edit-form">
     <div class="summary-edit-head">
       <div class="summary-name-field">
@@ -3887,6 +3894,10 @@ function renderSummaryEditForm(row, e, tierVal, pool) {
     <label class="summary-edit-field summary-edit-memo" for="edit-notes">
       <span class="summary-field-label">의견</span>
       ${inlineTextarea("edit-notes", row.salesMemo ?? row.manualNotes ?? "", "의견을 입력하세요", 3)}
+    </label>
+    <label class="summary-edit-field summary-edit-revenue" for="edit-revenue">
+      <span class="summary-field-label">매출</span>
+      ${inlineInput("edit-revenue", revenueVal, "text", "114억 6,142만원(2025.12)")}
     </label>
   </div>`;
 }

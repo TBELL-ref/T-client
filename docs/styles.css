@@ -5054,6 +5054,20 @@ body.detail-drawer-open .app {
   resize: vertical;
 }
 
+.summary-edit-revenue .inline-field {
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  border-radius: 9px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.summary-edit-revenue .inline-field:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+
 .summary-edit-memo .inline-textarea:focus,
 .summary-edit-exclude .inline-field:focus {
   outline: none;
