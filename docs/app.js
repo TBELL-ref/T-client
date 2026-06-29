@@ -1094,10 +1094,20 @@ function revenueLabel(row) {
   return `${p.revenueLabel ?? p.revenue_label ?? row.revenueLabel ?? ""}`.trim();
 }
 
+function formatRevenueHtml(rev) {
+  const text = `${rev ?? ""}`.trim();
+  if (!text) return "";
+  const breakAt = text.indexOf(" (");
+  if (breakAt === -1) return escapeHtml(text);
+  const main = text.slice(0, breakAt);
+  const suffix = text.slice(breakAt + 1);
+  return `${escapeHtml(main)}<br />${escapeHtml(suffix)}`;
+}
+
 function revenueCell(row) {
   const rev = revenueLabel(row);
   if (!rev) return '<span class="muted">—</span>';
-  return `<span class="cell-revenue" title="${escapeAttr(rev)}">${escapeHtml(rev)}</span>`;
+  return `<span class="cell-revenue" title="${escapeAttr(rev)}">${formatRevenueHtml(rev)}</span>`;
 }
 
 function scoreStackCell(row) {
@@ -1284,7 +1294,7 @@ function renderDetailHeaderSub(row) {
   if (line1 || revenue) {
     parts.push(`<span class="detail-header-meta-row">
       ${line1 ? `<span class="detail-header-industry">${escapeHtml(line1)}</span>` : ""}
-      ${revenue ? `<span class="detail-header-revenue">${escapeHtml(revenue)}</span>` : ""}
+      ${revenue ? `<span class="detail-header-revenue">${formatRevenueHtml(revenue)}</span>` : ""}
     </span>`);
   }
   if (memo) parts.push(renderDetailHeaderMemo(memo));

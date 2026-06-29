@@ -4483,7 +4483,8 @@ body.detail-drawer-open .app {
   font-size: 0.8rem;
   font-weight: 600;
   color: #374151;
-  white-space: nowrap;
+  text-align: right;
+  line-height: 1.3;
 }
 
 .leads-table-rich .col-revenue {
@@ -4491,6 +4492,7 @@ body.detail-drawer-open .app {
   max-width: 14rem;
   font-size: 0.82rem;
   line-height: 1.35;
+  vertical-align: top;
 }
 
 .leads-table-rich .cell-revenue {
@@ -4498,6 +4500,7 @@ body.detail-drawer-open .app {
   color: #374151;
   word-break: keep-all;
   overflow-wrap: anywhere;
+  line-height: 1.3;
 }
 
 .leads-table-rich .col-scores {
