@@ -157,6 +157,18 @@
     return `<span class="cell-meeting-hint" title="${escapeAttr(hint)}">${escapeHtml(hint.slice(0, 56))}${hint.length > 56 ? "…" : ""}</span>`;
   }
 
+  function testMeetingCell(row) {
+    const period = V().testPeriodHtml?.(row) ?? V().testPeriodDisplay?.(row) ?? "";
+    const meeting = meetingHint(row);
+    if (!period && meeting.includes("muted")) {
+      return '<span class="muted">—</span>';
+    }
+    return `<div class="cell-test-meeting-stack">
+      ${period ? `<span class="cell-test-meeting-row">${period}</span>` : ""}
+      <span class="cell-test-meeting-row">${meeting}</span>
+    </div>`;
+  }
+
   function recommendedTable(rows) {
     if (!rows.length) return "";
     const reorder = V().isNotionReorderActive?.() && (window.__TCLIENT_ACTIVE_TAB ?? "") === "recommended";
@@ -165,8 +177,8 @@
       ${handleTh}
       <th>회사</th>
       <th class="col-opinion">의견</th>
-      <th>추천</th>
-      <th>파일럿</th>
+      <th class="col-revenue">매출</th>
+      <th class="col-scores">추천 · 파일럿</th>
       <th>단계</th>
       <th>담당자</th>
     </tr></thead><tbody>${rows
@@ -175,8 +187,8 @@
         ${reorder ? V().reorderHandleCell?.(idx + 1) ?? "" : ""}
         <td>${companyCell(row)}</td>
         <td class="col-opinion">${V().candidateOpinionHtml?.(row) ?? ""}</td>
-        <td>${V().renderStarRating?.(row.recommendScore, 5) ?? ""}</td>
-        <td>${V().renderStarRating?.(row.pilotDifficulty, 3) ?? ""}</td>
+        <td class="col-revenue">${V().revenueCell?.(row) ?? ""}</td>
+        <td class="col-scores">${V().scoreStackCell?.(row) ?? ""}</td>
         <td>${pipelineCell(row)}</td>
         <td>${emailCell(row)}</td>
       </tr>`
@@ -191,20 +203,19 @@
     return `<div class="table-wrap"><table class="leads-table leads-table-rich${reorder ? " table-reorder-mode" : ""}"><thead><tr>
       ${handleTh}
       <th>회사</th>
-      <th>테스트 기간</th>
+      <th class="col-test-meeting">테스트 · 미팅</th>
       <th>단계 · 상태</th>
-      <th>미팅 / 다음</th>
+      <th class="col-revenue">매출</th>
       <th>담당자</th>
       <th class="col-files">파일</th>
     </tr></thead><tbody>${rows
       .map((row, idx) => {
-        const period = V().testPeriodHtml?.(row) ?? V().testPeriodDisplay?.(row) ?? "";
         return `<tr class="lead-row-click${reorder ? " reorder-mode" : ""}" data-open-company="${escapeAttr(row.companyId)}"${reorder ? ` data-reorder-id="${escapeAttr(row.companyId)}"` : ""}>
         ${reorder ? V().reorderHandleCell?.(idx + 1) ?? "" : ""}
         <td>${companyCell(row)}</td>
-        <td class="cell-test-period">${period || '<span class="muted">—</span>'}</td>
+        <td class="cell-test-meeting">${testMeetingCell(row)}</td>
         <td>${pipelineCell(row)}</td>
-        <td>${meetingHint(row)}</td>
+        <td class="col-revenue">${V().revenueCell?.(row) ?? ""}</td>
         <td>${emailCell(row)}</td>
         <td class="col-files">${fileIconsCell(row) || '<span class="muted">—</span>'}</td>
       </tr>`;

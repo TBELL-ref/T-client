@@ -1088,6 +1088,24 @@ function buildContactPatch(contacts) {
   return { ...primary, contacts: list };
 }
 
+function revenueLabel(row) {
+  const p = row.profile ?? {};
+  return `${p.revenueLabel ?? p.revenue_label ?? row.revenueLabel ?? ""}`.trim();
+}
+
+function revenueCell(row) {
+  const rev = revenueLabel(row);
+  if (!rev) return '<span class="muted">—</span>';
+  return `<span class="cell-revenue" title="${escapeAttr(rev)}">${escapeHtml(rev)}</span>`;
+}
+
+function scoreStackCell(row) {
+  return `<div class="cell-score-stack">
+    <span class="cell-score-row"><span class="cell-score-label">추천</span>${renderStarRating(row.recommendScore, 5)}</span>
+    <span class="cell-score-row"><span class="cell-score-label">파일럿</span>${renderStarRating(row.pilotDifficulty, 3)}</span>
+  </div>`;
+}
+
 function companySubline(row) {
   const p = row.profile ?? {};
   const parts = [];
@@ -1259,9 +1277,15 @@ function renderDrawerStatsCompact(row) {
 
 function renderDetailHeaderSub(row) {
   const line1 = companySubline(row);
+  const revenue = revenueLabel(row);
   const memo = `${row.salesMemo ?? row.manualNotes ?? ""}`.trim();
   const parts = [];
-  if (line1) parts.push(`<span class="detail-header-meta">${escapeHtml(line1)}</span>`);
+  if (line1 || revenue) {
+    parts.push(`<span class="detail-header-meta-row">
+      ${line1 ? `<span class="detail-header-industry">${escapeHtml(line1)}</span>` : ""}
+      ${revenue ? `<span class="detail-header-revenue">${escapeHtml(revenue)}</span>` : ""}
+    </span>`);
+  }
   if (memo) parts.push(renderDetailHeaderMemo(memo));
   return parts.join("");
 }
@@ -5619,6 +5643,9 @@ window.TClientView = {
   pipelineCombinedCell: pipelineCombinedCell,
   candidateOpinionText,
   candidateOpinionHtml,
+  revenueLabel,
+  revenueCell,
+  scoreStackCell,
   serviceName,
   contactEmail,
   testPeriodDisplay,

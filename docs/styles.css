@@ -4461,6 +4461,85 @@ body.detail-drawer-open .app {
   line-height: 1.4;
 }
 
+.detail-header-meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  font-size: 0.82rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.detail-header-industry {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.detail-header-revenue {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.leads-table-rich .col-revenue {
+  width: 11rem;
+  max-width: 14rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.leads-table-rich .cell-revenue {
+  display: block;
+  color: #374151;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.leads-table-rich .col-scores {
+  width: 7.5rem;
+}
+
+.cell-score-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cell-score-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.cell-score-label {
+  flex: 0 0 2.2rem;
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+.leads-table-rich .col-test-meeting {
+  width: 12rem;
+  max-width: 16rem;
+}
+
+.cell-test-meeting-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.cell-test-meeting-row {
+  display: block;
+}
+
 .detail-header-memo {
   display: block;
   width: 100%;
