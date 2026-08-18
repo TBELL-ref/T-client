@@ -1859,7 +1859,6 @@ async function saveDetailSection(row, section) {
         memo: byId("edit-notes")?.value.trim(),
         remark: remarkVal
       })
-      })
     );
     return;
   }
