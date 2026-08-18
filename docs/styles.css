@@ -4543,6 +4543,23 @@ body.detail-drawer-open .app {
   display: block;
 }
 
+.detail-header-remark {
+  display: block;
+  width: 100%;
+  font-size: 0.8rem;
+  color: #6b7280;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.detail-remark-label {
+  font-weight: 600;
+  color: #94a3b8;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  margin-right: 4px;
+}
+
 .detail-header-memo {
   display: block;
   width: 100%;

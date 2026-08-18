@@ -1299,6 +1299,8 @@ function renderDetailHeaderSub(row) {
     </span>`);
   }
   if (memo) parts.push(renderDetailHeaderMemo(memo));
+  const remarkText = `${row.remark ?? ""}`.trim();
+  if (remarkText) parts.push(`<span class="detail-header-remark"><span class="detail-remark-label">비고</span> ${escapeHtml(remarkText)}</span>`);
   return parts.join("");
 }
 
@@ -1840,6 +1842,7 @@ async function saveDetailSection(row, section) {
 
   if (section === "summary") {
     const revenueVal = byId("edit-revenue")?.value.trim() ?? "";
+    const remarkVal = byId("edit-remark")?.value.trim() ?? "";
     await persistCompany(
       {
         companyNameKo: byId("edit-name-ko")?.value.trim(),
@@ -1853,7 +1856,9 @@ async function saveDetailSection(row, section) {
         isCandidate: false,
         recommendedSince: pool === "recommended" ? prevSm.recommendedSince || new Date().toISOString() : "",
         candidateSince: "",
-        memo: byId("edit-notes")?.value.trim()
+        memo: byId("edit-notes")?.value.trim(),
+        remark: remarkVal
+      })
       })
     );
     return;
@@ -3840,7 +3845,7 @@ function paintDetailHeader(row) {
     sub.innerHTML = renderDetailHeaderSub(row);
     sub.classList.toggle(
       "hidden",
-      !companySubline(row) && !revenueLabel(row) && !`${row.salesMemo ?? row.manualNotes ?? ""}`.trim()
+      !companySubline(row) && !revenueLabel(row) && !`${row.salesMemo ?? row.manualNotes ?? ""}`.trim() && !`${row.remark ?? ""}`.trim()
     );
   }
   const chips = byId("detailHeaderChips");
@@ -3905,6 +3910,10 @@ function renderSummaryEditForm(row, e, tierVal, pool) {
     <label class="summary-edit-field summary-edit-memo" for="edit-notes">
       <span class="summary-field-label">의견</span>
       ${inlineTextarea("edit-notes", row.salesMemo ?? row.manualNotes ?? "", "의견을 입력하세요", 3)}
+    </label>
+    <label class="summary-edit-field summary-edit-memo" for="edit-remark">
+      <span class="summary-field-label">비고</span>
+      ${inlineTextarea("edit-remark", row.remark ?? "", "비고를 입력하세요", 2)}
     </label>
     <label class="summary-edit-field summary-edit-revenue" for="edit-revenue">
       <span class="summary-field-label">매출</span>
