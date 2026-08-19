@@ -645,16 +645,24 @@
     return state.unlocked;
   }
 
-  async function afterAuth() {
-    if (!isUnlocked()) return;
-    if (window.TCompanyEdits?.loadAll) await window.TCompanyEdits.loadAll(true);
-    if (window.TSalesManagement?.loadAll) await window.TSalesManagement.loadAll(true);
+  async function loadSalesAndEdits() {
+    await Promise.all([
+      window.TCompanyEdits?.loadAll?.(true),
+      window.TSalesManagement?.loadAll?.(true)
+    ]);
+  }
 
+  async function afterAuth({ reloadFirst = true } = {}) {
+    if (!isUnlocked()) return;
+    if (reloadFirst) await loadSalesAndEdits();
+
+    let needReload = false;
     if (window.TCompanies?.migrateFromOverrides) {
       try {
         const migrated = await window.TCompanies.migrateFromOverrides();
         if (migrated?.migrated > 0) {
           console.info("[companies] overrides → companies migrated", migrated);
+          needReload = true;
         }
       } catch (err) {
         console.warn("[companies] migrate_custom_companies_from_overrides", err);
@@ -665,7 +673,7 @@
       const migrated = await window.TCompanyEdits?.migrateFromOverridesDoc?.();
       if (migrated?.migrated > 0) {
         console.info("[company-edits] overrides JSON → relational migrated", migrated);
-        await window.TCompanyEdits.loadAll(true);
+        needReload = true;
       }
     } catch (err) {
       console.warn("[company-edits] migrate_overrides_doc_to_relational", err);
@@ -676,24 +684,23 @@
         const migrated = await window.TCompanies.migrateSalesFromOverrides();
         if (migrated?.migrated > 0) {
           console.info("[sales] overrides → sales_management migrated", migrated);
+          needReload = true;
         }
       } catch (err) {
         console.warn("[sales] migrate_sales_from_overrides", err);
       }
     }
 
-    await window.TSalesManagement?.loadAll?.(true);
-    await window.TCompanyEdits?.loadAll?.(true);
+    if (needReload) await loadSalesAndEdits();
   }
 
-  async function initDoc() {
+  async function initDoc({ migrate = true } = {}) {
     await syncSession();
     state.doc = emptyDoc();
     const local = loadLocal();
     state.doc.customCompanies = local.customCompanies ?? [];
-    if (window.TCompanyEdits?.loadAll) await window.TCompanyEdits.loadAll(true);
-    await initKeywords();
-    await afterAuth();
+    await loadSalesAndEdits();
+    if (migrate && isUnlocked()) await afterAuth({ reloadFirst: false });
     return state.doc;
   }
 

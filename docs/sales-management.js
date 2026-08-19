@@ -37,6 +37,10 @@
       pilotDifficultyReason: raw.pilotDifficultyReason ?? raw.pilot_difficulty_reason ?? "",
       evaluationNotes: raw.evaluationNotes ?? raw.evaluation_notes ?? "",
       notionPriority: Number.parseInt(`${raw.notionPriority ?? raw.notion_priority ?? 0}`, 10) || 0,
+      scoreLocked: Boolean(raw.scoreLocked ?? raw.score_locked),
+      scoreLockedAt: raw.scoreLockedAt ?? raw.score_locked_at ?? "",
+      scoreLockedBy: raw.scoreLockedBy ?? raw.score_locked_by ?? "",
+      scoreSource: raw.scoreSource ?? raw.score_source ?? "auto",
       updatedAt: raw.updatedAt ?? ""
     };
   }
@@ -277,7 +281,11 @@
       testNotes: sm.testNotes,
       recommendScoreReason: sm.recommendScoreReason,
       pilotDifficultyReason: sm.pilotDifficultyReason,
-      evaluationNotes: sm.evaluationNotes
+      evaluationNotes: sm.evaluationNotes,
+      scoreLocked: sm.scoreLocked,
+      scoreLockedAt: sm.scoreLockedAt,
+      scoreLockedBy: sm.scoreLockedBy,
+      scoreSource: sm.scoreSource
     };
   }
 

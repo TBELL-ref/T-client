@@ -1622,6 +1622,41 @@ tbody tr.row-hidden-admin {
   line-height: 1.4;
 }
 
+.company-latest-post {
+  display: block;
+  max-width: 28rem;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #334155;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+a.company-latest-post:hover {
+  color: #0f766e;
+  text-decoration: underline;
+}
+
+.cell-priority-grade {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.cell-priority {
+  font-size: 0.95rem;
+}
+
+.col-priority-grade,
+.col-pipeline,
+.col-scores {
+  white-space: nowrap;
+}
+
 .tier-badge {
   display: inline-flex;
   align-items: center;

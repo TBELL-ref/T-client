@@ -1118,6 +1118,39 @@ function scoreStackCell(row) {
   </div>`;
 }
 
+function priorityGradeCell(row) {
+  const grade = `${row.leadGrade ?? "-"}`.trim() || "-";
+  return `<div class="cell-priority-grade">
+    <strong class="cell-priority">${escapeHtml(String(row.priorityScore ?? "0"))}</strong>
+    <span class="badge grade-${escapeAttr(grade)}">${escapeHtml(grade)}</span>
+  </div>`;
+}
+
+function latestPost(row) {
+  const posts = (row.posts ?? []).filter((p) => `${p.title ?? ""}`.trim());
+  if (!posts.length) return null;
+  const dated = posts.filter((p) => p.collectedAt || p.collected_at);
+  if (dated.length) {
+    dated.sort(
+      (a, b) =>
+        Date.parse(b.collectedAt || b.collected_at || 0) - Date.parse(a.collectedAt || a.collected_at || 0)
+    );
+    return dated[0];
+  }
+  return posts[0];
+}
+
+function latestPostLine(row) {
+  const post = latestPost(row);
+  if (!post) return "";
+  const title = `${post.title}`.trim();
+  const url = `${post.url ?? ""}`.trim();
+  if (url) {
+    return `<a class="company-latest-post" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" title="${escapeAttr(title)}">${escapeHtml(title)}</a>`;
+  }
+  return `<span class="company-latest-post" title="${escapeAttr(title)}">${escapeHtml(title)}</span>`;
+}
+
 function companySubline(row) {
   const p = row.profile ?? {};
   const parts = [];
@@ -3706,6 +3739,7 @@ function renderCompanyCell(row, { showPoolBadge = true, showManualBadge = true, 
       </div>
       ${svcHtml}
       <span class="company-sub">${escapeHtml(companySubline(row))}</span>
+      ${latestPostLine(row)}
     </div>`;
 }
 
@@ -3713,11 +3747,10 @@ function renderCompanyTableRow(row) {
   return `
             <tr class="lead-row-click${row.excluded ? " row-excluded" : ""}${hasFailedPosts(row) ? " row-failure" : ""}${row.isManual ? " row-manual" : ""}${row.isNewFromLastCrawl ? " row-new-crawl" : ""}${rowTierClass(row)}" data-open-company="${escapeAttr(row.companyId)}">
               <td>${renderCompanyCell(row)}</td>
-              <td>${row.posts.length}건</td>
-              <td><strong>${row.priorityScore}</strong></td>
-              <td><span class="badge grade-${row.leadGrade}">${row.leadGrade}</span></td>
-              <td>${pipelineStageBadge(row)}</td>
-              <td>${pipelineStatusBadge(row)}</td>
+              <td>${(row.posts ?? []).length}건</td>
+              <td class="col-priority-grade">${priorityGradeCell(row)}</td>
+              <td class="col-pipeline">${pipelineCombinedCell(row)}</td>
+              <td class="col-scores">${scoreStackCell(row)}</td>
               <td><span class="badge">${contactDisplay(row)}</span></td>
               <td title="${row.isNewFromLastCrawl ? "직전 크롤 신규 · " : ""}최근 공고 갱신: ${escapeAttr(formatDate(row.lastCollectedAt) || "-")}">${formatDate(displayCollectedAt(row))}${row.isNewFromLastCrawl ? ' <span class="muted">· New</span>' : ""}</td>
             </tr>`;
@@ -3756,15 +3789,14 @@ function renderCompanyTable(panelId, rows, { pageKey = "leadsPage", emptyHtml, o
 
   panel.innerHTML = `
     <div class="table-wrap">
-      <table>
+      <table class="leads-table">
         <thead>
           <tr>
             <th>회사</th>
             <th>공고</th>
-            <th>우선순위</th>
-            <th>등급</th>
-            <th>단계</th>
-            <th>상태</th>
+            <th class="col-priority-grade">우선순위 · 등급</th>
+            <th class="col-pipeline">단계 · 상태</th>
+            <th class="col-scores">추천 · 파일럿</th>
             <th>담당자</th>
             <th>등록일</th>
           </tr>
@@ -3957,6 +3989,9 @@ function renderDetailBody(row, admin = false) {
         <div class="detail-score-box"><span class="detail-score-label">파일럿</span>${renderStarRating(row.pilotDifficulty, 3)}</div>
         ${row.recommendScoreReason ? `<p class="detail-prose text-preline"><strong>추천 근거</strong> ${multilineHtml(row.recommendScoreReason)}</p>` : ""}
         ${row.pilotDifficultyReason ? `<p class="detail-prose text-preline"><strong>파일럿 근거</strong> ${multilineHtml(row.pilotDifficultyReason)}</p>` : ""}
+        ${row.scoreLocked
+          ? `<p class="muted">회원 산정${row.scoreLockedBy ? ` (${escapeHtml(row.scoreLockedBy)})` : ""} — 이후 자동 점수 집계를 하지 않습니다.</p>`
+          : `<p class="muted">크롤러가 자동 산정합니다. 여기서 저장하면 회원 산정으로 고정됩니다.</p>`}
       </div>`;
   const ratingBody = `<div class="rating-section-stack">${evalViewBlock}<div class="rating-score-block">${renderScoreSection(row, editEval, admin)}</div></div>`;
 
@@ -5571,39 +5606,50 @@ function bindAdmin() {
   }
 }
 
-async function boot() {
+function showBootLoading() {
+  const msg = '<div class="empty-state">목록을 불러오는 중…</div>';
+  ["new", "recommended", "in_progress", "leads", "posts", "excluded"].forEach((id) => {
+    const el = byId(id);
+    if (el) el.innerHTML = msg;
+  });
+  const meta = byId("meta");
+  if (meta) meta.textContent = "불러오는 중…";
+}
+
+function applySnapshot(snapshot) {
+  state.snapshotGeneratedAt = snapshot.generatedAt ?? null;
+  state.snapshotRows = snapshot.rows ?? [];
+  state.newCompanyIds = new Set(snapshot.newCompanyIds ?? []);
+  state.dedupeCandidates = snapshot.dedupeCandidates ?? [];
+  state.manualReviewQueue = snapshot.manualReviewQueue ?? [];
+  state.failureSummary = snapshot.failureSummary ?? {};
+  state.gradeSummary = snapshot.gradeSummary ?? {};
+}
+
+async function loadLeadSnapshot() {
   try {
-    await window.TClientAdmin.initDoc();
-    if (window.TSalesManagement?.loadAll) await window.TSalesManagement.loadAll(true);
-    if (window.TCompanyEdits?.loadAll) await window.TCompanyEdits.loadAll(true);
-    if (window.TCompanyUserState?.loadAll) await window.TCompanyUserState.loadAll(true);
-    let snapshot = null;
-    try {
-      snapshot = await window.TSupabase.getLeadDashboard();
-    } catch {
-      snapshot = await window.TSupabase.getPublishedSnapshot();
-    }
-    if (!snapshot?.rows) throw new Error("스냅샷이 비어 있습니다. Lead Collector를 먼저 실행하세요.");
-    state.snapshotGeneratedAt = snapshot.generatedAt ?? null;
-    state.snapshotRows = snapshot.rows ?? [];
-    state.newCompanyIds = new Set(snapshot.newCompanyIds ?? []);
-    reloadRowsWithAdmin();
-    state.dedupeCandidates = snapshot.dedupeCandidates ?? [];
-    state.manualReviewQueue = snapshot.manualReviewQueue ?? [];
-    state.failureSummary = snapshot.failureSummary ?? {};
-    state.gradeSummary = snapshot.gradeSummary ?? {};
+    const published = await window.TSupabase.getPublishedSnapshot();
+    if (published?.rows?.length) return published;
+  } catch (err) {
+    console.warn("[boot] published snapshot failed", err);
+  }
+  const live = await window.TSupabase.getLeadDashboard();
+  if (!live?.rows) throw new Error("스냅샷이 비어 있습니다. Lead Collector를 먼저 실행하세요.");
+  return live;
+}
 
-    hydrateIcons();
+function bindBootUi() {
+  hydrateIcons();
 
-    ["search", "grade", "pipelineStage", "pipelineStatus", "contact", "tier", "bizStatus", "sort"].forEach((id) => {
-      const el = byId(id);
-      if (!el) return;
-      el.addEventListener("input", () => {
-        state.leadsPage = 1;
-        state.postsPage = 1;
-        refreshViews();
-      });
+  ["search", "grade", "pipelineStage", "pipelineStatus", "contact", "tier", "bizStatus", "sort"].forEach((id) => {
+    const el = byId(id);
+    if (!el) return;
+    el.addEventListener("input", () => {
+      state.leadsPage = 1;
+      state.postsPage = 1;
+      refreshViews();
     });
+  });
 
     bindModal();
     bindMergeModal();
@@ -5613,7 +5659,7 @@ async function boot() {
     if (window.location.hash.includes("type=recovery")) {
       showPasswordSetupUi(true);
     }
-    await updateAdminJobUi();
+    updateAdminJobUi().catch(() => {});
     setInterval(updateAdminJobUi, 30000);
     setInterval(async () => {
       if (document.hidden) return;
@@ -5630,13 +5676,32 @@ async function boot() {
         /* ignore poll errors */
       }
     }, 90000);
-    bindTabs();
-    bindActionKpiCards();
-    byId("filterToggleBtn")?.addEventListener("click", () => toggleFilterAdvanced());
-    byId("filterResetBtn")?.addEventListener("click", resetFilters);
-    document.querySelector(".toolbar")?.classList.toggle("toolbar-candidates", ["new", "recommended", "in_progress"].includes(state.activeTab));
+  bindTabs();
+  bindActionKpiCards();
+  byId("filterToggleBtn")?.addEventListener("click", () => toggleFilterAdvanced());
+  byId("filterResetBtn")?.addEventListener("click", resetFilters);
+  document.querySelector(".toolbar")?.classList.toggle("toolbar-candidates", ["new", "recommended", "in_progress"].includes(state.activeTab));
+  window.TUiSelect?.init();
+}
+
+async function boot() {
+  showBootLoading();
+  try {
+    const snapshotPromise = loadLeadSnapshot();
+    const extrasPromise = (async () => {
+      await window.TClientAdmin.initDoc({ migrate: false });
+      await Promise.all([
+        window.TCompanyUserState?.loadAll?.(true),
+        window.TClientAdmin.initKeywords?.()
+      ]);
+    })();
+
+    const snapshot = await snapshotPromise;
+    if (!snapshot?.rows) throw new Error("스냅샷이 비어 있습니다. Lead Collector를 먼저 실행하세요.");
+    applySnapshot(snapshot);
+    reloadRowsWithAdmin();
+    bindBootUi();
     const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
-    window.TUiSelect?.init();
     if (tabFromUrl && byId(tabFromUrl)) {
       switchTab(tabFromUrl, { resetFilters: true });
     } else {
@@ -5644,6 +5709,20 @@ async function boot() {
       refreshViews();
     }
     updateNotionReorderUi();
+
+    await extrasPromise;
+    reloadRowsWithAdmin();
+    refreshViews();
+    updateNotionReorderUi();
+
+    if (window.TClientAdmin?.isUnlocked?.()) {
+      window.TClientAdmin.afterAuth?.({ reloadFirst: false })
+        .then(() => {
+          reloadRowsWithAdmin();
+          refreshViews();
+        })
+        .catch((err) => console.warn("[boot] afterAuth", err));
+    }
   } catch (err) {
     byId("meta").textContent = "로드 실패";
     const msg = `<div class="empty-state">${escapeHtml(err.message)}</div>`;
@@ -5676,6 +5755,7 @@ window.TClientView = {
   revenueLabel,
   revenueCell,
   scoreStackCell,
+  priorityGradeCell,
   serviceName,
   contactEmail,
   testPeriodDisplay,
