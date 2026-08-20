@@ -8236,13 +8236,15 @@ body.detail-drawer-open .app {
 }
 
 .home-db {
-  display: block;
+  display: flex;
+  flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   min-height: 420px;
-  overflow: hidden;
+  /* overflow:hidden breaks position:sticky for the toolbar */
+  overflow: visible;
 }
 
 .home-db-nav {
@@ -8356,16 +8358,53 @@ body.detail-drawer-open .app {
 }
 
 .home-db-main {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  flex: 1;
   padding: 12px 14px 16px;
 }
 
 .home-db-toolbar {
+  position: sticky;
+  top: 56px;
+  z-index: 40;
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
   flex-wrap: wrap;
+  flex-shrink: 0;
+  margin: 0 -14px 10px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.home-db-table {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: calc(100vh - 140px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.home-db-table .table-wrap {
+  margin: 0;
+  overflow: visible;
+  overflow-anchor: none;
+}
+
+.home-db-table .home-new-page-row {
+  position: sticky;
+  left: 0;
+  bottom: 0;
+  z-index: 2;
 }
 
 .home-db-search-group {
@@ -8498,12 +8537,6 @@ body.detail-drawer-open .app {
   .excel-export-column-grid {
     grid-template-columns: 1fr;
   }
-}
-
-.home-db-table .table-wrap {
-  margin: 0;
-  overflow-x: auto;
-  overflow-anchor: none;
 }
 
 .notion-db-table.is-home-edit tr.lead-row-edit td {

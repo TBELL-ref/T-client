@@ -5684,8 +5684,8 @@ function homeCellInput(value, { multiline = false, placeholder = "" } = {}) {
 
 function homeStarPicker(filled, total) {
   const n = Math.max(0, Math.min(total, Number.parseInt(`${filled ?? 0}`, 10) || 0));
-  return `<span class="star-rating home-star-picker" title="클릭해서 점수를 바꿉니다">${Array.from({ length: total }, (_, i) =>
-    `<button type="button" class="home-star-btn" data-home-star="${i + 1}" title="${i + 1}점" aria-label="${i + 1}점"><span class="star-glyph${i < n ? " filled" : ""}">★</span></button>`
+  return `<span class="star-rating home-star-picker" title="클릭해서 점수 · 같은 별 다시 클릭 시 0점">${Array.from({ length: total }, (_, i) =>
+    `<button type="button" class="home-star-btn" data-home-star="${i + 1}" title="${i + 1}점 (다시 누르면 0점)" aria-label="${i + 1}점"><span class="star-glyph${i < n ? " filled" : ""}">★</span></button>`
   ).join("")}</span>`;
 }
 
@@ -6428,7 +6428,15 @@ function bindHomeDbEvents(table) {
       const td = btn.closest("td");
       const row = state.rows.find((r) => r.companyId === btn.closest("tr")?.dataset.openCompany);
       if (!row || !td?.dataset.homeField) return;
-      void saveHomeStar(row, td.dataset.homeField, btn.dataset.homeStar);
+      const field = td.dataset.homeField;
+      const clicked = parseStarSelect(btn.dataset.homeStar);
+      const current =
+        field === "pilot"
+          ? Number.parseInt(`${row.pilotDifficulty ?? 0}`, 10) || 0
+          : Number.parseInt(`${row.recommendScore ?? 0}`, 10) || 0;
+      // Click the same filled rank again to clear to 0.
+      const next = clicked > 0 && clicked === current ? 0 : clicked;
+      void saveHomeStar(row, field, next);
     });
   });
   bindHomeReorder(table);
@@ -6764,7 +6772,8 @@ function bindExcelExportModal() {
 }
 
 function homeDbScroller(root = byId("homeDbTable")) {
-  return root?.querySelector(".home-db-scroll, .table-wrap") ?? null;
+  // Vertical/horizontal scroll lives on #homeDbTable itself (toolbar stays outside).
+  return root ?? null;
 }
 
 function rememberHomeDbScroll(root = byId("homeDbTable")) {
