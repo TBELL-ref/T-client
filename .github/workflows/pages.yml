@@ -1,8 +1,7 @@
 name: Deploy Pages
 
+# Paused 2026-08-20: automatic GitHub Actions stopped.
 on:
-  push:
-    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -16,6 +15,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

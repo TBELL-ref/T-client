@@ -1,10 +1,7 @@
 name: Admin Console
 
+# Paused 2026-08-20: automatic GitHub Actions stopped.
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/admin-console.yml
   workflow_dispatch:
 
 permissions:
@@ -12,7 +9,7 @@ permissions:
 
 jobs:
   push-guard:
-    if: github.event_name == 'push'
+    if: false
     runs-on: ubuntu-latest
     steps:
       - run: echo "Admin data is stored in Supabase. UI saves via Supabase RPC; this workflow is a stub."
