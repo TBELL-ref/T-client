@@ -3032,11 +3032,11 @@ async function resolveCompanyForManualPost(url, bizNo, nameHint = "", onStatus) 
   return { row: saved, created: true, enrichProfile: resolvedEnrich };
 }
 
-function buildManualCompanyRow({ companyNameKo, domain = "", bizNo = "", profile = null }) {
+function buildManualCompanyRow({ companyNameKo, domain = "", bizNo = "", profile = null, seed = "" }) {
   const name = `${companyNameKo ?? ""}`.trim();
   const domainClean = sanitizeDomainInput(domain);
   const now = new Date().toISOString();
-  const companyId = newManualCompanyId(`${name}|${domainClean}|${now}`);
+  const companyId = newManualCompanyId(`${name}|${domainClean}|${now}|${seed}`);
 
   return {
     companyId,
@@ -5607,7 +5607,10 @@ function homeJobCell(row) {
 
 function homeServiceUrlCell(row) {
   const url = serviceUrl(row) || homepageHref(row);
-  return homeLink(url, shortUrl(url));
+  if (!url) return homeMuted();
+  const abs = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  const text = shortUrl(abs);
+  return `<a class="link cell-prose home-service-url-link" href="${escapeAttr(abs)}" target="_blank" rel="noreferrer" title="${escapeAttr(text)}">${escapeHtml(text)}</a>`;
 }
 
 function homeContactEditValue(row) {
@@ -5631,7 +5634,10 @@ function parseHomeContacts(text, prev = []) {
 }
 
 function homeFieldValue(row, field) {
-  if (field === "company") return displayName(row);
+  if (field === "company") {
+    const raw = `${row.companyNameKo || row.companyName || ""}`.trim();
+    return !raw || raw === "-" ? "" : raw;
+  }
   if (field === "pilot") return String(Number.parseInt(`${row.pilotDifficulty ?? 0}`, 10) || 0);
   if (field === "recommend") return String(Number.parseInt(`${row.recommendScore ?? 0}`, 10) || 0);
   if (field === "revenue") return revenueLabel(row);
@@ -5689,7 +5695,11 @@ function homePipelineCell(row) {
 }
 
 function homeCellEditor(row, field) {
-  if (field === "company") return homeCellInput(displayName(row));
+  if (field === "company") {
+    const raw = `${row.companyNameKo || row.companyName || ""}`.trim();
+    const value = !raw || raw === "-" || raw === "제목 없음" ? "" : raw;
+    return homeCellInput(value, { placeholder: "제목 없음" });
+  }
   if (field === "revenue") return homeCellInput(revenueLabel(row), { placeholder: "매출" });
   if (field === "contact") return homeCellInput(homeContactEditValue(row), { placeholder: "이름 이메일, 쉼표로 구분" });
   if (field === "serviceName") return homeCellInput(serviceName(row));
@@ -5755,9 +5765,14 @@ function homeCompanyNameCell(row) {
   if (isHomeEditMode() && isHomeCellEditing(row, "company")) {
     return `<div class="home-company-name">${status}${homeCellEditor(row, "company")}${homeOpenPageBtn(row)}</div>`;
   }
+  const raw = `${row.companyNameKo || row.companyName || ""}`.trim();
+  const untitled = !raw || raw === "-";
+  const title = untitled
+    ? `<span class="home-company-title is-untitled">제목 없음</span>`
+    : `<span class="home-company-title">${escapeHtml(raw)}</span>`;
   return `<div class="home-company-name">
     ${status}
-    <span class="home-company-title">${escapeHtml(displayName(row))}</span>${extra}
+    ${title}${extra}
     ${homeOpenPageBtn(row)}
   </div>`;
 }
@@ -5793,7 +5808,7 @@ function homeDbRowHtml(row, no) {
     ${homeTd(row, "revenue", revenueCell(row))}
     ${homeTd(row, "contact", homeContactCell(row))}
     ${homeTd(row, "serviceName", svc ? escapeHtml(svc) : homeMuted())}
-    ${homeTd(row, "serviceUrl", homeServiceUrlCell(row))}
+    ${homeTd(row, "serviceUrl", homeServiceUrlCell(row), "home-col-service-url")}
     ${homeTd(row, "industry", homeBadge(candidateIndustryLabel(row)))}
     ${homeTd(row, "scale", homeBadge(candidateRepeatLabel(row)))}
     ${homeTd(row, "opinion", homeOpinionCell(row))}
@@ -5829,8 +5844,15 @@ async function persistHomeCell(row, field, value) {
   }
   const sales = {};
   const override = {};
-  if (field === "company") override.companyNameKo = next.trim();
-  else if (field === "pilot") sales.pilotDifficulty = parseStarSelect(next);
+  if (field === "company") {
+    const name = next.trim() || "제목 없음";
+    override.companyNameKo = name;
+    if (window.TCompanies?.isManualCompanyId?.(cid)) {
+      window.TClientAdmin.updateCustomCompany?.(cid, { companyNameKo: name, companyName: name });
+      const manualRow = getCustomCompanyRow(cid) ?? { ...row, companyNameKo: name, companyName: name };
+      await window.TCompanies.upsertManual(manualRow);
+    }
+  } else if (field === "pilot") sales.pilotDifficulty = parseStarSelect(next);
   else if (field === "recommend") sales.recommendScore = parseStarSelect(next);
   else if (field === "revenue") override.profile = { revenueLabel: next.trim() };
   else if (field === "contact") {
@@ -6172,16 +6194,30 @@ function homeUsesPager() {
   return state.homeView !== "pool";
 }
 
+function homeNewPageFooterHtml() {
+  if (!isHomeEditMode()) return "";
+  return `<div class="home-new-page-row">
+    <button type="button" class="home-new-page-btn" id="homeNewPageBtn">
+      <span data-icon="plus" aria-hidden="true"></span>
+      <span>새 페이지</span>
+    </button>
+  </div>`;
+}
+
 function renderHomeCompanyTable(rows, emptyHtml) {
-  if (!rows.length) return emptyHtml;
   const usePager = homeUsesPager();
-  const paged = usePager
-    ? paginateHome(rows, state.homePage)
-    : { items: rows, page: 1, totalPages: 1, total: rows.length };
-  if (usePager) state.homePage = paged.page;
+  const paged = rows.length
+    ? usePager
+      ? paginateHome(rows, state.homePage)
+      : { items: rows, page: 1, totalPages: 1, total: rows.length }
+    : { items: [], page: 1, totalPages: 1, total: 0 };
+  if (usePager && rows.length) state.homePage = paged.page;
   const startNo = usePager ? (paged.page - 1) * HOME_PAGE_SIZE : 0;
   const editClass = isHomeEditMode() ? " is-home-edit" : "";
-  const pager = usePager ? renderPagerHtml(paged.page, paged.totalPages, paged.total, "곳", "home") : "";
+  const pager = usePager && rows.length ? renderPagerHtml(paged.page, paged.totalPages, paged.total, "곳", "home") : "";
+  const footer = homeNewPageFooterHtml();
+  if (!rows.length && !isHomeEditMode()) return emptyHtml;
+  const body = paged.items.map((row, idx) => homeDbRowHtml(row, startNo + idx + 1)).join("");
   return `<div class="table-wrap home-db-scroll"><table class="notion-db-table${editClass}"><thead><tr>
     <th class="home-col-index">#</th>
     <th class="home-col-company">업체명</th>
@@ -6190,7 +6226,7 @@ function renderHomeCompanyTable(rows, emptyHtml) {
     <th>매출</th>
     <th>담당자 정보</th>
     <th>서비스명</th>
-    <th>서비스 URL</th>
+    <th class="home-col-service-url">서비스 URL</th>
     <th>QA 대상 서비스</th>
     <th>테스트 규모</th>
     <th>의견</th>
@@ -6198,9 +6234,91 @@ function renderHomeCompanyTable(rows, emptyHtml) {
     <th>사업자등록번호</th>
     <th>진행상태</th>
     <th class="home-col-remark">비고</th>
-  </tr></thead><tbody>${paged.items
-    .map((row, idx) => homeDbRowHtml(row, startNo + idx + 1))
-    .join("")}</tbody></table></div>${pager}`;
+  </tr></thead><tbody>${body}</tbody></table>${footer}</div>${pager}`;
+}
+
+async function createHomeBlankPage() {
+  if (!isHomeEditMode()) return;
+  if (!window.TClientAdmin?.isUnlocked?.()) {
+    showToast("로그인 후 추가할 수 있습니다.", "error");
+    window.openAdminPopover?.();
+    return;
+  }
+  if (state.homeEditSaving) return;
+  state.homeEditSaving = true;
+  const btn = byId("homeNewPageBtn");
+  if (btn) btn.disabled = true;
+  let createdId = null;
+  try {
+    await flushHomeOrderPersist();
+    const row = buildManualCompanyRow({
+      companyNameKo: "",
+      seed: `blank-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    });
+    if (!window.TClientAdmin.addCustomCompany(row)) {
+      throw new Error("빈 페이지를 추가하지 못했습니다.");
+    }
+    createdId = row.companyId;
+    const persistRow = {
+      ...row,
+      companyName: "제목 없음",
+      companyNameKo: "제목 없음"
+    };
+    await window.TCompanies.upsertManual(persistRow);
+    window.TClientAdmin.updateCustomCompany?.(row.companyId, {
+      companyName: "",
+      companyNameKo: ""
+    });
+
+    ensureHomeDraftIds();
+    const ids = [...(state.homeDraftIds?.ids ?? [])];
+    if (!ids.includes(row.companyId)) ids.push(row.companyId);
+    const notionPriority = ids.length;
+    const sales = {
+      notionPriority,
+      pipelineStage: "candidate",
+      pipelineStatus: "pending",
+      isHidden: false,
+      isRecommended: false
+    };
+    if (state.homeView === "pool") {
+      sales.isRecommended = true;
+      sales.recommendedSince = new Date().toISOString();
+    } else if (state.homeView === "excluded") {
+      sales.isHidden = true;
+      sales.pipelineStatus = "closed";
+      sales.closedReason = "excluded";
+    }
+    await window.TSalesManagement.upsert(row.companyId, sales, persistRow);
+    await window.TClientAdmin.flushPersist?.();
+
+    reloadRowsWithAdmin();
+    state.homeDraftIds = { view: state.homeView, ids };
+    state.homeEditCell = { companyId: row.companyId, field: "company" };
+    state.homePendingCell = null;
+    if (homeUsesPager()) {
+      state.homePage = Math.max(1, Math.ceil(ids.length / HOME_PAGE_SIZE));
+    }
+    renderHomeDb();
+    const scroller = homeDbScroller(byId("homeDbTable"));
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+  } catch (err) {
+    if (createdId) {
+      try {
+        await window.TClientAdmin.removeCustomCompany?.(createdId);
+        await window.TCompanies.deleteManual?.(createdId);
+        window.TSalesManagement.removeLocal?.(createdId);
+      } catch {
+        /* ignore rollback errors */
+      }
+      reloadRowsWithAdmin();
+      renderHomeDb();
+    }
+    showToast(err.message || "새 페이지 추가에 실패했습니다.", "error");
+  } finally {
+    state.homeEditSaving = false;
+    if (btn) btn.disabled = false;
+  }
 }
 
 function bindHomeDbEvents(table) {
@@ -6261,6 +6379,12 @@ function bindHomeDbEvents(table) {
     });
   });
   bindHomeReorder(table);
+  byId("homeNewPageBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    void createHomeBlankPage();
+  });
+  hydrateIcons(byId("homeNewPageBtn"));
   table.querySelectorAll(".home-pipe-select").forEach((sel) => {
     sel.addEventListener("change", () => {
       const row = state.rows.find((r) => r.companyId === sel.closest("tr")?.dataset.openCompany);

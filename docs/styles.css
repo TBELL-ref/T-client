@@ -8768,6 +8768,65 @@ tr.reorder-dragging .home-reorder-handle,
   vertical-align: bottom;
 }
 
+.home-col-service-url {
+  max-width: 110px;
+  width: 110px;
+}
+
+.home-col-service-url .home-service-url-link,
+.home-col-service-url .cell-prose {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.home-company-title.is-untitled {
+  color: var(--muted);
+  font-weight: 500;
+  font-style: italic;
+}
+
+.home-new-page-row {
+  position: sticky;
+  left: 0;
+  padding: 4px 8px 10px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.home-new-page-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.home-new-page-btn:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.home-new-page-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.home-new-page-btn [data-icon] {
+  display: inline-flex;
+  opacity: 0.8;
+}
+
 .notion-db-table .pipeline-combined {
   min-width: 88px;
 }
