@@ -19,6 +19,7 @@ const state = {
   homePendingCell: null,
   homeEditSaving: false,
   homeDraftIds: null,
+  homeFocusCompanyId: null,
   homeDbScroll: { left: 0, top: 0 },
   homeDbScrollLockUntil: 0,
   detailMode: "legacy",
@@ -5433,7 +5434,17 @@ function orderRowsByIds(rows, ids) {
 function currentHomeRows() {
   const base = homeViewBaseRows();
   if (isHomeEditMode() && state.homeDraftIds?.view === state.homeView) {
-    return orderRowsByIds(base, state.homeDraftIds.ids);
+    const ordered = orderRowsByIds(base, state.homeDraftIds.ids);
+    const seen = new Set(ordered.map((r) => r.companyId));
+    const extras = [];
+    for (const id of state.homeDraftIds.ids) {
+      if (seen.has(id)) continue;
+      const row = state.rows.find((r) => r.companyId === id);
+      if (!row) continue;
+      extras.push(row);
+      seen.add(id);
+    }
+    return extras.length ? [...ordered, ...extras] : ordered;
   }
   return base;
 }
@@ -5799,7 +5810,13 @@ function homeDbRowHtml(row, no) {
   const remark = `${row.remark ?? ""}`.trim();
   const biz = `${row.profile?.bizNo ?? ""}`.trim();
   const svc = serviceName(row);
-  const rowClass = isHomeEditMode() ? "lead-row-edit" : "lead-row-click";
+  const justAdded = state.homeFocusCompanyId === row.companyId;
+  const rowClass = [
+    isHomeEditMode() ? "lead-row-edit" : "lead-row-click",
+    justAdded ? "is-just-added" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
   return `<tr class="${rowClass}" data-open-company="${escapeAttr(row.companyId)}">
     ${homeIndexCell(row, no)}
     ${homeTd(row, "company", homeCompanyNameCell(row), "home-col-company", { customEditor: true })}
@@ -6199,8 +6216,9 @@ function homeNewPageFooterHtml() {
   return `<div class="home-new-page-row">
     <button type="button" class="home-new-page-btn" id="homeNewPageBtn">
       <span data-icon="plus" aria-hidden="true"></span>
-      <span>새 페이지</span>
+      <span>새 회사 행 추가</span>
     </button>
+    <p class="home-new-page-hint muted">맨 아래에 빈 행이 생깁니다. 업체명을 입력하면 바로 저장됩니다.</p>
   </div>`;
 }
 
@@ -6251,14 +6269,65 @@ async function createHomeBlankPage() {
   let createdId = null;
   try {
     await flushHomeOrderPersist();
+
+    const searchEl = byId("homeSearch");
+    if (searchEl?.value) {
+      searchEl.value = "";
+      state.homePage = 1;
+    }
+
     const row = buildManualCompanyRow({
       companyNameKo: "",
       seed: `blank-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     });
     if (!window.TClientAdmin.addCustomCompany(row)) {
-      throw new Error("빈 페이지를 추가하지 못했습니다.");
+      throw new Error("빈 행을 추가하지 못했습니다.");
     }
     createdId = row.companyId;
+
+    const forPool = state.homeView === "pool";
+    const forExcluded = state.homeView === "excluded";
+    ensureHomeDraftIds();
+    const ids = [...(state.homeDraftIds?.ids ?? [])];
+    if (!ids.includes(row.companyId)) ids.push(row.companyId);
+    const sales = {
+      notionPriority: ids.length,
+      pipelineStage: "candidate",
+      pipelineStatus: forExcluded ? "closed" : "pending",
+      isHidden: forExcluded,
+      isRecommended: forPool,
+      closedReason: forExcluded ? "excluded" : "",
+      recommendedSince: forPool ? new Date().toISOString() : ""
+    };
+
+    const optimistic = {
+      ...row,
+      isManual: true,
+      isRecommended: sales.isRecommended,
+      isHidden: sales.isHidden,
+      userHidden: false,
+      notionPriority: sales.notionPriority,
+      pipelineStage: sales.pipelineStage,
+      pipelineStatus: sales.pipelineStatus,
+      closedReason: sales.closedReason,
+      recommendedSince: sales.recommendedSince,
+      hasSalesManagement: true,
+      salesMemo: "",
+      remark: ""
+    };
+    if (!state.rows.some((r) => r.companyId === row.companyId)) {
+      state.rows = [...state.rows, optimistic];
+    }
+    state.homeDraftIds = { view: state.homeView, ids };
+    state.homeFocusCompanyId = row.companyId;
+    state.homeEditCell = { companyId: row.companyId, field: "company" };
+    state.homePendingCell = null;
+    if (homeUsesPager()) {
+      state.homePage = Math.max(1, Math.ceil(ids.length / HOME_PAGE_SIZE));
+    }
+    renderHomeDb({ focusCompanyId: row.companyId });
+    showToast("빈 회사 행을 추가했습니다. 업체명을 입력하세요.");
+
     const persistRow = {
       ...row,
       companyName: "제목 없음",
@@ -6269,52 +6338,36 @@ async function createHomeBlankPage() {
       companyName: "",
       companyNameKo: ""
     });
-
-    ensureHomeDraftIds();
-    const ids = [...(state.homeDraftIds?.ids ?? [])];
-    if (!ids.includes(row.companyId)) ids.push(row.companyId);
-    const notionPriority = ids.length;
-    const sales = {
-      notionPriority,
-      pipelineStage: "candidate",
-      pipelineStatus: "pending",
-      isHidden: false,
-      isRecommended: false
-    };
-    if (state.homeView === "pool") {
-      sales.isRecommended = true;
-      sales.recommendedSince = new Date().toISOString();
-    } else if (state.homeView === "excluded") {
-      sales.isHidden = true;
-      sales.pipelineStatus = "closed";
-      sales.closedReason = "excluded";
-    }
     await window.TSalesManagement.upsert(row.companyId, sales, persistRow);
     await window.TClientAdmin.flushPersist?.();
 
     reloadRowsWithAdmin();
     state.homeDraftIds = { view: state.homeView, ids };
+    state.homeFocusCompanyId = row.companyId;
     state.homeEditCell = { companyId: row.companyId, field: "company" };
-    state.homePendingCell = null;
-    if (homeUsesPager()) {
-      state.homePage = Math.max(1, Math.ceil(ids.length / HOME_PAGE_SIZE));
-    }
-    renderHomeDb();
-    const scroller = homeDbScroller(byId("homeDbTable"));
-    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+    renderHomeDb({ focusCompanyId: row.companyId });
+    window.setTimeout(() => {
+      if (state.homeFocusCompanyId === row.companyId) state.homeFocusCompanyId = null;
+    }, 2400);
   } catch (err) {
     if (createdId) {
       try {
         await window.TClientAdmin.removeCustomCompany?.(createdId);
         await window.TCompanies.deleteManual?.(createdId);
         window.TSalesManagement.removeLocal?.(createdId);
+        state.rows = state.rows.filter((r) => r.companyId !== createdId);
+        if (state.homeDraftIds?.ids) {
+          state.homeDraftIds.ids = state.homeDraftIds.ids.filter((id) => id !== createdId);
+        }
       } catch {
         /* ignore rollback errors */
       }
+      state.homeFocusCompanyId = null;
+      state.homeEditCell = null;
       reloadRowsWithAdmin();
       renderHomeDb();
     }
-    showToast(err.message || "새 페이지 추가에 실패했습니다.", "error");
+    showToast(err.message || "새 행 추가에 실패했습니다.", "error");
   } finally {
     state.homeEditSaving = false;
     if (btn) btn.disabled = false;
@@ -6750,11 +6803,11 @@ function clearHomeNewBadge(companyId) {
   table?.querySelectorAll(`tr[data-open-company="${CSS.escape(companyId)}"] .badge-new-icon`).forEach((el) => el.remove());
 }
 
-function renderHomeDb({ resetScroll = false } = {}) {
+function renderHomeDb({ resetScroll = false, focusCompanyId = null } = {}) {
   const table = byId("homeDbTable");
   if (!table) return;
   if (resetScroll) resetHomeDbScroll();
-  else rememberHomeDbScroll(table);
+  else if (!focusCompanyId) rememberHomeDbScroll(table);
   if (isHomeEditMode()) ensureHomeDraftIds();
   const poolCountEl = byId("homeViewCountPool");
   const waitCountEl = byId("homeViewCountWait");
@@ -6786,10 +6839,29 @@ function renderHomeDb({ resetScroll = false } = {}) {
   const editingInput = table.querySelector("td.is-editing .home-cell-input");
   if (editingInput) {
     editingInput.focus();
-    editingInput.select?.();
+    if (editingInput.tagName !== "TEXTAREA") editingInput.select?.();
   }
   hydrateIcons(table);
-  restoreHomeDbScrollSoon();
+  if (focusCompanyId) {
+    state.homeDbScrollLockUntil = Date.now() + 900;
+    const focusRow = () => {
+      const tr = table.querySelector(`tr[data-open-company="${CSS.escape(focusCompanyId)}"]`);
+      if (!tr) return;
+      tr.scrollIntoView({ block: "center", behavior: "smooth" });
+      const input = tr.querySelector("td.is-editing .home-cell-input");
+      if (input) {
+        input.focus();
+        if (input.tagName !== "TEXTAREA") input.select?.();
+      }
+    };
+    requestAnimationFrame(() => {
+      focusRow();
+      requestAnimationFrame(focusRow);
+    });
+    window.setTimeout(focusRow, 80);
+  } else if (!resetScroll) {
+    restoreHomeDbScrollSoon();
+  }
 }
 
 function homeDetailFact(label, value, { wide = false } = {}) {
