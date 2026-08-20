@@ -5595,7 +5595,14 @@ function homeOpinionCell(row) {
 function homeJobCell(row) {
   const post = latestPost(row);
   if (!post) return homeMuted();
-  return homeLink(post.url, post.title || post.url, 72);
+  const href = `${post.url ?? ""}`.trim();
+  const text = `${post.title || post.url || ""}`.trim();
+  if (!href && !text) return homeMuted();
+  if (!href) {
+    return `<span class="cell-prose home-job-text" title="${escapeAttr(text)}">${escapeHtml(text)}</span>`;
+  }
+  const abs = /^https?:\/\//i.test(href) ? href : `https://${href}`;
+  return `<a class="link cell-prose home-job-link" href="${escapeAttr(abs)}" target="_blank" rel="noreferrer" title="${escapeAttr(text || abs)}">${escapeHtml(text || shortUrl(abs))}</a>`;
 }
 
 function homeServiceUrlCell(row) {
@@ -5790,7 +5797,7 @@ function homeDbRowHtml(row, no) {
     ${homeTd(row, "industry", homeBadge(candidateIndustryLabel(row)))}
     ${homeTd(row, "scale", homeBadge(candidateRepeatLabel(row)))}
     ${homeTd(row, "opinion", homeOpinionCell(row))}
-    <td data-home-field="">${homeJobCell(row)}</td>
+    <td class="home-col-job" data-home-field="">${homeJobCell(row)}</td>
     ${homeTd(row, "bizNo", biz ? escapeHtml(biz) : homeMuted())}
     <td class="${isHomeEditMode() ? "home-cell-editable" : ""}" data-home-field="pipeline">${homePipelineCell(row)}</td>
     ${homeTd(
@@ -6187,7 +6194,7 @@ function renderHomeCompanyTable(rows, emptyHtml) {
     <th>QA 대상 서비스</th>
     <th>테스트 규모</th>
     <th>의견</th>
-    <th>공고</th>
+    <th class="home-col-job">공고</th>
     <th>사업자등록번호</th>
     <th>진행상태</th>
     <th class="home-col-remark">비고</th>

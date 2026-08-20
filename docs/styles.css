@@ -8753,6 +8753,21 @@ tr.reorder-dragging .home-reorder-handle,
   white-space: normal;
 }
 
+.home-col-job {
+  max-width: 145px;
+  width: 145px;
+}
+
+.home-col-job .home-job-link,
+.home-col-job .home-job-text,
+.home-col-job .cell-prose {
+  max-width: 145px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
 .notion-db-table .pipeline-combined {
   min-width: 88px;
 }
