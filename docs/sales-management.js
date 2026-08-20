@@ -289,16 +289,88 @@
     return get(companyId);
   }
 
-  async function batchSetNotionPriorities(orderedCompanyIds, { onProgress } = {}) {
-    const out = [];
-    const total = orderedCompanyIds.length;
-    for (let i = 0; i < total; i++) {
-      const companyId = orderedCompanyIds[i];
-      const row = window.state?.rows?.find((r) => r.companyId === companyId) ?? null;
-      out.push(await upsert(companyId, { notionPriority: i + 1 }, row));
-      onProgress?.({ current: i + 1, total });
+  function applyNotionPrioritiesLocal(orderedCompanyIds = []) {
+    orderedCompanyIds.forEach((companyId, i) => {
+      const priority = i + 1;
+      const prev = get(companyId);
+      setLocal(companyId, { ...(prev || {}), notionPriority: priority });
+    });
+  }
+
+  function notionPriorityChanges(orderedCompanyIds = []) {
+    const changes = [];
+    orderedCompanyIds.forEach((companyId, i) => {
+      const next = i + 1;
+      const prev = Number.parseInt(`${get(companyId)?.notionPriority ?? 0}`, 10) || 0;
+      if (prev !== next) changes.push({ companyId, priority: next });
+    });
+    return changes;
+  }
+
+  function isMissingBatchRpcError(err) {
+    const status = Number(err?.status) || 0;
+    const detail = `${err?.detail ?? err?.message ?? ""}`;
+    return status === 404 || status === 400 || /PGRST202|Could not find the function|batch_set_notion_priorities/i.test(detail);
+  }
+
+  async function upsertPriorityOnly(companyId, priority, row = null) {
+    if (!get(companyId)) {
+      await window.TCompanies?.ensureManualById?.(companyId, row);
     }
-    return out;
+    return upsert(companyId, { notionPriority: priority }, row);
+  }
+
+  async function batchSetNotionPrioritiesFallback(orderedCompanyIds, { onProgress } = {}) {
+    const changes = notionPriorityChanges(orderedCompanyIds);
+    const total = Math.max(1, changes.length);
+    if (!changes.length) {
+      applyNotionPrioritiesLocal(orderedCompanyIds);
+      onProgress?.({ current: 1, total: 1 });
+      return orderedCompanyIds.map((id) => get(id));
+    }
+    const concurrency = 8;
+    let done = 0;
+    for (let i = 0; i < changes.length; i += concurrency) {
+      const chunk = changes.slice(i, i + concurrency);
+      await Promise.all(
+        chunk.map(async ({ companyId, priority }) => {
+          const row = window.state?.rows?.find((r) => r.companyId === companyId) ?? null;
+          await upsertPriorityOnly(companyId, priority, row);
+          done += 1;
+          onProgress?.({ current: done, total });
+        })
+      );
+    }
+    applyNotionPrioritiesLocal(orderedCompanyIds);
+    return orderedCompanyIds.map((id) => get(id));
+  }
+
+  async function batchSetNotionPriorities(orderedCompanyIds, { onProgress } = {}) {
+    const ids = (orderedCompanyIds ?? []).map((id) => `${id ?? ""}`.trim()).filter(Boolean);
+    if (!ids.length) return [];
+
+    if (typeof window.TSupabase?.batchSetNotionPriorities === "function") {
+      try {
+        const result = await window.TSupabase.batchSetNotionPriorities(ids);
+        const missing = Array.isArray(result?.missing) ? result.missing.map(String) : [];
+        if (missing.length) {
+          const rank = new Map(ids.map((id, i) => [id, i + 1]));
+          await Promise.all(
+            missing.map(async (companyId) => {
+              const row = window.state?.rows?.find((r) => r.companyId === companyId) ?? null;
+              await upsertPriorityOnly(companyId, rank.get(companyId) || 0, row);
+            })
+          );
+        }
+        applyNotionPrioritiesLocal(ids);
+        onProgress?.({ current: ids.length, total: ids.length });
+        return ids.map((id) => get(id));
+      } catch (err) {
+        if (!isMissingBatchRpcError(err)) throw err;
+      }
+    }
+
+    return batchSetNotionPrioritiesFallback(ids, { onProgress });
   }
 
   function applyToRow(row) {

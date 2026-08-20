@@ -8393,6 +8393,113 @@ body.detail-drawer-open .app {
   min-width: 118px;
 }
 
+.excel-export-modal-panel.modal-panel-sm {
+  width: min(640px, 100%);
+}
+
+.excel-export-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.excel-export-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.excel-export-actions-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.excel-export-actions-row .admin-text-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  margin: 0;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+
+.excel-export-actions-row .admin-text-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  opacity: 1;
+}
+
+.excel-export-column-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  max-height: min(52vh, 420px);
+  overflow: auto;
+  padding: 4px 2px 2px;
+}
+
+.excel-export-column-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text);
+  user-select: none;
+  min-width: 0;
+}
+
+.excel-export-column-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.excel-export-column-chip:hover {
+  border-color: var(--accent);
+}
+
+.excel-export-column-chip input {
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.excel-export-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .excel-export-column-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .excel-export-column-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .home-db-table .table-wrap {
   margin: 0;
   overflow-x: auto;

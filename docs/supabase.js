@@ -136,6 +136,8 @@
     migrateOverridesToRelational: () => rpc("migrate_overrides_doc_to_relational", {}, { auth: true }),
     upsertSalesManagement: (companyId, patch) =>
       rpc("upsert_sales_management", { p_company_id: companyId, p_patch: patch }, { auth: true }),
+    batchSetNotionPriorities: (companyIds) =>
+      rpc("batch_set_notion_priorities", { p_company_ids: companyIds }, { auth: true }),
     upsertManualCompany: (companyId, patch) =>
       rpc("upsert_manual_company", { p_company_id: companyId, p_patch: patch }, { auth: true }),
     deleteManualCompany: (companyId) =>

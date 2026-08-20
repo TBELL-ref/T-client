@@ -5362,22 +5362,21 @@ function paginateHome(items, page) {
   };
 }
 
-function poolHomeRows() {
-  return sortByNotionPriority(state.rows.filter((r) => isPoolCompany(r) && isMainTabLead(r) && matchesHomeSearch(r)));
+function poolHomeRows({ applySearch = true } = {}) {
+  return sortByNotionPriority(
+    state.rows.filter((r) => isPoolCompany(r) && isMainTabLead(r) && (!applySearch || matchesHomeSearch(r)))
+  );
 }
 
 function waitCollectedAt(row) {
   return Date.parse(row.lastCollectedAt || row.firstCollectedAt || 0) || 0;
 }
 
-function waitHomeRows() {
-  const rows = state.rows.filter((row) => {
-    if (!isWaitCompany(row)) return false;
-    const postHay = (row.posts ?? []).map((p) => `${p.title ?? ""} ${p.source ?? ""}`).join(" ");
-    return matchesHomeSearch(row, postHay);
-  });
+function sortWaitHomeRows(rows) {
   const mode = state.homeWaitSort === "recommend" ? "recommend" : "recent";
   return [...rows].sort((a, b) => {
+    const byNotion = notionPriorityValue(a) - notionPriorityValue(b);
+    if (byNotion !== 0) return byNotion;
     if (mode === "recommend") {
       const byRec = parseRecommendScore(b) - parseRecommendScore(a);
       if (byRec !== 0) return byRec;
@@ -5388,20 +5387,31 @@ function waitHomeRows() {
   });
 }
 
-function excludedHomeRows() {
+function waitHomeRows({ applySearch = true } = {}) {
+  const rows = state.rows.filter((row) => {
+    if (!isWaitCompany(row)) return false;
+    if (!applySearch) return true;
+    const postHay = (row.posts ?? []).map((p) => `${p.title ?? ""} ${p.source ?? ""}`).join(" ");
+    return matchesHomeSearch(row, postHay);
+  });
+  return sortWaitHomeRows(rows);
+}
+
+function excludedHomeRows({ applySearch = true } = {}) {
   return sortByNotionPriority(
     state.rows.filter((row) => {
       if (!isShelvedLead(row)) return false;
+      if (!applySearch) return true;
       const postHay = (row.posts ?? []).map((p) => `${p.title ?? ""} ${p.source ?? ""}`).join(" ");
       return matchesHomeSearch(row, postHay);
     })
   );
 }
 
-function homeViewBaseRows() {
-  if (state.homeView === "wait") return waitHomeRows();
-  if (state.homeView === "excluded") return excludedHomeRows();
-  return poolHomeRows();
+function homeViewBaseRows({ applySearch = true } = {}) {
+  if (state.homeView === "wait") return waitHomeRows({ applySearch });
+  if (state.homeView === "excluded") return excludedHomeRows({ applySearch });
+  return poolHomeRows({ applySearch });
 }
 
 function orderRowsByIds(rows, ids) {
@@ -5434,7 +5444,11 @@ function ensureHomeDraftIds() {
     return;
   }
   if (state.homeDraftIds?.view !== state.homeView) {
-    state.homeDraftIds = { view: state.homeView, ids: homeViewBaseRows().map((r) => r.companyId) };
+    // Keep full-view order (ignore search) so partial filters don't clobber other rows' #.
+    state.homeDraftIds = {
+      view: state.homeView,
+      ids: homeViewBaseRows({ applySearch: false }).map((r) => r.companyId)
+    };
   }
 }
 
@@ -5469,14 +5483,19 @@ function syncHomeModeToggle() {
   }
 }
 
-function setHomeEditMode(on) {
+async function setHomeEditMode(on) {
   if (on && !window.TClientAdmin?.isUnlocked?.()) {
     showToast("로그인 후 편집할 수 있습니다.", "error");
     window.openAdminPopover?.();
     syncHomeModeToggle();
     return;
   }
-  state.homeEditMode = Boolean(on);
+  const next = Boolean(on);
+  if (!next && state.homeEditMode) {
+    // Flush before clearing draft — otherwise the debounced save finds null ids and drops the order.
+    await flushHomeOrderPersist();
+  }
+  state.homeEditMode = next;
   state.homeEditCell = null;
   state.homePendingCell = null;
   state.homeDraftIds = null;
@@ -5569,8 +5588,8 @@ function homeContactFactsCell(row) {
 function homeOpinionCell(row) {
   const memo = `${row.salesMemo || row.manualNotes || ""}`.trim();
   if (!memo) return homeMuted();
-  const shown = memo.length > 80 ? `${memo.slice(0, 80)}…` : memo;
-  return `<span class="cell-prose" title="${escapeAttr(memo)}">${escapeHtml(shown)}</span>`;
+  const shown = memo.length > 120 ? `${memo.slice(0, 120)}…` : memo;
+  return `<span class="cell-prose cell-prose-multiline" title="${escapeAttr(memo)}">${multilineHtml(shown)}</span>`;
 }
 
 function homeJobCell(row) {
@@ -5634,7 +5653,7 @@ function homeFieldValue(row, field) {
 
 function homeCellInput(value, { multiline = false, placeholder = "" } = {}) {
   if (multiline) {
-    return `<textarea class="inline-field home-cell-input" rows="2" placeholder="${escapeAttr(placeholder)}">${escapeHtml(value ?? "")}</textarea>`;
+    return `<textarea class="inline-field home-cell-input home-cell-textarea" rows="3" placeholder="${escapeAttr(placeholder)}" title="Enter 줄바꿈 · Ctrl+Enter 저장">${escapeHtml(value ?? "")}</textarea>`;
   }
   return `<input type="text" class="inline-field home-cell-input" value="${escapeAttr(value ?? "")}" placeholder="${escapeAttr(placeholder)}" />`;
 }
@@ -5877,6 +5896,8 @@ function beginHomeCellEdit(companyId, field) {
 }
 
 let homeOrderSaveTimer = null;
+let pendingHomeOrderIds = null;
+let homeOrderPersistInFlight = null;
 
 function moveHomeDraftId(fromId, toId) {
   ensureHomeDraftIds();
@@ -5896,21 +5917,57 @@ function moveHomeDraftId(fromId, toId) {
 }
 
 function schedulePersistHomeOrder() {
+  pendingHomeOrderIds = [...(state.homeDraftIds?.ids ?? [])];
   if (homeOrderSaveTimer) window.clearTimeout(homeOrderSaveTimer);
-  homeOrderSaveTimer = window.setTimeout(() => void persistHomeOrder(), 450);
+  // Same feel as cell save: persist right after the drop (tiny coalesce for rapid drags).
+  homeOrderSaveTimer = window.setTimeout(() => {
+    homeOrderSaveTimer = null;
+    void persistHomeOrder();
+  }, 50);
 }
 
-async function persistHomeOrder() {
-  const ids = state.homeDraftIds?.ids;
-  if (!ids?.length || !window.TClientAdmin?.isUnlocked?.()) return;
-  try {
-    for (let i = 0; i < ids.length; i++) {
-      const cid = ids[i];
-      const row = state.rows.find((r) => r.companyId === cid) ?? null;
-      await window.TSalesManagement.upsert(cid, { notionPriority: i + 1 }, row);
+async function flushHomeOrderPersist() {
+  if (homeOrderSaveTimer) {
+    window.clearTimeout(homeOrderSaveTimer);
+    homeOrderSaveTimer = null;
+  }
+  if (!pendingHomeOrderIds?.length && homeOrderPersistInFlight) {
+    await homeOrderPersistInFlight;
+    return;
+  }
+  if (!pendingHomeOrderIds?.length) return;
+  await persistHomeOrder();
+}
+
+async function persistHomeOrder(ids = pendingHomeOrderIds) {
+  const orderedIds = Array.isArray(ids) ? [...ids] : [];
+  pendingHomeOrderIds = null;
+  if (!orderedIds.length) return;
+  if (!window.TClientAdmin?.isUnlocked?.()) {
+    showToast("로그인 후 순번을 저장할 수 있습니다.", "error");
+    window.openAdminPopover?.();
+    return;
+  }
+  if (homeOrderPersistInFlight) await homeOrderPersistInFlight;
+  const run = (async () => {
+    try {
+      await window.TSalesManagement.batchSetNotionPriorities(orderedIds);
+      orderedIds.forEach((id, i) => {
+        const row = state.rows.find((r) => r.companyId === id);
+        if (row) row.notionPriority = i + 1;
+      });
+      if (isHomeEditMode() && state.homeDraftIds?.view === state.homeView) {
+        state.homeDraftIds = { view: state.homeView, ids: orderedIds };
+      }
+    } catch (err) {
+      showToast(err.message || "순서 저장에 실패했습니다.", "error");
     }
-  } catch (err) {
-    showToast(err.message || "순서 저장에 실패했습니다.", "error");
+  })();
+  homeOrderPersistInFlight = run;
+  try {
+    await run;
+  } finally {
+    if (homeOrderPersistInFlight === run) homeOrderPersistInFlight = null;
   }
 }
 
@@ -5967,7 +6024,8 @@ async function saveHomeStar(row, field, value) {
   }
 }
 
-function setHomeView(view) {
+async function setHomeView(view) {
+  if (isHomeEditMode()) await flushHomeOrderPersist();
   state.homeView = view === "wait" || view === "excluded" ? view : "pool";
   state.homePage = 1;
   state.homeEditCell = null;
@@ -6051,7 +6109,18 @@ function restorePersistedNav() {
 }
 
 function switchWorkspace(id, { skipHash = false } = {}) {
-  state.workspace = id === "board" ? "board" : "home";
+  const next = id === "board" ? "board" : "home";
+  if (state.workspace === "home" && next !== "home" && isHomeEditMode()) {
+    void flushHomeOrderPersist().finally(() => {
+      state.workspace = next;
+      applyWorkspaceChrome({ updateHash: !skipHash });
+      persistNav();
+      closeDetail();
+      refreshViews();
+    });
+    return;
+  }
+  state.workspace = next;
   applyWorkspaceChrome({ updateHash: !skipHash });
   persistNav();
   closeDetail();
@@ -6064,9 +6133,11 @@ function bindWorkspaceUi() {
     btn.addEventListener("click", () => switchWorkspace(btn.dataset.workspace));
   });
   document.querySelectorAll("[data-home-view]").forEach((btn) => {
-    btn.addEventListener("click", () => setHomeView(btn.dataset.homeView));
+    btn.addEventListener("click", () => void setHomeView(btn.dataset.homeView));
   });
-  byId("homeEditModeToggle")?.addEventListener("click", () => setHomeEditMode(!state.homeEditMode));
+  byId("homeEditModeToggle")?.addEventListener("click", () => {
+    void setHomeEditMode(!state.homeEditMode);
+  });
   byId("homeSearch")?.addEventListener("input", () => {
     state.homePage = 1;
     renderHomeDb({ resetScroll: true });
@@ -6075,14 +6146,15 @@ function bindWorkspaceUi() {
     const next = byId("homeWaitSort")?.value === "recommend" ? "recommend" : "recent";
     state.homeWaitSort = next;
     state.homePage = 1;
-    state.homeDraftIds = null;
+    // Keep draft order in edit mode; only reset when not editing.
+    if (!isHomeEditMode()) state.homeDraftIds = null;
     persistNav();
     renderHomeDb({ resetScroll: true });
   });
-  byId("homeExportExcelBtn")?.addEventListener("click", exportHomeExcel);
+  bindExcelExportModal();
+  hydrateIcons(byId("homeExportExcelBtn"));
   syncHomeModeToggle();
   hydrateIcons(document.querySelector(".home-mode-switch"));
-  hydrateIcons(byId("homeExportExcelBtn"));
 }
 
 function shortUrl(url) {
@@ -6243,6 +6315,183 @@ function contactExportText(row) {
   return contactEmail(row) || "";
 }
 
+const EXCEL_EXPORT_STORAGE_KEY = "tclient-excel-export-cols-v1";
+
+const HOME_EXCEL_COLUMNS = [
+  { id: "index", label: "#", defaultOn: true, value: (_row, idx) => String(idx + 1) },
+  { id: "company", label: "업체명", defaultOn: true, value: (row) => displayName(row) },
+  { id: "pilot", label: "파일럿 난이도", defaultOn: true, value: (row) => starExportText(row.pilotDifficulty, 3) },
+  { id: "recommend", label: "추천", defaultOn: true, value: (row) => starExportText(row.recommendScore, 5) },
+  { id: "revenue", label: "매출", defaultOn: true, value: (row) => revenueLabel(row) },
+  { id: "contact", label: "담당자 정보", defaultOn: true, value: (row) => contactExportText(row) },
+  { id: "serviceName", label: "서비스명", defaultOn: true, value: (row) => serviceName(row) },
+  {
+    id: "serviceUrl",
+    label: "서비스 URL",
+    defaultOn: true,
+    value: (row) => serviceUrl(row) || homepageHref(row) || ""
+  },
+  {
+    id: "industry",
+    label: "QA 대상 서비스",
+    defaultOn: true,
+    value: (row) => {
+      const industry = candidateIndustryLabel(row);
+      return industry === "-" ? "" : industry;
+    }
+  },
+  {
+    id: "scale",
+    label: "테스트 규모",
+    defaultOn: true,
+    value: (row) => {
+      const scale = candidateRepeatLabel(row);
+      return scale === "-" ? "" : scale;
+    }
+  },
+  {
+    id: "opinion",
+    label: "의견",
+    defaultOn: true,
+    value: (row) => `${row.salesMemo || row.manualNotes || ""}`.trim()
+  },
+  {
+    id: "job",
+    label: "공고",
+    defaultOn: true,
+    value: (row) => {
+      const post = latestPost(row);
+      return post ? [post.title, post.url].filter(Boolean).join(" ") : "";
+    }
+  },
+  { id: "bizNo", label: "사업자등록번호", defaultOn: true, value: (row) => `${row.profile?.bizNo ?? ""}`.trim() },
+  { id: "pipeline", label: "진행상태", defaultOn: true, value: (row) => pipelineExportText(row) },
+  { id: "remark", label: "비고", defaultOn: true, value: (row) => `${row.remark ?? ""}`.trim() },
+  { id: "domain", label: "도메인", defaultOn: false, value: (row) => `${row.domain ?? ""}`.trim() },
+  {
+    id: "homepage",
+    label: "홈페이지",
+    defaultOn: false,
+    value: (row) => homepageHref(row) || `${row.profile?.homepage ?? ""}`.trim()
+  },
+  {
+    id: "email",
+    label: "이메일",
+    defaultOn: false,
+    value: (row) => contactEmail(row) || ""
+  },
+  {
+    id: "tier",
+    label: "규모 티어",
+    defaultOn: false,
+    value: (row) => `${row.companyTierLabel || row.companyTier || ""}`.trim()
+  },
+  {
+    id: "bizStatus",
+    label: "사업자 상태",
+    defaultOn: false,
+    value: (row) => `${row.profile?.bizStatus ?? ""}`.trim()
+  },
+  {
+    id: "corpNo",
+    label: "법인등록번호",
+    defaultOn: false,
+    value: (row) => `${row.profile?.corpNo ?? ""}`.trim()
+  },
+  {
+    id: "firstCollected",
+    label: "최초 수집일",
+    defaultOn: false,
+    value: (row) => `${row.firstCollectedAt ?? ""}`.trim()
+  },
+  {
+    id: "lastCollected",
+    label: "최근 수집일",
+    defaultOn: false,
+    value: (row) => `${row.lastCollectedAt ?? ""}`.trim()
+  },
+  {
+    id: "companyId",
+    label: "회사 ID",
+    defaultOn: false,
+    value: (row) => `${row.companyId ?? ""}`.trim()
+  }
+];
+
+function defaultExcelExportColumnIds() {
+  return HOME_EXCEL_COLUMNS.filter((col) => col.defaultOn).map((col) => col.id);
+}
+
+function loadExcelExportColumnIds() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(EXCEL_EXPORT_STORAGE_KEY) || "null");
+    if (!Array.isArray(raw)) return defaultExcelExportColumnIds();
+    const allowed = new Set(HOME_EXCEL_COLUMNS.map((col) => col.id));
+    const selected = raw.map(String).filter((id) => allowed.has(id));
+    return selected.length ? selected : defaultExcelExportColumnIds();
+  } catch {
+    return defaultExcelExportColumnIds();
+  }
+}
+
+function saveExcelExportColumnIds(ids) {
+  try {
+    localStorage.setItem(EXCEL_EXPORT_STORAGE_KEY, JSON.stringify(ids));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function selectedExcelColumns() {
+  const selected = new Set(loadExcelExportColumnIds());
+  const cols = HOME_EXCEL_COLUMNS.filter((col) => selected.has(col.id));
+  return cols.length ? cols : HOME_EXCEL_COLUMNS.filter((col) => col.defaultOn);
+}
+
+function paintExcelExportColumnGrid() {
+  const grid = byId("excelExportColumnGrid");
+  if (!grid) return;
+  const selected = new Set(loadExcelExportColumnIds());
+  grid.innerHTML = HOME_EXCEL_COLUMNS.map(
+    (col) => `<label class="excel-export-column-chip">
+      <input type="checkbox" data-excel-col="${escapeAttr(col.id)}" ${selected.has(col.id) ? "checked" : ""} />
+      <span>${escapeHtml(col.label)}</span>
+    </label>`
+  ).join("");
+}
+
+function readExcelExportColumnIdsFromUi() {
+  return [...document.querySelectorAll("#excelExportColumnGrid input[data-excel-col]:checked")].map(
+    (el) => el.dataset.excelCol
+  );
+}
+
+function setExcelExportColumnChecks(ids) {
+  const selected = new Set(ids);
+  document.querySelectorAll("#excelExportColumnGrid input[data-excel-col]").forEach((el) => {
+    el.checked = selected.has(el.dataset.excelCol);
+  });
+}
+
+function openExcelExportModal() {
+  const rows = currentHomeRows();
+  if (!rows.length) {
+    showToast("출력할 데이터가 없습니다.", "error");
+    return;
+  }
+  paintExcelExportColumnGrid();
+  const modal = byId("excelExportModal");
+  modal?.classList.remove("hidden");
+  modal?.setAttribute("aria-hidden", "false");
+  hydrateIcons(modal);
+}
+
+function closeExcelExportModal() {
+  const modal = byId("excelExportModal");
+  modal?.classList.add("hidden");
+  modal?.setAttribute("aria-hidden", "true");
+}
+
 function xmlExcelEscape(value) {
   return `${value ?? ""}`
     .replace(/&/g, "&amp;")
@@ -6251,47 +6500,9 @@ function xmlExcelEscape(value) {
     .replace(/"/g, "&quot;");
 }
 
-function homeExcelRows(rows) {
-  const headers = [
-    "#",
-    "업체명",
-    "파일럿 난이도",
-    "추천",
-    "매출",
-    "담당자 정보",
-    "서비스명",
-    "서비스 URL",
-    "QA 대상 서비스",
-    "테스트 규모",
-    "의견",
-    "공고",
-    "사업자등록번호",
-    "진행상태",
-    "비고"
-  ];
-  const body = rows.map((row, idx) => {
-    const post = latestPost(row);
-    const postText = post ? [post.title, post.url].filter(Boolean).join(" ") : "";
-    const industry = candidateIndustryLabel(row);
-    const scale = candidateRepeatLabel(row);
-    return [
-      String(idx + 1),
-      displayName(row),
-      starExportText(row.pilotDifficulty, 3),
-      starExportText(row.recommendScore, 5),
-      revenueLabel(row),
-      contactExportText(row),
-      serviceName(row),
-      serviceUrl(row) || homepageHref(row) || "",
-      industry === "-" ? "" : industry,
-      scale === "-" ? "" : scale,
-      `${row.salesMemo || row.manualNotes || ""}`.trim(),
-      postText,
-      `${row.profile?.bizNo ?? ""}`.trim(),
-      pipelineExportText(row),
-      `${row.remark ?? ""}`.trim()
-    ];
-  });
+function homeExcelRows(rows, columns = selectedExcelColumns()) {
+  const headers = columns.map((col) => col.label);
+  const body = rows.map((row, idx) => columns.map((col) => `${col.value(row, idx) ?? ""}`));
   return [headers, ...body];
 }
 
@@ -6320,10 +6531,15 @@ function exportHomeExcel() {
     showToast("출력할 데이터가 없습니다.", "error");
     return;
   }
+  const columns = selectedExcelColumns();
+  if (!columns.length) {
+    showToast("출력할 속성을 하나 이상 선택하세요.", "error");
+    return;
+  }
   const view = homeViewLabel();
   const stamp = new Date().toISOString().slice(0, 10);
   const filename = `T-Client_${view}_${stamp}.xls`;
-  const xml = `\uFEFF${buildExcelXml(view, homeExcelRows(rows))}`;
+  const xml = `\uFEFF${buildExcelXml(view, homeExcelRows(rows, columns))}`;
   const blob = new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -6334,7 +6550,33 @@ function exportHomeExcel() {
   a.click();
   a.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-  showToast(`${view} ${rows.length}곳을 엑셀로 저장했습니다.`);
+  showToast(`${view} ${rows.length}곳 · ${columns.length}개 속성 저장`);
+}
+
+function bindExcelExportModal() {
+  byId("homeExportExcelBtn")?.addEventListener("click", () => openExcelExportModal());
+  document.querySelectorAll("[data-close-excel-export]").forEach((el) => {
+    el.addEventListener("click", () => closeExcelExportModal());
+  });
+  byId("excelExportSelectAll")?.addEventListener("click", () => {
+    setExcelExportColumnChecks(HOME_EXCEL_COLUMNS.map((col) => col.id));
+  });
+  byId("excelExportSelectDefault")?.addEventListener("click", () => {
+    setExcelExportColumnChecks(defaultExcelExportColumnIds());
+  });
+  byId("excelExportClear")?.addEventListener("click", () => {
+    setExcelExportColumnChecks([]);
+  });
+  byId("excelExportConfirmBtn")?.addEventListener("click", () => {
+    const ids = readExcelExportColumnIdsFromUi();
+    if (!ids.length) {
+      showToast("출력할 속성을 하나 이상 선택하세요.", "error");
+      return;
+    }
+    saveExcelExportColumnIds(ids);
+    closeExcelExportModal();
+    exportHomeExcel();
+  });
 }
 
 function homeDbScroller(root = byId("homeDbTable")) {

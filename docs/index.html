@@ -135,6 +135,34 @@
       </section>
       </div>
 
+      <div id="excelExportModal" class="modal hidden" aria-hidden="true">
+        <div class="modal-backdrop" data-close-excel-export="1"></div>
+        <div class="modal-panel modal-panel-sm excel-export-modal-panel" role="dialog" aria-labelledby="excelExportModalTitle">
+          <header class="modal-header">
+            <div>
+              <p class="merge-modal-eyebrow">Excel</p>
+              <h2 id="excelExportModalTitle">엑셀 출력 설정</h2>
+            </div>
+            <button type="button" class="modal-close" data-close-excel-export="1" aria-label="닫기">
+              <span data-icon="x"></span>
+            </button>
+          </header>
+          <div class="modal-body excel-export-modal-body">
+            <p class="muted excel-export-hint">포함할 속성을 고르세요. 선택은 이 브라우저에 저장됩니다.</p>
+            <div class="excel-export-actions-row">
+              <button type="button" id="excelExportSelectAll" class="admin-text-btn">전체</button>
+              <button type="button" id="excelExportSelectDefault" class="admin-text-btn">기본</button>
+              <button type="button" id="excelExportClear" class="admin-text-btn">해제</button>
+            </div>
+            <div id="excelExportColumnGrid" class="excel-export-column-grid" role="group" aria-label="엑셀 컬럼 선택"></div>
+          </div>
+          <footer class="detail-footer excel-export-modal-footer">
+            <button type="button" class="btn-ghost btn-sm" data-close-excel-export="1">취소</button>
+            <button type="button" class="btn-primary" id="excelExportConfirmBtn">엑셀 저장</button>
+          </footer>
+        </div>
+      </div>
+
       <div id="workspaceBoard" class="workspace-board hidden">
       <section class="toolbar">
         <div class="search-row">
