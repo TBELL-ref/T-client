@@ -10,11 +10,25 @@ const state = {
   failureSummary: {},
   gradeSummary: {},
   activeTab: "in_progress",
+  workspace: "home",
+  homeView: "pool",
+  homeWaitSort: "recent",
+  homePage: 1,
+  homeEditMode: false,
+  homeEditCell: null,
+  homePendingCell: null,
+  homeEditSaving: false,
+  homeDraftIds: null,
+  homeDbScroll: { left: 0, top: 0 },
+  homeDbScrollLockUntil: 0,
+  detailMode: "legacy",
   detailRow: null,
   detailEditSections: {},
   detailOpenSections: new Set(),
   meetingEditId: null,
   meetingAddOpen: false,
+  testPeriodEditId: null,
+  testPeriodAddOpen: false,
   contactEditIndex: null,
   contactAddOpen: false,
   mergeSourceRow: null,
@@ -32,6 +46,9 @@ const state = {
 };
 
 const PAGE_SIZE = 10;
+const HOME_PAGE_SIZE = 30;
+const NAV_STORAGE_KEY = "tclient-nav-v1";
+const BOARD_TAB_IDS = ["in_progress", "recommended", "new", "leads", "posts", "excluded"];
 
 const GRADE_COLORS = { A: "#00c471", B: "#3b82f6", C: "#94a3b8" };
 
@@ -272,6 +289,11 @@ function clearMeetingUiState() {
   state.meetingAddOpen = false;
 }
 
+function clearTestPeriodUiState() {
+  state.testPeriodEditId = null;
+  state.testPeriodAddOpen = false;
+}
+
 function clearContactUiState() {
   state.contactEditIndex = null;
   state.contactAddOpen = false;
@@ -404,29 +426,214 @@ function renderDetailHeaderMemo(memo) {
   </details>`;
 }
 
-function testPeriodDisplay(row) {
-  if (row.testStartedAt || row.testEndedAt) {
-    const start = row.testStartedAt ? formatDate(row.testStartedAt) : "—";
-    const end = row.testEndedAt ? formatDate(row.testEndedAt) : "—";
-    return `${start} ~ ${end}`;
+function newTestPeriodId() {
+  return `tp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function normalizeUiTestPeriod(raw = {}, idx = 0) {
+  return {
+    id: `${raw.id ?? ""}`.trim() || `tp_${idx}`,
+    label: `${raw.label ?? raw.testPeriodLabel ?? ""}`.trim(),
+    startedAt: raw.startedAt ?? raw.testStartedAt ?? raw.test_started_at ?? null,
+    endedAt: raw.endedAt ?? raw.testEndedAt ?? raw.test_ended_at ?? null,
+    notes: `${raw.notes ?? raw.testNotes ?? raw.test_notes ?? ""}`.trim()
+  };
+}
+
+function parseRowTestPeriodList(raw) {
+  let list = raw;
+  if (typeof list === "string") {
+    try {
+      list = JSON.parse(list);
+    } catch {
+      return [];
+    }
   }
-  if (row.testPeriodLabel) return row.testPeriodLabel;
+  return Array.isArray(list) ? list : [];
+}
+
+function listTestPeriods(row = {}) {
+  const raw = parseRowTestPeriodList(row.testPeriods ?? row.test_periods);
+  const fromJson = raw.map((p, i) => normalizeUiTestPeriod(p, i)).filter((p) => p.startedAt || p.endedAt || p.notes || p.label);
+  if (fromJson.length) return fromJson;
+  if (row.testStartedAt || row.testEndedAt || row.testNotes || row.testPeriodLabel) {
+    return [
+      normalizeUiTestPeriod(
+        {
+          id: "tp_legacy",
+          startedAt: row.testStartedAt,
+          endedAt: row.testEndedAt,
+          label: row.testPeriodLabel,
+          notes: row.testNotes
+        },
+        0
+      )
+    ];
+  }
+  return [];
+}
+
+function formatTestPeriodRange(p) {
+  const start = p?.startedAt ? formatDate(p.startedAt) : "";
+  const end = p?.endedAt ? formatDate(p.endedAt) : "";
+  if (start && end) return `${start} ~ ${end}`;
+  if (start) return `${start} ~`;
+  if (end) return `~ ${end}`;
+  return p?.label || "기간 미정";
+}
+
+function sortTestPeriods(periods) {
+  return [...periods].sort((a, b) => (Date.parse(b.startedAt || b.endedAt || 0) || 0) - (Date.parse(a.startedAt || a.endedAt || 0) || 0));
+}
+
+function salesPatchFromTestPeriods(periods) {
+  const list = periods.map((p, i) => {
+    const n = normalizeUiTestPeriod(p, i);
+    return { ...n, label: n.label || formatTestPeriodRange(n) };
+  });
+  const top = sortTestPeriods(list)[0] || {};
+  return {
+    testPeriods: list,
+    testStartedAt: top.startedAt || "",
+    testEndedAt: top.endedAt || "",
+    testPeriodLabel: top.label || "",
+    testNotes: top.notes || ""
+  };
+}
+
+function testPeriodDisplay(row) {
+  const list = listTestPeriods(row);
+  if (list.length) return sortTestPeriods(list).map(formatTestPeriodRange).join(", ");
   const p = row.profile ?? {};
   if (p.testPeriod) return `${p.testPeriod}`.trim();
   return "";
 }
 
 function testPeriodHtml(row) {
-  const start = row.testStartedAt ? formatDate(row.testStartedAt) : "";
-  const end = row.testEndedAt ? formatDate(row.testEndedAt) : "";
-  if (start || end) {
-    return `<div class="test-period-stack">
-      <span>${start ? `시작 ${escapeHtml(start)}` : '<span class="muted">시작 —</span>'}</span>
-      <span>${end ? `종료 ${escapeHtml(end)}` : '<span class="muted">종료 —</span>'}</span>
-    </div>`;
+  const list = sortTestPeriods(listTestPeriods(row));
+  if (!list.length) {
+    const label = testPeriodDisplay(row);
+    return label ? escapeHtml(label) : "";
   }
-  const label = testPeriodDisplay(row);
-  return label ? escapeHtml(label) : "";
+  return `<div class="test-period-stack">${list
+    .map((p) => {
+      const start = p.startedAt ? formatDate(p.startedAt) : "";
+      const end = p.endedAt ? formatDate(p.endedAt) : "";
+      if (start || end) {
+        return `<span>${start ? `시작 ${escapeHtml(start)}` : '<span class="muted">시작 —</span>'} · ${end ? `종료 ${escapeHtml(end)}` : '<span class="muted">종료 —</span>'}</span>`;
+      }
+      return `<span>${escapeHtml(p.label || "기간 미정")}</span>`;
+    })
+    .join("")}</div>`;
+}
+
+function readTestPeriodCard(card, fallbackId = "") {
+  if (!card) return null;
+  const id = card.dataset.periodId || fallbackId;
+  const startedAt = readMpickerDateIso(`edit-test-start-${id}`) || "";
+  const endedAt = readMpickerDateIso(`edit-test-end-${id}`) || "";
+  const notes = card.querySelector('[data-test-field="notes"]')?.value.trim() ?? "";
+  return {
+    id: id && id !== "new" ? id : newTestPeriodId(),
+    startedAt: startedAt || null,
+    endedAt: endedAt || null,
+    notes,
+    label: ""
+  };
+}
+
+function refreshTestPeriodsPanel(row) {
+  if (!row?.companyId) return;
+  const embed = document.querySelector(`[data-company-tests="${row.companyId}"]`);
+  if (!embed) {
+    paintDetailModal();
+    return;
+  }
+  const admin = window.TClientAdmin?.isUnlocked?.();
+  embed.outerHTML = renderTestPeriodsEmbed(row, admin);
+  const freshEmbed = document.querySelector(`[data-company-tests="${row.companyId}"]`);
+  initMeetingFormSelects(freshEmbed);
+  hydrateIcons(freshEmbed);
+}
+
+async function persistTestPeriods(row, periods, toastMessage) {
+  const patch = salesPatchFromTestPeriods(periods);
+  await window.TSalesManagement.upsert(row.companyId, patch, row);
+  reloadRowsWithAdmin();
+  refreshViews();
+  const fresh = state.rows.find((r) => r.companyId === row.companyId) ?? { ...row, ...patch };
+  state.detailRow = fresh;
+  window.__TCLIENT_DETAIL_ROW = fresh;
+  refreshTestPeriodsPanel(fresh);
+  if (toastMessage) showToast(toastMessage);
+}
+
+function renderTestPeriodEditCard(p) {
+  const id = p.id || newTestPeriodId();
+  return `<li class="meeting-mini-item meeting-edit-card test-period-edit-card" data-period-id="${escapeAttr(id)}">
+    <div class="detail-form-grid cols-2 detail-form-compact meeting-edit-fields meeting-form-surface">
+      <div class="inline-row"><span class="inline-label">시작</span>${mpickerDateField(`edit-test-start-${id}`, p.startedAt)}</div>
+      <div class="inline-row"><span class="inline-label">종료</span>${mpickerDateField(`edit-test-end-${id}`, p.endedAt)}</div>
+      <div class="inline-row span-2 inline-row-top"><span class="inline-label">메모</span><textarea class="inline-field" data-test-field="notes" rows="2" placeholder="테스트 메모">${escapeHtml(p.notes ?? "")}</textarea></div>
+    </div>
+    <div class="meeting-edit-actions">
+      ${detailIconBtn("check", "저장", { className: "detail-icon-btn-primary test-period-save-btn", attrs: `data-period-id="${escapeAttr(id)}"`, size: 15 })}
+      ${detailIconBtn("x", "취소", { className: "test-period-cancel-btn", size: 15 })}
+      ${detailIconBtn("trash", "삭제", { className: "detail-icon-btn-danger test-period-del-btn", attrs: `data-period-id="${escapeAttr(id)}"`, size: 15 })}
+    </div>
+  </li>`;
+}
+
+function renderTestPeriodViewItem(p, admin) {
+  if (admin && state.testPeriodEditId === p.id) return renderTestPeriodEditCard(p);
+  const range = formatTestPeriodRange(p);
+  const notes = `${p.notes ?? ""}`.trim();
+  const preview = notes ? richTextHtml(notes.split(/\r?\n/)[0]) : '<span class="muted">—</span>';
+  const body = notes ? `<div class="meeting-mini-summary rich-text text-preline">${multilineHtml(notes)}</div>` : '<span class="muted">내용 없음</span>';
+  const actions = admin
+    ? `<div class="meeting-item-actions">
+        ${detailIconBtn("pencil", "수정", { className: "test-period-edit-btn", attrs: `data-period-id="${escapeAttr(p.id)}"`, size: 15 })}
+        ${detailIconBtn("trash", "삭제", { className: "detail-icon-btn-danger test-period-del-btn", attrs: `data-period-id="${escapeAttr(p.id)}"`, size: 15 })}
+      </div>`
+    : "";
+  return `<li class="meeting-mini-item">
+    <details class="meeting-mini-details">
+      <summary class="meeting-mini-head">
+        <span class="meeting-mini-date">${escapeHtml(range)}</span>
+        <span class="meeting-mini-next">${preview}</span>
+      </summary>
+      <div class="meeting-mini-body">${body}</div>
+    </details>
+    ${actions}
+  </li>`;
+}
+
+function renderTestPeriodsEmbed(row, admin) {
+  const addOpen = state.testPeriodAddOpen && state.detailRow?.companyId === row.companyId;
+  const list = sortTestPeriods(listTestPeriods(row));
+  const toolbar = `<div class="meeting-toolbar">
+    <span class="sales-subsection-label">테스트 결과</span>
+    ${admin ? detailIconBtn(addOpen ? "x" : "plus", addOpen ? "추가 취소" : "테스트 결과 추가", { attrs: 'id="test-period-add-toggle"', size: 16 }) : ""}
+  </div>`;
+  const addForm =
+    admin && addOpen
+      ? `<div class="detail-form-grid cols-2 detail-form-compact test-period-add-row meeting-form-surface" data-period-id="new">
+          <div class="inline-row"><span class="inline-label">시작</span>${mpickerDateField("edit-test-start-new", "")}</div>
+          <div class="inline-row"><span class="inline-label">종료</span>${mpickerDateField("edit-test-end-new", "")}</div>
+          <div class="inline-row span-2 inline-row-top"><span class="inline-label">메모</span><textarea class="inline-field" data-test-field="notes" rows="2" placeholder="테스트 메모"></textarea></div>
+        </div>
+        <div class="meeting-add-actions">${detailIconBtn("check", "등록", { className: "detail-icon-btn-primary", attrs: 'id="test-period-add-btn"', size: 15 })}</div>`
+      : "";
+  const items = list.length
+    ? `<ul class="meeting-list meeting-list-mini">${list.map((p) => renderTestPeriodViewItem(p, admin)).join("")}</ul>`
+    : addOpen
+      ? ""
+      : `<p class="muted detail-empty-hint">테스트 결과가 없습니다.${admin ? ` ${detailIconBtn("plus", "테스트 결과 추가", { attrs: 'id="test-period-add-toggle-inline"', size: 15 })}` : ""}</p>`;
+  return `<div class="sales-tests-embed" data-company-tests="${escapeAttr(row.companyId)}">
+    ${toolbar}
+    ${addForm}
+    <div class="test-period-list-wrap">${items}</div>
+  </div>`;
 }
 
 function pipelineSelectOptions(kind, selected) {
@@ -642,10 +849,31 @@ function parseRepeatPostCount(row) {
   return row.posts?.length ?? 0;
 }
 
+function isJunkIndustryLabel(raw) {
+  const n = `${raw ?? ""}`.replace(/\s+/g, " ").trim();
+  if (!n) return true;
+  if (/^(등록일|수정일|마감일|접수일|게시일)(?:\s|$)/i.test(n)) return true;
+  if (/(등록일|수정일|마감일)\s*\d/i.test(n)) return true;
+  if (/^\d{2}\/\d{2}(?:\/\d{2})?/.test(n)) return true;
+  if (/신입|계약직|정규직|경력\s*무관|경력무관|연봉|초임|주\s*5일|전환가능|과장급|대리\s/.test(n)) {
+    return true;
+  }
+  if (/잡코리아|사람인|원티드|점핏/i.test(n)) return true;
+  return false;
+}
+
 function candidateIndustryLabel(row) {
-  if (row.candidateIndustry) return row.candidateIndustry;
-  const p = row.profile ?? {};
-  return p.bizItem || p.bizType || p.industrySummary?.split("·")[0]?.trim() || "-";
+  const candidates = [
+    row.candidateIndustry,
+    row.profile?.bizItem,
+    row.profile?.bizType,
+    row.profile?.industrySummary?.split("·")[0]?.trim()
+  ];
+  for (const raw of candidates) {
+    const value = `${raw ?? ""}`.trim();
+    if (value && !isJunkIndustryLabel(value)) return value;
+  }
+  return "-";
 }
 
 function poolClassOf(row) {
@@ -1127,16 +1355,22 @@ function priorityGradeCell(row) {
 }
 
 function latestPost(row) {
-  const posts = (row.posts ?? []).filter((p) => `${p.title ?? ""}`.trim());
+  const posts = [...(row.posts ?? [])].filter((p) => `${p.title ?? ""}`.trim() || `${p.url ?? ""}`.trim());
   if (!posts.length) return null;
-  const dated = posts.filter((p) => p.collectedAt || p.collected_at);
-  if (dated.length) {
-    dated.sort(
-      (a, b) =>
-        Date.parse(b.collectedAt || b.collected_at || 0) - Date.parse(a.collectedAt || a.collected_at || 0)
-    );
-    return dated[0];
-  }
+  const rank = (p) => {
+    const t = `${p.title ?? ""}`.trim();
+    const generic = !t || /^https?:\/\//i.test(t) || /^(qa 공고|qa 채용|qa 채용 공고|qa position|채용|채용공고)$/i.test(t);
+    const qa = /\bqa\b|품질|테스트|sqa|sdet|테스터|quality/i.test(t);
+    const recency = Date.parse(p.collectedAt || p.collected_at || 0) || 0;
+    return { generic: generic ? 1 : 0, qa: qa ? 1 : 0, recency };
+  };
+  posts.sort((a, b) => {
+    const sa = rank(a);
+    const sb = rank(b);
+    if (sa.generic !== sb.generic) return sa.generic - sb.generic;
+    if (sa.qa !== sb.qa) return sb.qa - sa.qa;
+    return sb.recency - sa.recency;
+  });
   return posts[0];
 }
 
@@ -1543,13 +1777,7 @@ function renderContactsEmbed(row, admin) {
 }
 
 function renderTestView(row) {
-  const start = row.testStartedAt ? escapeHtml(formatDate(row.testStartedAt)) : '<span class="muted">—</span>';
-  const end = row.testEndedAt ? escapeHtml(formatDate(row.testEndedAt)) : '<span class="muted">—</span>';
-  const memo = `${row.testNotes ?? ""}`.trim();
-  return `<div class="test-compact-view">
-    <div class="test-dates-row"><span class="test-date-item"><span class="test-date-label">시작</span> ${start}</span><span class="test-date-sep" aria-hidden="true">|</span><span class="test-date-item"><span class="test-date-label">종료</span> ${end}</span></div>
-    ${memo ? `<div class="test-memo text-preline">${multilineHtml(memo)}</div>` : ""}
-  </div>`;
+  return renderTestPeriodsEmbed(row, window.TClientAdmin?.isUnlocked?.());
 }
 
 function renderScoreSection(row, edit, admin = false) {
@@ -1912,14 +2140,7 @@ async function saveDetailSection(row, section) {
   }
 
   if (section === "progress") {
-    await persistCompany(
-      null,
-      salesPatch({
-        testStartedAt: readMpickerDateIso("edit-test-started"),
-        testEndedAt: readMpickerDateIso("edit-test-ended"),
-        testNotes: byId("edit-test-notes")?.value.trim()
-      })
-    );
+    await persistCompany(null, null);
     return;
   }
 
@@ -2293,6 +2514,98 @@ function bindDetailSectionEdits() {
         showToast("미팅 기록이 추가되었습니다.");
       } catch (err) {
         showToast(err.message || "미팅 저장 실패", "error");
+      }
+      return;
+    }
+
+    const testEditBtn = e.target?.closest?.(".test-period-edit-btn");
+    if (testEditBtn && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      state.testPeriodEditId = testEditBtn.dataset.periodId || null;
+      state.testPeriodAddOpen = false;
+      refreshTestPeriodsPanel(row);
+      return;
+    }
+
+    const testCancelBtn = e.target?.closest?.(".test-period-cancel-btn");
+    if (testCancelBtn) {
+      e.preventDefault();
+      state.testPeriodEditId = null;
+      refreshTestPeriodsPanel(row);
+      return;
+    }
+
+    const testSaveBtn = e.target?.closest?.(".test-period-save-btn");
+    if (testSaveBtn && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      const card = testSaveBtn.closest(".test-period-edit-card");
+      const patch = readTestPeriodCard(card, testSaveBtn.dataset.periodId);
+      if (!patch?.id) return;
+      if (!patch.startedAt && !patch.endedAt && !patch.notes) {
+        showToast("기간 또는 메모를 입력하세요.", "error");
+        return;
+      }
+      try {
+        await withDetailBusy("테스트 결과 저장 중…", async () => {
+          const next = listTestPeriods(row).map((p) => (p.id === patch.id ? { ...p, ...patch } : p));
+          if (!next.some((p) => p.id === patch.id)) next.push(patch);
+          state.testPeriodEditId = null;
+          await persistTestPeriods(row, next, "테스트 결과가 저장되었습니다.");
+        });
+      } catch (err) {
+        showToast(err.message || "테스트 결과 저장 실패", "error");
+      }
+      return;
+    }
+
+    if (e.target?.closest?.("#test-period-add-toggle") && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      state.testPeriodAddOpen = !state.testPeriodAddOpen;
+      if (state.testPeriodAddOpen) state.testPeriodEditId = null;
+      refreshTestPeriodsPanel(row);
+      return;
+    }
+
+    if (e.target?.closest?.("#test-period-add-toggle-inline") && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      state.testPeriodAddOpen = true;
+      state.testPeriodEditId = null;
+      refreshTestPeriodsPanel(row);
+      return;
+    }
+
+    const testDelBtn = e.target?.closest?.(".test-period-del-btn");
+    if (testDelBtn && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      try {
+        await withDetailBusy("테스트 결과 삭제 중…", async () => {
+          const id = testDelBtn.dataset.periodId;
+          const next = listTestPeriods(row).filter((p) => p.id !== id);
+          if (state.testPeriodEditId === id) state.testPeriodEditId = null;
+          await persistTestPeriods(row, next, "테스트 결과가 삭제되었습니다.");
+        });
+      } catch (err) {
+        showToast(err.message || "테스트 결과 삭제 실패", "error");
+      }
+      return;
+    }
+
+    if (e.target?.closest?.("#test-period-add-btn") && window.TClientAdmin?.isUnlocked?.()) {
+      e.preventDefault();
+      const addRow = document.querySelector(".test-period-add-row");
+      const patch = readTestPeriodCard(addRow, "new");
+      if (!patch.startedAt && !patch.endedAt && !patch.notes) {
+        showToast("기간 또는 메모를 입력하세요.", "error");
+        return;
+      }
+      try {
+        await withDetailBusy("테스트 결과 추가 중…", async () => {
+          const next = [...listTestPeriods(row), patch];
+          state.testPeriodAddOpen = false;
+          await persistTestPeriods(row, next, "테스트 결과가 추가되었습니다.");
+        });
+      } catch (err) {
+        showToast(err.message || "테스트 결과 저장 실패", "error");
       }
     }
   });
@@ -3426,19 +3739,43 @@ function bindActionKpiCards() {
   const dash = byId("dashboard");
   if (!dash || dash.dataset.kpiBound === "1") return;
   dash.dataset.kpiBound = "1";
+  const go = (kpiId) => {
+    if (state.workspace === "home") {
+      if (kpiId === "recommended" || kpiId === "inProgress" || kpiId === "contractWon") {
+        setHomeView("pool");
+        return;
+      }
+      if (kpiId === "posts") {
+        setHomeView("wait");
+        return;
+      }
+      if (kpiId === "excluded") {
+        setHomeView("excluded");
+        return;
+      }
+      if (kpiId === "total") {
+        switchWorkspace("board");
+        const tabId = ACTION_KPI_TAB_MAP[kpiId];
+        if (tabId) switchTab(tabId, { resetFilters: true, kpiFocus: kpiId });
+        return;
+      }
+    }
+    const tabId = ACTION_KPI_TAB_MAP[kpiId];
+    if (tabId) {
+      if (state.workspace !== "board") switchWorkspace("board");
+      switchTab(tabId, { resetFilters: true, kpiFocus: kpiId });
+    }
+  };
   dash.addEventListener("click", (e) => {
     const card = e.target?.closest?.("[data-kpi-id]");
     if (!card) return;
-    const tabId = ACTION_KPI_TAB_MAP[card.dataset.kpiId];
-    if (tabId) switchTab(tabId, { resetFilters: true, kpiFocus: card.dataset.kpiId });
+    go(card.dataset.kpiId);
   });
   dash.addEventListener("keydown", (e) => {
     const card = e.target?.closest?.("[data-kpi-id]");
     if (!card || (e.key !== "Enter" && e.key !== " ")) return;
-    const tabId = ACTION_KPI_TAB_MAP[card.dataset.kpiId];
-    if (!tabId) return;
     e.preventDefault();
-    switchTab(tabId, { resetFilters: true, kpiFocus: card.dataset.kpiId });
+    go(card.dataset.kpiId);
   });
 }
 
@@ -3840,18 +4177,35 @@ function detailStat(label, value, extraClass = "") {
   return detailMetric(label, value, extraClass);
 }
 
+function detailActionSet(row = state.detailRow) {
+  if (!row) return "pool";
+  if (state.workspace === "home") {
+    if (state.homeView === "excluded") return "excluded";
+    if (state.homeView === "wait") return "wait";
+    return "pool";
+  }
+  if (isShelvedLead(row)) return "excluded";
+  if (isWaitCompany(row)) return "wait";
+  return "pool";
+}
+
 function refreshDetailAdminButtons() {
   const admin = Boolean(window.TClientAdmin?.isUnlocked?.());
   const summaryEditing = isSectionEdit("summary");
+  const actionSet = detailActionSet();
+  const inPoolOrWait = actionSet !== "excluded";
   const specs = [
-    { id: "detailMergeBtn", lockedTitle: "관리자 로그인 후 병합" },
-    { id: "detailEditBtn", lockedTitle: "관리자 로그인 후 요약 수정" },
-    { id: "detailDeleteBtn", lockedTitle: "관리자 로그인 후 삭제" }
+    { id: "detailMergeBtn", show: inPoolOrWait, lockedTitle: "관리자 로그인 후 병합" },
+    { id: "detailEditBtn", show: inPoolOrWait && !summaryEditing, lockedTitle: "관리자 로그인 후 요약 수정" },
+    { id: "detailPromoteBtn", show: actionSet === "wait", lockedTitle: "관리자 로그인 후 후보 선정" },
+    { id: "detailExcludeBtn", show: inPoolOrWait, lockedTitle: "관리자 로그인 후 제외" },
+    { id: "detailRestoreBtn", show: actionSet === "excluded", lockedTitle: "관리자 로그인 후 복구" },
+    { id: "detailDeleteBtn", show: actionSet === "excluded", lockedTitle: "관리자 로그인 후 삭제" }
   ];
   for (const spec of specs) {
     const btn = byId(spec.id);
     if (!btn) continue;
-    btn.classList.toggle("hidden", !admin || (summaryEditing && spec.id === "detailEditBtn"));
+    btn.classList.toggle("hidden", !admin || !spec.show);
     btn.classList.toggle("is-locked", !admin);
     btn.classList.toggle("is-active", summaryEditing && spec.id === "detailEditBtn");
     btn.title = admin ? btn.dataset.titleActive || btn.title : spec.lockedTitle;
@@ -3995,13 +4349,7 @@ function renderDetailBody(row, admin = false) {
       </div>`;
   const ratingBody = `<div class="rating-section-stack">${evalViewBlock}<div class="rating-score-block">${renderScoreSection(row, editEval, admin)}</div></div>`;
 
-  const testBlock = editProgress
-    ? `<div class="detail-form-grid cols-2 detail-form-compact">
-        <div class="inline-row"><span class="inline-label">시작</span>${mpickerDateField("edit-test-started", row.testStartedAt)}</div>
-        <div class="inline-row"><span class="inline-label">종료</span>${mpickerDateField("edit-test-ended", row.testEndedAt)}</div>
-        <div class="inline-row span-2 inline-row-top"><span class="inline-label">메모</span>${inlineTextarea("edit-test-notes", row.testNotes ?? "", "", 2)}</div>
-      </div>`
-    : renderTestView(row);
+  const testBlock = renderTestPeriodsEmbed(row, admin);
 
   const filesBlock = editProgress && admin
     ? `<div class="detail-files-section" data-company-files="${escapeAttr(row.companyId)}">
@@ -4165,12 +4513,14 @@ function paintDetailModal() {
   if (!row) return;
   setDetailLoading(false);
   const admin = window.TClientAdmin?.isUnlocked();
+  const notion = state.detailMode === "notion";
+  byId("detailDrawer")?.classList.toggle("is-notion-detail", notion);
   const openSections = captureDetailOpenSections();
   openSections.forEach((key) => state.detailOpenSections.add(key));
   Object.keys(state.detailEditSections).forEach((key) => state.detailOpenSections.add(key));
   paintDetailHeader(row);
   window.TMeetingPicker?.closeAllPanels?.();
-  byId("detailBody").innerHTML = renderDetailBody(row, admin);
+  byId("detailBody").innerHTML = notion ? renderNotionDetailBody(row, admin) : renderDetailBody(row, admin);
   applyDetailOpenSections(state.detailOpenSections);
   if (admin) {
     window.TUiSelect?.init(byId("detailDrawer"));
@@ -4183,10 +4533,12 @@ function paintDetailModal() {
   if (window.TDetailPanel) window.TDetailPanel.renderBody = renderDetailBody;
 }
 
-async function openDetail(row, sectionToEdit = null) {
+async function openDetail(row, sectionToEdit = null, { mode } = {}) {
   state.detailRow = row;
+  state.detailMode = mode || (state.workspace === "home" ? "notion" : "legacy");
   clearSectionEdits();
   clearMeetingUiState();
+  clearTestPeriodUiState();
   clearContactUiState();
   if (sectionToEdit && window.TClientAdmin?.isUnlocked?.()) {
     setSectionEdit(sectionToEdit, true);
@@ -4194,29 +4546,33 @@ async function openDetail(row, sectionToEdit = null) {
   window.__TCLIENT_DETAIL_ROW = row;
   window.__TCLIENT_DETAIL_EDIT = Object.keys(state.detailEditSections).length > 0;
   hidePortfolioPopover();
+  const savedHomeScroll = { ...rememberHomeDbScroll() };
   if (window.TClientAdmin?.isUnlocked?.()) {
     try {
       await window.TCompanyUserState.markViewed(row.companyId);
-      refreshViews();
+      clearHomeNewBadge(row.companyId);
     } catch {
       /* migration 013 */
     }
   }
-  state.detailOpenSections = new Set(["sales"]);
+  state.detailOpenSections = new Set(state.detailMode === "notion" ? ["sales", "progress", "eval", "posts"] : ["sales"]);
   if (sectionToEdit) state.detailOpenSections.add(sectionToEdit);
   paintDetailModal();
   const drawer = byId("detailDrawer");
   drawer?.classList.remove("hidden");
   drawer?.setAttribute("aria-hidden", "false");
   document.body.classList.add("detail-drawer-open");
+  restoreHomeDbScrollSoon(savedHomeScroll);
   window.TDetailPanel?.refreshTabs?.();
 }
 
 function closeDetail() {
   if (state.detailBusy) return;
   state.detailRow = null;
+  state.detailMode = "legacy";
   clearSectionEdits();
   clearMeetingUiState();
+  clearTestPeriodUiState();
   clearContactUiState();
   state.detailOpenSections = new Set();
   window.__TCLIENT_DETAIL_ROW = null;
@@ -4224,8 +4580,11 @@ function closeDetail() {
   hidePortfolioPopover();
   const drawer = byId("detailDrawer");
   drawer?.classList.add("hidden");
+  drawer?.classList.remove("is-notion-detail");
   drawer?.setAttribute("aria-hidden", "true");
+  const savedHomeScroll = { ...state.homeDbScroll };
   document.body.classList.remove("detail-drawer-open");
+  restoreHomeDbScrollSoon(savedHomeScroll);
 }
 
 function openAddLeadModal() {
@@ -4488,6 +4847,75 @@ async function submitManualPostAsync(url, bizNoRaw = "", nameHint = "") {
 
 function deleteCompany(row) {
   void deleteCompanyAsync(row);
+}
+
+function excludeCompany(row) {
+  void excludeCompanyAsync(row);
+}
+
+function restoreCompanyToWait(row) {
+  void restoreCompanyToWaitAsync(row);
+}
+
+async function excludeCompanyAsync(row) {
+  if (!row?.companyId || !window.TClientAdmin?.isUnlocked() || state.detailBusy) return;
+  const name = displayName(row);
+  if (!window.confirm(`「${name}」을(를) 제외할까요?\n후보·대기 목록에서 빠지고 제외 탭으로 이동합니다.`)) return;
+  try {
+    await withDetailBusy("제외 처리 중…", async () => {
+      await window.TSalesManagement.upsert(
+        row.companyId,
+        {
+          isHidden: true,
+          isRecommended: false,
+          isCandidate: false,
+          pipelineStatus: "excluded"
+        },
+        row
+      );
+    });
+  } catch (err) {
+    showToast(err.message || "제외 처리에 실패했습니다.", "error");
+    return;
+  }
+  closeDetail();
+  if (state.workspace === "home") setHomeView("excluded");
+  reloadRowsWithAdmin();
+  refreshViews();
+  showToast(`${name}을(를) 제외했습니다.`);
+}
+
+async function restoreCompanyToWaitAsync(row) {
+  if (!row?.companyId || !window.TClientAdmin?.isUnlocked() || state.detailBusy) return;
+  const name = displayName(row);
+  if (!window.confirm(`「${name}」을(를) 대기로 복구할까요?`)) return;
+  try {
+    await withDetailBusy("복구 중…", async () => {
+      await window.TSalesManagement.upsert(
+        row.companyId,
+        {
+          isHidden: false,
+          isRecommended: false,
+          isCandidate: false,
+          pipelineStage: "candidate",
+          pipelineStatus: "pending",
+          closedReason: ""
+        },
+        row
+      );
+      window.TClientAdmin.setEntry(row.companyId, { excludeReason: "" });
+      await window.TClientAdmin.flushPersist?.();
+    });
+  } catch (err) {
+    showToast(err.message || "복구에 실패했습니다.", "error");
+    return;
+  }
+  closeDetail();
+  if (state.workspace === "home") setHomeView("wait");
+  else switchTab("new");
+  reloadRowsWithAdmin();
+  refreshViews();
+  showToast(`${name}을(를) 대기로 복구했습니다.`);
 }
 
 async function deleteCompanyAsync(row) {
@@ -4882,9 +5310,1173 @@ function paintMetaBanner() {
     : `<span class="meta-updated muted">갱신일 없음</span>`;
 }
 
+function isPoolCompany(row) {
+  const P = pipelineLabels();
+  return Boolean(P.rowMatchesRecommendedTab?.(row) || P.rowMatchesInProgressTab?.(row));
+}
+
+function isWaitCompany(row) {
+  if (!isMainTabLead(row)) return false;
+  return !isPoolCompany(row);
+}
+
+function homeSearchQuery() {
+  return `${byId("homeSearch")?.value ?? ""}`.trim().toLowerCase();
+}
+
+function matchesHomeSearch(row, extra = "") {
+  const q = homeSearchQuery();
+  if (!q) return true;
+  const hay = `${displayName(row)} ${row.companyName ?? ""} ${row.domain ?? ""} ${row.profile?.bizItem ?? ""} ${row.profile?.bizType ?? ""} ${extra}`.toLowerCase();
+  return hay.includes(q);
+}
+
+function notionStatusEmoji(row) {
+  if (row.userHidden || row.isHidden) return "⛔";
+  if (!row.isRecommended) return "";
+  const { pipelineStage, pipelineStatus } = resolveRowPipeline(row);
+  if (pipelineStage === "contract" && pipelineStatus === "closed") return "✅";
+  if (pipelineStage === "meeting") return "🏢";
+  if (pipelineStage === "proposal") return "📋";
+  if (pipelineStage === "test_in_progress") return "⌛";
+  return "🔍";
+}
+
+function homepageHref(row) {
+  const p = row.profile ?? {};
+  const raw = `${p.homepage || p.serviceUrl || ""}`.trim();
+  if (!raw) return "";
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+}
+
+function paginateHome(items, page) {
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / HOME_PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * HOME_PAGE_SIZE;
+  return {
+    items: items.slice(start, start + HOME_PAGE_SIZE),
+    page: safePage,
+    totalPages,
+    total
+  };
+}
+
+function poolHomeRows() {
+  return sortByNotionPriority(state.rows.filter((r) => isPoolCompany(r) && isMainTabLead(r) && matchesHomeSearch(r)));
+}
+
+function waitCollectedAt(row) {
+  return Date.parse(row.lastCollectedAt || row.firstCollectedAt || 0) || 0;
+}
+
+function waitHomeRows() {
+  const rows = state.rows.filter((row) => {
+    if (!isWaitCompany(row)) return false;
+    const postHay = (row.posts ?? []).map((p) => `${p.title ?? ""} ${p.source ?? ""}`).join(" ");
+    return matchesHomeSearch(row, postHay);
+  });
+  const mode = state.homeWaitSort === "recommend" ? "recommend" : "recent";
+  return [...rows].sort((a, b) => {
+    if (mode === "recommend") {
+      const byRec = parseRecommendScore(b) - parseRecommendScore(a);
+      if (byRec !== 0) return byRec;
+    }
+    const byCollect = waitCollectedAt(b) - waitCollectedAt(a);
+    if (byCollect !== 0) return byCollect;
+    return displayName(a).localeCompare(displayName(b), "ko");
+  });
+}
+
+function excludedHomeRows() {
+  return sortByNotionPriority(
+    state.rows.filter((row) => {
+      if (!isShelvedLead(row)) return false;
+      const postHay = (row.posts ?? []).map((p) => `${p.title ?? ""} ${p.source ?? ""}`).join(" ");
+      return matchesHomeSearch(row, postHay);
+    })
+  );
+}
+
+function homeViewBaseRows() {
+  if (state.homeView === "wait") return waitHomeRows();
+  if (state.homeView === "excluded") return excludedHomeRows();
+  return poolHomeRows();
+}
+
+function orderRowsByIds(rows, ids) {
+  const map = new Map(rows.map((r) => [r.companyId, r]));
+  const seen = new Set();
+  const out = [];
+  for (const id of ids ?? []) {
+    const row = map.get(id);
+    if (!row || seen.has(id)) continue;
+    out.push(row);
+    seen.add(id);
+  }
+  for (const row of rows) {
+    if (!seen.has(row.companyId)) out.push(row);
+  }
+  return out;
+}
+
+function currentHomeRows() {
+  const base = homeViewBaseRows();
+  if (isHomeEditMode() && state.homeDraftIds?.view === state.homeView) {
+    return orderRowsByIds(base, state.homeDraftIds.ids);
+  }
+  return base;
+}
+
+function ensureHomeDraftIds() {
+  if (!isHomeEditMode()) {
+    state.homeDraftIds = null;
+    return;
+  }
+  if (state.homeDraftIds?.view !== state.homeView) {
+    state.homeDraftIds = { view: state.homeView, ids: homeViewBaseRows().map((r) => r.companyId) };
+  }
+}
+
+function isHomeEditMode() {
+  return Boolean(state.homeEditMode);
+}
+
+function isHomeCellEditing(row, field) {
+  return state.homeEditCell?.companyId === row.companyId && state.homeEditCell?.field === field;
+}
+
+function syncHomeModeToggle() {
+  const on = isHomeEditMode();
+  const btn = byId("homeEditModeToggle");
+  const wrap = byId("homeModeSwitch");
+  if (btn) {
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+    btn.classList.toggle("is-on", on);
+    btn.setAttribute("aria-label", on ? "고정 모드로 전환" : "편집 모드로 전환");
+  }
+  if (wrap) {
+    wrap.classList.toggle("is-on", on);
+    wrap.title = on
+      ? "편집 모드: 셀을 눌러 값을 바꿉니다"
+      : "고정 모드: 행을 누르면 상세가 열립니다";
+    const icon = wrap.querySelector(".home-mode-icon");
+    if (icon) {
+      const name = on ? "pencil" : "lock";
+      icon.dataset.icon = name;
+      icon.innerHTML = iconSvg(name, 16);
+    }
+  }
+}
+
+function setHomeEditMode(on) {
+  if (on && !window.TClientAdmin?.isUnlocked?.()) {
+    showToast("로그인 후 편집할 수 있습니다.", "error");
+    window.openAdminPopover?.();
+    syncHomeModeToggle();
+    return;
+  }
+  state.homeEditMode = Boolean(on);
+  state.homeEditCell = null;
+  state.homePendingCell = null;
+  state.homeDraftIds = null;
+  syncHomeModeToggle();
+  renderHomeDb();
+}
+
+function homeMuted(text = "—") {
+  return `<span class="muted">${escapeHtml(text)}</span>`;
+}
+
+function homeBadge(text) {
+  const t = `${text ?? ""}`.trim();
+  if (!t || t === "-") return homeMuted();
+  return `<span class="badge">${escapeHtml(t)}</span>`;
+}
+
+function homeLink(url, label, max = 36) {
+  const href = `${url ?? ""}`.trim();
+  if (!href) return homeMuted();
+  const abs = /^https?:\/\//i.test(href) ? href : `https://${href}`;
+  const text = `${label || shortUrl(abs)}`.trim() || shortUrl(abs);
+  const shown = text.length > max ? `${text.slice(0, max)}…` : text;
+  return `<a class="link" href="${escapeAttr(abs)}" target="_blank" rel="noreferrer" title="${escapeAttr(text)}">${escapeHtml(shown)}</a>`;
+}
+
+function listHomeContactLabels(row) {
+  const list = normalizeContactList(row);
+  const labels = [];
+  const seen = new Set();
+  for (const c of list) {
+    const email = c.email?.includes("@") ? c.email : c.name?.includes("@") ? c.name : "";
+    const label = email || c.name;
+    if (!label || seen.has(label.toLowerCase())) continue;
+    seen.add(label.toLowerCase());
+    labels.push({
+      label,
+      title: [c.name, c.email, c.phone].filter(Boolean).join(" · ")
+    });
+  }
+  if (!labels.length) {
+    const email = contactEmail(row);
+    if (email) labels.push({ label: email, title: email });
+  }
+  return labels;
+}
+
+function homeContactCell(row) {
+  const labels = listHomeContactLabels(row);
+  if (!labels.length) return homeMuted();
+  const shown = labels.slice(0, 1);
+  const tags = shown.map(
+    (item) => `<span class="badge" title="${escapeAttr(item.title)}">${escapeHtml(item.label)}</span>`
+  );
+  if (labels.length > 1) {
+    tags.push(
+      `<span class="home-contact-more" title="${escapeAttr(labels.map((item) => item.label).join(", "))}">…</span>`
+    );
+  }
+  return `<div class="home-contact-tags">${tags.join("")}</div>`;
+}
+
+function homeContactFactsCell(row) {
+  const list = normalizeContactList(row);
+  const labels = [];
+  const seen = new Set();
+  for (const c of list) {
+    const email = c.email?.includes("@") ? c.email : c.name?.includes("@") ? c.name : "";
+    const label = email || c.name;
+    if (!label || seen.has(label.toLowerCase())) continue;
+    seen.add(label.toLowerCase());
+    labels.push({
+      label,
+      title: [c.name, c.email, c.phone].filter(Boolean).join(" · ")
+    });
+  }
+  if (!labels.length) {
+    const email = contactEmail(row);
+    if (email) labels.push({ label: email, title: email });
+  }
+  if (!labels.length) return homeMuted();
+  const first = labels[0];
+  const extra =
+    labels.length > 1
+      ? `<span class="home-contact-more" title="${escapeAttr(labels.map((l) => l.label).join(", "))}">…</span>`
+      : "";
+  return `<div class="home-contact-tags"><span class="badge" title="${escapeAttr(first.title)}">${escapeHtml(first.label)}</span>${extra}</div>`;
+}
+
+function homeOpinionCell(row) {
+  const memo = `${row.salesMemo || row.manualNotes || ""}`.trim();
+  if (!memo) return homeMuted();
+  const shown = memo.length > 80 ? `${memo.slice(0, 80)}…` : memo;
+  return `<span class="cell-prose" title="${escapeAttr(memo)}">${escapeHtml(shown)}</span>`;
+}
+
+function homeJobCell(row) {
+  const post = latestPost(row);
+  if (!post) return homeMuted();
+  return homeLink(post.url, post.title || post.url, 72);
+}
+
+function homeServiceUrlCell(row) {
+  const url = serviceUrl(row) || homepageHref(row);
+  return homeLink(url, shortUrl(url));
+}
+
+function homeContactEditValue(row) {
+  const list = normalizeContactList(row);
+  if (!list.length) return contactEmail(row);
+  return list.map((c) => [c.name, c.email].filter(Boolean).join(" ")).filter(Boolean).join(", ");
+}
+
+function parseHomeContacts(text, prev = []) {
+  const parts = `${text ?? ""}`.split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean);
+  return parts.map((part, i) => {
+    const prevItem = prev[i] || {};
+    if (part.includes("@")) {
+      const bits = part.split(/\s+/);
+      const email = bits.find((b) => b.includes("@")) || part;
+      const name = bits.filter((b) => b !== email).join(" ") || prevItem.name || "";
+      return { name, email, phone: prevItem.phone || "" };
+    }
+    return { name: part, email: prevItem.email || "", phone: prevItem.phone || "" };
+  });
+}
+
+function homeFieldValue(row, field) {
+  if (field === "company") return displayName(row);
+  if (field === "pilot") return String(Number.parseInt(`${row.pilotDifficulty ?? 0}`, 10) || 0);
+  if (field === "recommend") return String(Number.parseInt(`${row.recommendScore ?? 0}`, 10) || 0);
+  if (field === "revenue") return revenueLabel(row);
+  if (field === "contact") return homeContactEditValue(row);
+  if (field === "serviceName") return serviceName(row);
+  if (field === "serviceUrl") return serviceUrl(row) || homepageHref(row) || "";
+  if (field === "industry") {
+    const raw = `${row.candidateIndustry ?? ""}`.trim();
+    if (raw) return raw;
+    const fallback = candidateIndustryLabel(row);
+    return fallback === "-" ? "" : fallback;
+  }
+  if (field === "scale") {
+    const raw = `${row.candidateRepeatPosts ?? ""}`.trim();
+    if (raw) return raw;
+    const fallback = candidateRepeatLabel(row);
+    return fallback === "-" ? "" : fallback;
+  }
+  if (field === "opinion") return `${row.salesMemo || row.manualNotes || ""}`.trim();
+  if (field === "bizNo") return `${row.profile?.bizNo ?? ""}`.trim();
+  if (field === "pipelineStage") return resolveRowPipeline(row).pipelineStage;
+  if (field === "pipelineStatus") return resolveRowPipeline(row).pipelineStatus;
+  if (field === "remark") return `${row.remark ?? ""}`.trim();
+  return "";
+}
+
+function homeCellInput(value, { multiline = false, placeholder = "" } = {}) {
+  if (multiline) {
+    return `<textarea class="inline-field home-cell-input" rows="2" placeholder="${escapeAttr(placeholder)}">${escapeHtml(value ?? "")}</textarea>`;
+  }
+  return `<input type="text" class="inline-field home-cell-input" value="${escapeAttr(value ?? "")}" placeholder="${escapeAttr(placeholder)}" />`;
+}
+
+function homeStarPicker(filled, total) {
+  const n = Math.max(0, Math.min(total, Number.parseInt(`${filled ?? 0}`, 10) || 0));
+  return `<span class="star-rating home-star-picker" title="클릭해서 점수를 바꿉니다">${Array.from({ length: total }, (_, i) =>
+    `<button type="button" class="home-star-btn" data-home-star="${i + 1}" title="${i + 1}점" aria-label="${i + 1}점"><span class="star-glyph${i < n ? " filled" : ""}">★</span></button>`
+  ).join("")}</span>`;
+}
+
+function homePipelineCell(row) {
+  if (!isHomeEditMode()) return pipelineCombinedCell(row);
+  const { pipelineStage, pipelineStatus } = resolveRowPipeline(row);
+  const P = pipelineLabels();
+  const stageOpts = (P.PIPELINE_STAGES ?? [])
+    .map((s) => `<option value="${escapeAttr(s)}"${s === pipelineStage ? " selected" : ""}>${escapeHtml(P.pipelineStageLabel?.(s) ?? s)}</option>`)
+    .join("");
+  const statusOpts = (P.PIPELINE_STATUSES ?? [])
+    .map((s) => `<option value="${escapeAttr(s)}"${s === pipelineStatus ? " selected" : ""}>${escapeHtml(P.pipelineStatusLabel?.(s) ?? s)}</option>`)
+    .join("");
+  return `<div class="home-pipeline-edit">
+    <select class="inline-field inline-select home-pipe-select" data-home-pipe="stage">${stageOpts}</select>
+    <select class="inline-field inline-select home-pipe-select" data-home-pipe="status">${statusOpts}</select>
+  </div>`;
+}
+
+function homeCellEditor(row, field) {
+  if (field === "company") return homeCellInput(displayName(row));
+  if (field === "revenue") return homeCellInput(revenueLabel(row), { placeholder: "매출" });
+  if (field === "contact") return homeCellInput(homeContactEditValue(row), { placeholder: "이름 이메일, 쉼표로 구분" });
+  if (field === "serviceName") return homeCellInput(serviceName(row));
+  if (field === "serviceUrl") return homeCellInput(serviceUrl(row) || homepageHref(row) || "", { placeholder: "https://" });
+  if (field === "industry") return homeCellInput(homeFieldValue(row, "industry"));
+  if (field === "scale") return homeCellInput(homeFieldValue(row, "scale"), { placeholder: "대 / 중" });
+  if (field === "opinion") return homeCellInput(homeFieldValue(row, "opinion"), { multiline: true });
+  if (field === "bizNo") return homeCellInput(homeFieldValue(row, "bizNo"));
+  if (field === "remark") return homeCellInput(homeFieldValue(row, "remark"), { multiline: true });
+  return "";
+}
+
+function homeTd(row, field, innerHtml, extraClass = "", { customEditor = false } = {}) {
+  const editing = isHomeEditMode() && isHomeCellEditing(row, field);
+  const editable = isHomeEditMode();
+  const cls = [extraClass, editable ? "home-cell-editable" : "", editing ? "is-editing" : ""].filter(Boolean).join(" ");
+  const body = editing && !customEditor ? homeCellEditor(row, field) : innerHtml;
+  return `<td class="${cls}" data-home-field="${field}">${body}</td>`;
+}
+
+function homeRowStatusMeta(row) {
+  const P = pipelineLabels();
+  if (row.userHidden || row.isHidden || poolClassOf(row) === "hidden" || row.excluded) {
+    return { icon: "ban", label: "제외" };
+  }
+  if (!isPoolCompany(row)) {
+    return { icon: "clock", label: "대기" };
+  }
+  const { pipelineStage, pipelineStatus, closedReason } = resolveRowPipeline(row);
+  const stageLabel = P.pipelineStageLabel?.(pipelineStage) ?? pipelineStage;
+  const statusLabel = P.pipelineStatusLabel?.(pipelineStatus) ?? pipelineStatus;
+  const stageIcon =
+    pipelineStage === "test_in_progress"
+      ? "flask"
+      : pipelineStage === "proposal"
+        ? "send"
+        : pipelineStage === "meeting"
+          ? "users"
+          : pipelineStage === "contract"
+            ? "briefcase"
+            : "search";
+  if (pipelineStatus === "excluded") return { icon: "ban", label: `${stageLabel} · ${statusLabel}` };
+  if (pipelineStatus === "closed") {
+    const reason = P.closedReasonLabel?.(closedReason) || statusLabel;
+    return { icon: closedReason === "contract_won" ? "check" : "archive", label: `${stageLabel} · ${reason}` };
+  }
+  if (pipelineStatus === "on_hold") return { icon: "rotate", label: `${stageLabel} · ${statusLabel}` };
+  return { icon: stageIcon, label: `${stageLabel} · ${statusLabel}` };
+}
+
+function homeStatusIcon(row) {
+  const { icon, label } = homeRowStatusMeta(row);
+  return `<span class="home-status-icon home-status-${escapeAttr(icon)}" title="${escapeAttr(label)}" aria-label="${escapeAttr(label)}">${iconSvg(icon, 15)}</span>`;
+}
+
+function homeOpenPageBtn(row) {
+  return `<button type="button" class="home-open-page" data-open-company="${escapeAttr(row.companyId)}">열기</button>`;
+}
+
+function homeCompanyNameCell(row) {
+  const extra = state.homeView === "wait" ? ` ${newBadge(row)}` : "";
+  const status = homeStatusIcon(row);
+  if (isHomeEditMode() && isHomeCellEditing(row, "company")) {
+    return `<div class="home-company-name">${status}${homeCellEditor(row, "company")}${homeOpenPageBtn(row)}</div>`;
+  }
+  return `<div class="home-company-name">
+    ${status}
+    <span class="home-company-title">${escapeHtml(displayName(row))}</span>${extra}
+    ${homeOpenPageBtn(row)}
+  </div>`;
+}
+
+function homeIndexCell(row, no) {
+  if (!isHomeEditMode()) {
+    return `<td class="home-col-index muted">${no}</td>`;
+  }
+  return `<td class="home-col-index">
+    <div class="home-index-cell">
+      <button type="button" class="home-reorder-handle" draggable="true" title="드래그해서 순서 변경" aria-label="순서 변경">${iconSvg("gripVertical", 14)}</button>
+      <span class="home-row-no muted">${no}</span>
+    </div>
+  </td>`;
+}
+
+function homeStarsCell(row, field, total) {
+  const filled = field === "pilot" ? row.pilotDifficulty : row.recommendScore;
+  const inner = isHomeEditMode() ? homeStarPicker(filled, total) : renderStarRating(filled, total);
+  return `<td class="${isHomeEditMode() ? "home-cell-editable" : ""}" data-home-field="${field}">${inner}</td>`;
+}
+
+function homeDbRowHtml(row, no) {
+  const remark = `${row.remark ?? ""}`.trim();
+  const biz = `${row.profile?.bizNo ?? ""}`.trim();
+  const svc = serviceName(row);
+  const rowClass = isHomeEditMode() ? "lead-row-edit" : "lead-row-click";
+  return `<tr class="${rowClass}" data-open-company="${escapeAttr(row.companyId)}">
+    ${homeIndexCell(row, no)}
+    ${homeTd(row, "company", homeCompanyNameCell(row), "home-col-company", { customEditor: true })}
+    ${homeStarsCell(row, "pilot", 3)}
+    ${homeStarsCell(row, "recommend", 5)}
+    ${homeTd(row, "revenue", revenueCell(row))}
+    ${homeTd(row, "contact", homeContactCell(row))}
+    ${homeTd(row, "serviceName", svc ? escapeHtml(svc) : homeMuted())}
+    ${homeTd(row, "serviceUrl", homeServiceUrlCell(row))}
+    ${homeTd(row, "industry", homeBadge(candidateIndustryLabel(row)))}
+    ${homeTd(row, "scale", homeBadge(candidateRepeatLabel(row)))}
+    ${homeTd(row, "opinion", homeOpinionCell(row))}
+    <td data-home-field="">${homeJobCell(row)}</td>
+    ${homeTd(row, "bizNo", biz ? escapeHtml(biz) : homeMuted())}
+    <td class="${isHomeEditMode() ? "home-cell-editable" : ""}" data-home-field="pipeline">${homePipelineCell(row)}</td>
+    ${homeTd(
+      row,
+      "remark",
+      remark
+        ? `<span class="cell-prose" title="${escapeAttr(remark)}">${escapeHtml(remark.length > 60 ? `${remark.slice(0, 60)}…` : remark)}</span>`
+        : homeMuted(),
+      "home-col-remark"
+    )}
+  </tr>`;
+}
+
+async function persistHomeCell(row, field, value) {
+  if (!window.TClientAdmin?.isUnlocked?.()) {
+    window.openAdminPopover?.();
+    throw new Error("로그인 후 편집할 수 있습니다.");
+  }
+  const cid = row.companyId;
+  const next = `${value ?? ""}`;
+  const prev = homeFieldValue(row, field);
+  const sameText = next.trim() === `${prev}`.trim();
+  if (field === "pilot" || field === "recommend") {
+    if (String(parseStarSelect(next)) === String(prev)) return false;
+  } else if (field === "pipelineStage" || field === "pipelineStatus") {
+    if (next === prev) return false;
+  } else if (sameText) {
+    return false;
+  }
+  const sales = {};
+  const override = {};
+  if (field === "company") override.companyNameKo = next.trim();
+  else if (field === "pilot") sales.pilotDifficulty = parseStarSelect(next);
+  else if (field === "recommend") sales.recommendScore = parseStarSelect(next);
+  else if (field === "revenue") override.profile = { revenueLabel: next.trim() };
+  else if (field === "contact") {
+    window.TClientAdmin.setEntry(cid, { contact: buildContactPatch(parseHomeContacts(next, normalizeContactList(row))) });
+    await window.TClientAdmin.flushPersist?.();
+    return true;
+  } else if (field === "serviceName") override.profile = { serviceName: next.trim() };
+  else if (field === "serviceUrl") override.profile = { serviceUrl: next.trim() };
+  else if (field === "industry") sales.candidateIndustry = next.trim();
+  else if (field === "scale") sales.candidateRepeatPosts = next.trim();
+  else if (field === "opinion") sales.memo = next;
+  else if (field === "bizNo") override.profile = { bizNo: formatBizNoDisplay(next.trim()) };
+  else if (field === "pipelineStage") sales.pipelineStage = next;
+  else if (field === "pipelineStatus") {
+    sales.pipelineStatus = next;
+    if (next !== "closed") sales.closedReason = "";
+    else if (!row.closedReason) sales.closedReason = "other";
+  } else if (field === "remark") sales.remark = next;
+  else return false;
+  if (Object.keys(sales).length) await window.TSalesManagement.upsert(cid, sales, row);
+  if (Object.keys(override).length) {
+    window.TClientAdmin.setEntry(cid, override);
+    await window.TClientAdmin.flushPersist?.();
+  }
+  return true;
+}
+
+async function saveHomeCellAndRefresh(row, field, value) {
+  if (state.homeEditSaving) return;
+  state.homeEditSaving = true;
+  try {
+    await persistHomeCell(row, field, value);
+    state.homeEditCell = state.homePendingCell;
+    state.homePendingCell = null;
+    reloadRowsWithAdmin();
+    refreshViews();
+  } catch (err) {
+    state.homePendingCell = null;
+    showToast(err.message || "저장에 실패했습니다.", "error");
+  } finally {
+    state.homeEditSaving = false;
+  }
+}
+
+async function commitHomeCellInput(input, { cancel = false } = {}) {
+  const td = input?.closest("td");
+  const tr = input?.closest("tr");
+  const field = td?.dataset.homeField;
+  const row = state.rows.find((r) => r.companyId === tr?.dataset.openCompany);
+  if (cancel) {
+    state.homeEditCell = state.homePendingCell;
+    state.homePendingCell = null;
+    renderHomeDb();
+    return;
+  }
+  if (!row || !field) {
+    state.homeEditCell = state.homePendingCell;
+    state.homePendingCell = null;
+    renderHomeDb();
+    return;
+  }
+  await saveHomeCellAndRefresh(row, field, input.value);
+}
+
+function beginHomeCellEdit(companyId, field) {
+  if (!companyId || !field || field === "pipeline") return;
+  if (state.homeEditCell?.companyId === companyId && state.homeEditCell?.field === field) return;
+  state.homeEditCell = { companyId, field };
+  renderHomeDb();
+}
+
+let homeOrderSaveTimer = null;
+
+function moveHomeDraftId(fromId, toId) {
+  ensureHomeDraftIds();
+  if (!fromId || !toId || fromId === toId) return false;
+  const ids = [...(state.homeDraftIds.ids ?? [])];
+  const from = ids.indexOf(fromId);
+  const to = ids.indexOf(toId);
+  if (from < 0 || to < 0) return false;
+  ids.splice(from, 1);
+  ids.splice(to, 0, fromId);
+  state.homeDraftIds.ids = ids;
+  ids.forEach((id, i) => {
+    const row = state.rows.find((r) => r.companyId === id);
+    if (row) row.notionPriority = i + 1;
+  });
+  return true;
+}
+
+function schedulePersistHomeOrder() {
+  if (homeOrderSaveTimer) window.clearTimeout(homeOrderSaveTimer);
+  homeOrderSaveTimer = window.setTimeout(() => void persistHomeOrder(), 450);
+}
+
+async function persistHomeOrder() {
+  const ids = state.homeDraftIds?.ids;
+  if (!ids?.length || !window.TClientAdmin?.isUnlocked?.()) return;
+  try {
+    for (let i = 0; i < ids.length; i++) {
+      const cid = ids[i];
+      const row = state.rows.find((r) => r.companyId === cid) ?? null;
+      await window.TSalesManagement.upsert(cid, { notionPriority: i + 1 }, row);
+    }
+  } catch (err) {
+    showToast(err.message || "순서 저장에 실패했습니다.", "error");
+  }
+}
+
+function bindHomeReorder(table) {
+  let dragId = null;
+  table.querySelectorAll(".home-reorder-handle").forEach((handle) => {
+    handle.addEventListener("mousedown", (e) => e.stopPropagation());
+    handle.addEventListener("click", (e) => e.stopPropagation());
+    handle.addEventListener("dragstart", (e) => {
+      dragId = handle.closest("tr")?.dataset.openCompany ?? null;
+      if (!dragId) return;
+      e.dataTransfer?.setData("text/plain", dragId);
+      e.dataTransfer.effectAllowed = "move";
+      handle.closest("tr")?.classList.add("reorder-dragging");
+    });
+    handle.addEventListener("dragend", () => {
+      dragId = null;
+      table.querySelectorAll("tr.reorder-dragging, tr.reorder-drop-target").forEach((tr) => {
+        tr.classList.remove("reorder-dragging", "reorder-drop-target");
+      });
+    });
+  });
+  table.querySelectorAll("tr[data-open-company]").forEach((tr) => {
+    tr.addEventListener("dragover", (e) => {
+      if (!dragId) return;
+      e.preventDefault();
+      tr.classList.add("reorder-drop-target");
+    });
+    tr.addEventListener("dragleave", () => tr.classList.remove("reorder-drop-target"));
+    tr.addEventListener("drop", (e) => {
+      e.preventDefault();
+      tr.classList.remove("reorder-drop-target");
+      const targetId = tr.dataset.openCompany;
+      const fromId = e.dataTransfer?.getData("text/plain") || dragId;
+      if (moveHomeDraftId(fromId, targetId)) {
+        renderHomeDb();
+        schedulePersistHomeOrder();
+      }
+    });
+  });
+}
+
+async function saveHomeStar(row, field, value) {
+  const n = parseStarSelect(value);
+  if (field === "pilot") row.pilotDifficulty = n;
+  else row.recommendScore = n;
+  renderHomeDb();
+  try {
+    await persistHomeCell(row, field, value);
+  } catch (err) {
+    showToast(err.message || "점수 저장에 실패했습니다.", "error");
+    reloadRowsWithAdmin();
+    renderHomeDb();
+  }
+}
+
+function setHomeView(view) {
+  state.homeView = view === "wait" || view === "excluded" ? view : "pool";
+  state.homePage = 1;
+  state.homeEditCell = null;
+  state.homeDraftIds = null;
+  applyHomeViewChrome();
+  persistNav();
+  renderHomeDb({ resetScroll: true });
+}
+
+function applyHomeViewChrome() {
+  document.querySelectorAll("[data-home-view]").forEach((btn) => {
+    const on = btn.dataset.homeView === state.homeView;
+    btn.classList.toggle("is-active", on);
+    btn.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  const sortWrap = byId("homeWaitSortWrap");
+  const onWait = state.homeView === "wait";
+  sortWrap?.classList.toggle("hidden", !onWait);
+  const sortEl = byId("homeWaitSort");
+  if (sortEl && sortEl.value !== state.homeWaitSort) {
+    sortEl.value = state.homeWaitSort === "recommend" ? "recommend" : "recent";
+    syncCustomSelects();
+  }
+}
+
+function applyWorkspaceChrome({ updateHash = true } = {}) {
+  const next = state.workspace === "board" ? "board" : "home";
+  byId("workspaceHome")?.classList.toggle("hidden", next !== "home");
+  byId("workspaceBoard")?.classList.toggle("hidden", next !== "board");
+  document.querySelectorAll(".workspace-tab").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.workspace === next);
+  });
+  document.body.classList.toggle("workspace-is-board", next === "board");
+  if (!updateHash) return;
+  const hash = next === "board" ? "#목록" : "#홈";
+  if (`${location.hash}` !== hash) {
+    history.replaceState(null, "", `${location.pathname}${location.search}${hash}`);
+  }
+}
+
+function readPersistedNav() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(NAV_STORAGE_KEY) || "{}");
+    return raw && typeof raw === "object" ? raw : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistNav() {
+  try {
+    localStorage.setItem(
+      NAV_STORAGE_KEY,
+      JSON.stringify({
+        workspace: state.workspace,
+        homeView: state.homeView,
+        homeWaitSort: state.homeWaitSort,
+        activeTab: state.activeTab
+      })
+    );
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function restorePersistedNav() {
+  const saved = readPersistedNav();
+  if (saved.homeView === "wait" || saved.homeView === "excluded" || saved.homeView === "pool") {
+    state.homeView = saved.homeView;
+  }
+  if (saved.homeWaitSort === "recommend" || saved.homeWaitSort === "recent") {
+    state.homeWaitSort = saved.homeWaitSort;
+  }
+  if (BOARD_TAB_IDS.includes(saved.activeTab)) state.activeTab = saved.activeTab;
+  const hash = `${location.hash ?? ""}`.replace(/^#/, "");
+  if (hash === "목록" || hash === "board") state.workspace = "board";
+  else if (hash === "홈" || hash === "home") state.workspace = "home";
+  else if (saved.workspace === "board" || saved.workspace === "home") state.workspace = saved.workspace;
+  applyHomeViewChrome();
+  applyWorkspaceChrome({ updateHash: true });
+}
+
+function switchWorkspace(id, { skipHash = false } = {}) {
+  state.workspace = id === "board" ? "board" : "home";
+  applyWorkspaceChrome({ updateHash: !skipHash });
+  persistNav();
+  closeDetail();
+  refreshViews();
+}
+
+function bindWorkspaceUi() {
+  restorePersistedNav();
+  document.querySelectorAll(".workspace-tab").forEach((btn) => {
+    btn.addEventListener("click", () => switchWorkspace(btn.dataset.workspace));
+  });
+  document.querySelectorAll("[data-home-view]").forEach((btn) => {
+    btn.addEventListener("click", () => setHomeView(btn.dataset.homeView));
+  });
+  byId("homeEditModeToggle")?.addEventListener("click", () => setHomeEditMode(!state.homeEditMode));
+  byId("homeSearch")?.addEventListener("input", () => {
+    state.homePage = 1;
+    renderHomeDb({ resetScroll: true });
+  });
+  byId("homeWaitSort")?.addEventListener("change", () => {
+    const next = byId("homeWaitSort")?.value === "recommend" ? "recommend" : "recent";
+    state.homeWaitSort = next;
+    state.homePage = 1;
+    state.homeDraftIds = null;
+    persistNav();
+    renderHomeDb({ resetScroll: true });
+  });
+  byId("homeExportExcelBtn")?.addEventListener("click", exportHomeExcel);
+  syncHomeModeToggle();
+  hydrateIcons(document.querySelector(".home-mode-switch"));
+  hydrateIcons(byId("homeExportExcelBtn"));
+}
+
+function shortUrl(url) {
+  return `${url ?? ""}`.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+}
+
+function homeUsesPager() {
+  return state.homeView !== "pool";
+}
+
+function renderHomeCompanyTable(rows, emptyHtml) {
+  if (!rows.length) return emptyHtml;
+  const usePager = homeUsesPager();
+  const paged = usePager
+    ? paginateHome(rows, state.homePage)
+    : { items: rows, page: 1, totalPages: 1, total: rows.length };
+  if (usePager) state.homePage = paged.page;
+  const startNo = usePager ? (paged.page - 1) * HOME_PAGE_SIZE : 0;
+  const editClass = isHomeEditMode() ? " is-home-edit" : "";
+  const pager = usePager ? renderPagerHtml(paged.page, paged.totalPages, paged.total, "곳", "home") : "";
+  return `<div class="table-wrap home-db-scroll"><table class="notion-db-table${editClass}"><thead><tr>
+    <th class="home-col-index">#</th>
+    <th class="home-col-company">업체명</th>
+    <th>파일럿 난이도</th>
+    <th>추천</th>
+    <th>매출</th>
+    <th>담당자 정보</th>
+    <th>서비스명</th>
+    <th>서비스 URL</th>
+    <th>QA 대상 서비스</th>
+    <th>테스트 규모</th>
+    <th>의견</th>
+    <th>공고</th>
+    <th>사업자등록번호</th>
+    <th>진행상태</th>
+    <th class="home-col-remark">비고</th>
+  </tr></thead><tbody>${paged.items
+    .map((row, idx) => homeDbRowHtml(row, startNo + idx + 1))
+    .join("")}</tbody></table></div>${pager}`;
+}
+
+function bindHomeDbEvents(table) {
+  const scroller = homeDbScroller(table);
+  scroller?.addEventListener(
+    "scroll",
+    () => {
+      if (Date.now() < (state.homeDbScrollLockUntil || 0)) return;
+      state.homeDbScroll = { left: scroller.scrollLeft, top: scroller.scrollTop };
+    },
+    { passive: true }
+  );
+  const openHomeRow = (companyId) => {
+    const row = state.rows.find((r) => r.companyId === companyId);
+    if (row) openDetail(row, null, { mode: "notion" });
+  };
+  table.querySelectorAll(".home-open-page").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openHomeRow(btn.dataset.openCompany);
+    });
+  });
+  if (!isHomeEditMode()) {
+    table.querySelectorAll("tr.lead-row-click").forEach((tr) => {
+      tr.addEventListener("click", (e) => {
+        if (e.target.closest("a, button")) return;
+        openHomeRow(tr.dataset.openCompany);
+      });
+    });
+    return;
+  }
+  table.querySelectorAll("td.home-cell-editable").forEach((td) => {
+    td.addEventListener("mousedown", (e) => {
+      if (e.target.closest("a, .home-open-page, .home-cell-input, .home-star-btn, select, .home-reorder-handle")) return;
+      const field = td.dataset.homeField;
+      const companyId = td.closest("tr")?.dataset.openCompany;
+      if (!field || field === "pipeline" || field === "pilot" || field === "recommend") return;
+      state.homePendingCell = { companyId, field };
+    });
+    td.addEventListener("click", (e) => {
+      if (e.target.closest("a, .home-open-page, .home-cell-input, .home-star-btn, select, .home-reorder-handle")) return;
+      const field = td.dataset.homeField;
+      const companyId = td.closest("tr")?.dataset.openCompany;
+      if (!field || field === "pipeline" || field === "pilot" || field === "recommend") return;
+      if (document.activeElement?.classList?.contains("home-cell-input")) return;
+      state.homePendingCell = null;
+      beginHomeCellEdit(companyId, field);
+    });
+  });
+  table.querySelectorAll(".home-star-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const td = btn.closest("td");
+      const row = state.rows.find((r) => r.companyId === btn.closest("tr")?.dataset.openCompany);
+      if (!row || !td?.dataset.homeField) return;
+      void saveHomeStar(row, td.dataset.homeField, btn.dataset.homeStar);
+    });
+  });
+  bindHomeReorder(table);
+  table.querySelectorAll(".home-pipe-select").forEach((sel) => {
+    sel.addEventListener("change", () => {
+      const row = state.rows.find((r) => r.companyId === sel.closest("tr")?.dataset.openCompany);
+      if (!row) return;
+      const field = sel.dataset.homePipe === "stage" ? "pipelineStage" : "pipelineStatus";
+      void saveHomeCellAndRefresh(row, field, sel.value);
+    });
+  });
+  table.querySelectorAll(".home-cell-input").forEach((input) => {
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        state.homePendingCell = null;
+        void commitHomeCellInput(input, { cancel: true });
+      }
+      if (e.key === "Enter" && input.tagName !== "TEXTAREA") {
+        e.preventDefault();
+        void commitHomeCellInput(input);
+      }
+      if (e.key === "Enter" && e.ctrlKey && input.tagName === "TEXTAREA") {
+        e.preventDefault();
+        void commitHomeCellInput(input);
+      }
+    });
+    input.addEventListener("blur", () => {
+      window.setTimeout(() => {
+        if (state.homeEditSaving) return;
+        if (!input.isConnected) return;
+        void commitHomeCellInput(input);
+      }, 0);
+    });
+  });
+}
+
+function homeViewLabel() {
+  if (state.homeView === "wait") return "대기";
+  if (state.homeView === "excluded") return "제외";
+  return "후보군";
+}
+
+function starExportText(filled, total) {
+  const n = Math.max(0, Math.min(total, Number.parseInt(`${filled ?? 0}`, 10) || 0));
+  return `${"★".repeat(n)}${"☆".repeat(Math.max(0, total - n))}`;
+}
+
+function pipelineExportText(row) {
+  const P = pipelineLabels();
+  const { pipelineStage, pipelineStatus } = resolveRowPipeline(row);
+  const stage = P.pipelineStageLabel?.(pipelineStage) ?? pipelineStage ?? "";
+  const status = P.pipelineStatusLabel?.(pipelineStatus) ?? pipelineStatus ?? "";
+  return [stage, status].filter(Boolean).join(" · ");
+}
+
+function contactExportText(row) {
+  const list = normalizeContactList(row);
+  if (list.length) {
+    return list.map((c) => [c.name, c.email, c.phone].filter(Boolean).join(" ")).filter(Boolean).join("; ");
+  }
+  return contactEmail(row) || "";
+}
+
+function xmlExcelEscape(value) {
+  return `${value ?? ""}`
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function homeExcelRows(rows) {
+  const headers = [
+    "#",
+    "업체명",
+    "파일럿 난이도",
+    "추천",
+    "매출",
+    "담당자 정보",
+    "서비스명",
+    "서비스 URL",
+    "QA 대상 서비스",
+    "테스트 규모",
+    "의견",
+    "공고",
+    "사업자등록번호",
+    "진행상태",
+    "비고"
+  ];
+  const body = rows.map((row, idx) => {
+    const post = latestPost(row);
+    const postText = post ? [post.title, post.url].filter(Boolean).join(" ") : "";
+    const industry = candidateIndustryLabel(row);
+    const scale = candidateRepeatLabel(row);
+    return [
+      String(idx + 1),
+      displayName(row),
+      starExportText(row.pilotDifficulty, 3),
+      starExportText(row.recommendScore, 5),
+      revenueLabel(row),
+      contactExportText(row),
+      serviceName(row),
+      serviceUrl(row) || homepageHref(row) || "",
+      industry === "-" ? "" : industry,
+      scale === "-" ? "" : scale,
+      `${row.salesMemo || row.manualNotes || ""}`.trim(),
+      postText,
+      `${row.profile?.bizNo ?? ""}`.trim(),
+      pipelineExportText(row),
+      `${row.remark ?? ""}`.trim()
+    ];
+  });
+  return [headers, ...body];
+}
+
+function buildExcelXml(sheetName, table) {
+  const rowsXml = table
+    .map((row) => {
+      const cells = row
+        .map((cell) => `<Cell><Data ss:Type="String">${xmlExcelEscape(cell)}</Data></Cell>`)
+        .join("");
+      return `<Row>${cells}</Row>`;
+    })
+    .join("");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Worksheet ss:Name="${xmlExcelEscape(sheetName.slice(0, 31))}">
+    <Table>${rowsXml}</Table>
+  </Worksheet>
+</Workbook>`;
+}
+
+function exportHomeExcel() {
+  const rows = currentHomeRows();
+  if (!rows.length) {
+    showToast("출력할 데이터가 없습니다.", "error");
+    return;
+  }
+  const view = homeViewLabel();
+  const stamp = new Date().toISOString().slice(0, 10);
+  const filename = `T-Client_${view}_${stamp}.xls`;
+  const xml = `\uFEFF${buildExcelXml(view, homeExcelRows(rows))}`;
+  const blob = new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast(`${view} ${rows.length}곳을 엑셀로 저장했습니다.`);
+}
+
+function homeDbScroller(root = byId("homeDbTable")) {
+  return root?.querySelector(".home-db-scroll, .table-wrap") ?? null;
+}
+
+function rememberHomeDbScroll(root = byId("homeDbTable")) {
+  const scroller = homeDbScroller(root);
+  if (!scroller) return state.homeDbScroll;
+  state.homeDbScroll = { left: scroller.scrollLeft, top: scroller.scrollTop };
+  return state.homeDbScroll;
+}
+
+function resetHomeDbScroll() {
+  state.homeDbScroll = { left: 0, top: 0 };
+}
+
+function applyHomeDbScroll(saved = state.homeDbScroll, root = byId("homeDbTable")) {
+  const scroller = homeDbScroller(root);
+  if (!scroller || !saved) return;
+  scroller.scrollLeft = saved.left ?? 0;
+  scroller.scrollTop = saved.top ?? 0;
+}
+
+function restoreHomeDbScrollSoon(saved = state.homeDbScroll) {
+  const frozen = { left: saved?.left ?? 0, top: saved?.top ?? 0 };
+  state.homeDbScroll = frozen;
+  state.homeDbScrollLockUntil = Date.now() + 240;
+  applyHomeDbScroll(frozen);
+  requestAnimationFrame(() => {
+    applyHomeDbScroll(frozen);
+    requestAnimationFrame(() => applyHomeDbScroll(frozen));
+  });
+  window.setTimeout(() => applyHomeDbScroll(frozen), 60);
+}
+
+function clearHomeNewBadge(companyId) {
+  if (!companyId) return;
+  const table = byId("homeDbTable");
+  table?.querySelectorAll(`tr[data-open-company="${CSS.escape(companyId)}"] .badge-new-icon`).forEach((el) => el.remove());
+}
+
+function renderHomeDb({ resetScroll = false } = {}) {
+  const table = byId("homeDbTable");
+  if (!table) return;
+  if (resetScroll) resetHomeDbScroll();
+  else rememberHomeDbScroll(table);
+  if (isHomeEditMode()) ensureHomeDraftIds();
+  const poolCountEl = byId("homeViewCountPool");
+  const waitCountEl = byId("homeViewCountWait");
+  const excludedCountEl = byId("homeViewCountExcluded");
+  if (poolCountEl) poolCountEl.textContent = String(state.rows.filter((r) => isPoolCompany(r) && isMainTabLead(r)).length);
+  if (waitCountEl) waitCountEl.textContent = String(state.rows.filter((r) => isWaitCompany(r)).length);
+  if (excludedCountEl) excludedCountEl.textContent = String(state.rows.filter(isShelvedLead).length);
+  const rows = currentHomeRows();
+  const empty =
+    state.homeView === "wait"
+      ? '<div class="empty-state">대기 중인 회사가 없습니다.</div>'
+      : state.homeView === "excluded"
+        ? '<div class="empty-state">제외된 회사가 없습니다.</div>'
+        : '<div class="empty-state">후보군이 없습니다. 대기에서 「후보 선정」으로 올리면 여기에 표시됩니다.</div>';
+  table.innerHTML = renderHomeCompanyTable(rows, empty);
+  if (homeUsesPager()) {
+    bindPager(table, {
+      page: state.homePage,
+      totalPages: Math.max(1, Math.ceil(rows.length / HOME_PAGE_SIZE)),
+      pagerKey: "home",
+      onPage: (next) => {
+        state.homePage = next;
+        state.homeEditCell = null;
+        renderHomeDb({ resetScroll: true });
+      }
+    });
+  }
+  bindHomeDbEvents(table);
+  const editingInput = table.querySelector("td.is-editing .home-cell-input");
+  if (editingInput) {
+    editingInput.focus();
+    editingInput.select?.();
+  }
+  hydrateIcons(table);
+  restoreHomeDbScrollSoon();
+}
+
+function homeDetailFact(label, value, { wide = false } = {}) {
+  const inner = `${value ?? ""}`.trim() || "—";
+  return `<div class="home-detail-fact${wide ? " is-wide" : ""}"><span class="home-detail-fact-label">${escapeHtml(label)}</span><div class="home-detail-fact-value">${inner}</div></div>`;
+}
+
+function renderNotionDetailBody(row, admin = false) {
+  const p = row.profile ?? {};
+  const home = homepageHref(row);
+  const service = serviceUrl(row);
+  const biz = `${p.bizNo ?? ""}`.trim();
+  const facts = [
+    homeDetailFact("진행상태", pipelineCombinedCell(row)),
+    homeDetailFact("담당자", homeContactFactsCell(row)),
+    homeDetailFact("파일럿", renderStarRating(row.pilotDifficulty, 3)),
+    homeDetailFact("추천", renderStarRating(row.recommendScore, 5)),
+    homeDetailFact("QA 대상", homeBadge(candidateIndustryLabel(row))),
+    homeDetailFact("테스트 규모", homeBadge(candidateRepeatLabel(row))),
+    homeDetailFact("사업자번호", biz ? escapeHtml(biz) : "—"),
+    homeDetailFact("서비스 URL", homeLink(service || home, shortUrl(service || home)))
+  ];
+  return `<div class="home-detail-shell">
+    <div class="home-detail-facts">${facts.join("")}</div>
+    ${renderDetailBody(row, admin)}
+  </div>`;
+}
+
+async function promoteToCandidatePool(row) {
+  if (!window.TClientAdmin?.isUnlocked?.()) {
+    showToast("로그인 후 후보 선정할 수 있습니다.", "error");
+    return;
+  }
+  try {
+    await withDetailBusy("후보 선정 중…", async () => {
+      await window.TSalesManagement.upsert(
+        row.companyId,
+        {
+          isRecommended: true,
+          isHidden: false,
+          pipelineStage: "candidate",
+          pipelineStatus: "pending",
+          recommendedSince: new Date().toISOString()
+        },
+        row
+      );
+    });
+    reloadRowsWithAdmin();
+    closeDetail();
+    if (state.workspace === "home") setHomeView("pool");
+    else switchTab("recommended");
+    refreshViews();
+    showToast(`${displayName(row)}을(를) 후보군에 올렸습니다.`);
+  } catch (err) {
+    showToast(err.message || "후보 선정에 실패했습니다.", "error");
+  }
+}
+
 function switchTab(tabId, { resetFilters: shouldReset = false, kpiFocus = undefined } = {}) {
-  const tabIds = ["in_progress", "recommended", "new", "leads", "posts", "excluded"];
-  if (!tabIds.includes(tabId)) return;
+  if (!BOARD_TAB_IDS.includes(tabId)) return;
   if (isNotionReorderActive() && tabId !== state.notionReorder?.tab) cancelNotionReorder();
   if (shouldReset) resetTabFilters();
   applySortForTab(tabId, { forceDefault: shouldReset });
@@ -4898,12 +6490,13 @@ function switchTab(tabId, { resetFilters: shouldReset = false, kpiFocus = undefi
   state.newPage = 1;
   state.postsPage = 1;
   state.excludedPage = 1;
-  tabIds.forEach((id) => byId(id)?.classList.add("hidden"));
+  BOARD_TAB_IDS.forEach((id) => byId(id)?.classList.add("hidden"));
   byId(tabId)?.classList.remove("hidden");
   const toolbar = document.querySelector(".toolbar");
   const tabular = tabId === "recommended" || tabId === "new" || tabId === "in_progress";
   toolbar?.classList.toggle("toolbar-candidates", tabular);
   if (tabular && state.filtersOpen) toggleFilterAdvanced(false);
+  persistNav();
   refreshViews();
 }
 
@@ -4921,6 +6514,7 @@ function refreshViews() {
   updateSortOptionsForTab();
   paintMetaBanner();
   renderKpi();
+  renderHomeDb();
   window.TDetailPanel?.renderTabPanels?.(state.activeTab);
   if (state.activeTab === "leads" || state.activeTab === "posts" || state.activeTab === "excluded") {
     renderLeadsTable();
@@ -4954,6 +6548,14 @@ function setAdminUi(unlocked, { passwordSetup = false } = {}) {
   byId("adminLoginForm")?.classList.toggle("hidden", unlocked || passwordSetup);
   byId("adminPasswordSetupForm")?.classList.toggle("hidden", !passwordSetup);
   document.querySelectorAll(".admin-only").forEach((el) => el.classList.toggle("hidden", !unlocked));
+  if (!unlocked && state.homeEditMode) {
+    state.homeEditMode = false;
+    state.homeEditCell = null;
+    syncHomeModeToggle();
+    if (state.workspace === "home") renderHomeDb();
+  } else {
+    syncHomeModeToggle();
+  }
   refreshDetailAdminButtons();
   hydrateIcons(byId("btnAddLead"));
   updateAdminJobUi();
@@ -5258,12 +6860,7 @@ function openCrawlModal() {
     return;
   }
   closeAdminPopover();
-  paintCrawlModal();
-  const modal = byId("crawlModal");
-  modal?.classList.remove("hidden");
-  modal?.setAttribute("aria-hidden", "false");
-  hydrateIcons(modal);
-  byId("crawlKeywordInput")?.focus();
+  showToast("개선 중입니다. 대기 부탁드립니다.");
 }
 
 function closeCrawlModal() {
@@ -5421,57 +7018,8 @@ function bindCrawlModal() {
     window.TClientAdmin.saveCrawlFocusPref(e.target.value);
   });
 
-  byId("crawlStartBtn")?.addEventListener("click", async () => {
-    const siteIds = getSelectedCrawlSiteIds();
-    if (!siteIds.length) {
-      showToast("탐색 사이트를 하나 이상 선택하세요.", "error");
-      return;
-    }
-    const keywords = window.TClientAdmin.getActiveKeywordLabels();
-    if (!keywords.length) {
-      showToast("검색 키워드를 하나 이상 추가하세요.", "error");
-      return;
-    }
-
-    const usePlaywright = byId("crawlUsePlaywright")?.checked ?? true;
-    const collectFocus = byId("crawlFocus")?.value ?? "startup";
-    window.TClientAdmin.saveCrawlSitePrefs(siteIds);
-    window.TClientAdmin.saveCrawlPlaywrightPref(usePlaywright);
-    window.TClientAdmin.saveCrawlFocusPref(collectFocus);
-
-    const dispatchPreview = window.TClientAdmin.buildCrawlDispatchOptions({
-      siteIds,
-      usePlaywright,
-      collectFocus
-    });
-    if (!dispatchPreview.collectSites && (!dispatchPreview.collectPlaywright || !dispatchPreview.pwSites)) {
-      showToast("선택한 사이트로 수집할 수 없습니다. Playwright를 켜거나 API 수집 사이트를 선택하세요.", "error");
-      return;
-    }
-
-    const startBtn = byId("crawlStartBtn");
-    if (startBtn) startBtn.disabled = true;
-    showToast("크롤링 요청 중…");
-
-    try {
-      const status = await window.TClientAdmin.getCrawlStatus();
-      if (status?.busy) {
-        showToast("현재 크롤링 진행 중입니다.", "error");
-        await updateAdminJobUi();
-        return;
-      }
-      await window.TClientAdmin.flushPersist();
-      await window.TClientAdmin.saveKeywordsToGitHub();
-      await window.TClientAdmin.triggerCollect({ siteIds, usePlaywright, collectFocus });
-      closeCrawlModal();
-      showToast("크롤링이 시작되었습니다. 완료 시 이메일로 안내합니다.");
-      await updateAdminJobUi();
-    } catch (err) {
-      showToast(err.message || String(err), "error");
-      await updateAdminJobUi();
-    } finally {
-      if (startBtn) startBtn.disabled = false;
-    }
+  byId("crawlStartBtn")?.addEventListener("click", () => {
+    showToast("개선 중입니다. 대기 부탁드립니다.");
   });
 }
 
@@ -5640,6 +7188,7 @@ async function loadLeadSnapshot() {
 
 function bindBootUi() {
   hydrateIcons();
+  bindWorkspaceUi();
 
   ["search", "grade", "pipelineStage", "pipelineStatus", "contact", "tier", "bizStatus", "sort"].forEach((id) => {
     const el = byId(id);
@@ -5702,11 +7251,10 @@ async function boot() {
     reloadRowsWithAdmin();
     bindBootUi();
     const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
-    if (tabFromUrl && byId(tabFromUrl)) {
+    if (tabFromUrl && byId(tabFromUrl) && BOARD_TAB_IDS.includes(tabFromUrl)) {
       switchTab(tabFromUrl, { resetFilters: true });
     } else {
-      applySortForTab(state.activeTab, { forceDefault: true });
-      refreshViews();
+      switchTab(state.activeTab, { resetFilters: false });
     }
     updateNotionReorderUi();
 
@@ -5740,6 +7288,9 @@ window.renderDetailTitleHtml = renderDetailTitleHtml;
 window.refreshDetailAdminButtons = refreshDetailAdminButtons;
 window.openAdminPopover = openAdminPopover;
 window.deleteCompany = deleteCompany;
+window.excludeCompany = excludeCompany;
+window.restoreCompanyToWait = restoreCompanyToWait;
+window.promoteToCandidatePool = promoteToCandidatePool;
 window.refreshViews = refreshViews;
 window.TClientView = {
   sortRows,

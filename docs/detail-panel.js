@@ -470,6 +470,18 @@
       if (!requireAdmin()) return;
       if (window.__TCLIENT_DETAIL_ROW) window.openMergeModal?.(window.__TCLIENT_DETAIL_ROW);
     });
+    byId("detailPromoteBtn")?.addEventListener("click", () => {
+      if (!requireAdmin()) return;
+      if (window.__TCLIENT_DETAIL_ROW) window.promoteToCandidatePool?.(window.__TCLIENT_DETAIL_ROW);
+    });
+    byId("detailExcludeBtn")?.addEventListener("click", () => {
+      if (!requireAdmin()) return;
+      if (window.__TCLIENT_DETAIL_ROW) window.excludeCompany?.(window.__TCLIENT_DETAIL_ROW);
+    });
+    byId("detailRestoreBtn")?.addEventListener("click", () => {
+      if (!requireAdmin()) return;
+      if (window.__TCLIENT_DETAIL_ROW) window.restoreCompanyToWait?.(window.__TCLIENT_DETAIL_ROW);
+    });
     byId("detailDeleteBtn")?.addEventListener("click", () => {
       if (!requireAdmin()) return;
       if (window.__TCLIENT_DETAIL_ROW) window.deleteCompany?.(window.__TCLIENT_DETAIL_ROW);

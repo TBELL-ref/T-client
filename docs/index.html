@@ -36,10 +36,16 @@
   <body>
     <div class="app">
       <header class="site-header">
-        <a class="brand" href="./" aria-label="T-Client 홈">
-          <span class="brand-mark" aria-hidden="true"><img src="./brand-logo.svg" alt="" width="36" height="36" decoding="async" /></span>
-          <span class="brand-name">T-Client</span>
-        </a>
+        <div class="header-start">
+          <a class="brand" href="./#홈" aria-label="T-Client 홈">
+            <span class="brand-mark" aria-hidden="true"><img src="./brand-logo.svg" alt="" width="36" height="36" decoding="async" /></span>
+            <span class="brand-name">T-Client</span>
+          </a>
+          <nav class="workspace-nav" aria-label="화면">
+            <button type="button" class="workspace-tab active" data-workspace="home">홈</button>
+            <button type="button" class="workspace-tab" data-workspace="board">목록</button>
+          </nav>
+        </div>
         <div class="header-end">
           <div id="meta" class="meta" aria-label="데이터 갱신일"></div>
           <div class="admin-bar">
@@ -83,8 +89,53 @@
         </div>
       </header>
 
+      <div id="workspaceHome" class="workspace-home">
       <section id="dashboard" class="dashboard" aria-label="대시보드"></section>
+      <section class="home-db" aria-label="영업 데이터베이스">
+        <div class="home-db-main">
+          <div class="home-db-toolbar">
+            <div class="home-db-tabs" role="tablist" aria-label="보기">
+              <button type="button" class="home-db-view is-active" data-home-view="pool" role="tab" aria-selected="true">
+                <span class="home-db-view-name">후보군</span>
+                <span class="home-db-view-count" id="homeViewCountPool">0</span>
+              </button>
+              <button type="button" class="home-db-view" data-home-view="wait" role="tab" aria-selected="false">
+                <span class="home-db-view-name">대기</span>
+                <span class="home-db-view-count" id="homeViewCountWait">0</span>
+              </button>
+              <button type="button" class="home-db-view" data-home-view="excluded" role="tab" aria-selected="false">
+                <span class="home-db-view-name">제외</span>
+                <span class="home-db-view-count" id="homeViewCountExcluded">0</span>
+              </button>
+            </div>
+            <div class="home-mode-switch" id="homeModeSwitch" title="고정 모드: 행을 누르면 상세가 열립니다">
+              <span class="home-mode-icon" data-icon="lock" aria-hidden="true"></span>
+              <button type="button" id="homeEditModeToggle" class="home-mode-toggle" role="switch" aria-checked="false" aria-label="편집 모드">
+                <span class="home-mode-knob"></span>
+              </button>
+            </div>
+            <div class="home-db-search-group">
+              <div class="search-box home-db-search">
+                <span class="search-icon" data-icon="search"></span>
+                <input id="homeSearch" type="search" placeholder="회사명, 업종, 공고 검색" />
+              </div>
+              <div id="homeWaitSortWrap" class="home-wait-sort-wrap hidden">
+                <select id="homeWaitSort" class="select-pill" aria-label="대기 정렬">
+                  <option value="recent">최신수집 순</option>
+                  <option value="recommend">추천순</option>
+                </select>
+              </div>
+            </div>
+            <button type="button" id="homeExportExcelBtn" class="btn-toolbar-icon" title="엑셀로 출력" aria-label="엑셀로 출력">
+              <span data-icon="download"></span>
+            </button>
+          </div>
+          <div id="homeDbTable" class="home-db-table"></div>
+        </div>
+      </section>
+      </div>
 
+      <div id="workspaceBoard" class="workspace-board hidden">
       <section class="toolbar">
         <div class="search-row">
           <div class="search-box">
@@ -185,10 +236,6 @@
         </div>
       </div>
 
-      <button type="button" id="btnAddLead" class="fab-add admin-only hidden" title="회사·공고 추가" aria-label="회사·공고 추가">
-        <span data-icon="plus"></span>
-      </button>
-
       <main class="main-panels">
         <div id="new" class="panel hidden"></div>
         <div id="recommended" class="panel hidden"></div>
@@ -197,6 +244,11 @@
         <div id="posts" class="panel hidden"></div>
         <div id="excluded" class="panel hidden"></div>
       </main>
+      </div>
+
+      <button type="button" id="btnAddLead" class="fab-add admin-only hidden" title="회사·공고 추가" aria-label="회사·공고 추가">
+        <span data-icon="plus"></span>
+      </button>
     </div>
 
     <div id="detailDrawer" class="detail-drawer hidden" aria-hidden="true">
@@ -217,6 +269,15 @@
                 <button type="button" id="detailEditBtn" class="drawer-action-btn drawer-action-btn-icon" data-title-active="요약 수정" title="요약 수정" aria-label="요약 수정">
                   <span data-icon="pencil"></span>
                 </button>
+                <button type="button" id="detailPromoteBtn" class="drawer-action-btn drawer-action-btn-icon hidden" data-title-active="후보 선정" title="후보 선정" aria-label="후보 선정">
+                  <span data-icon="sparkles"></span>
+                </button>
+                <button type="button" id="detailExcludeBtn" class="drawer-action-btn drawer-action-btn-icon hidden" data-title-active="제외" title="제외" aria-label="제외">
+                  <span data-icon="ban"></span>
+                </button>
+                <button type="button" id="detailRestoreBtn" class="drawer-action-btn drawer-action-btn-icon hidden" data-title-active="대기로 복구" title="대기로 복구" aria-label="대기로 복구">
+                  <span data-icon="undo"></span>
+                </button>
                 <div id="detailSummaryEditActions" class="detail-summary-edit-actions hidden">
                   <button type="button" id="detail-summary-cancel" class="drawer-action-btn drawer-action-btn-icon" title="취소" aria-label="취소">
                     <span data-icon="x"></span>
@@ -225,7 +286,7 @@
                     <span data-icon="check"></span>
                   </button>
                 </div>
-                <button type="button" id="detailDeleteBtn" class="drawer-action-btn drawer-action-btn-icon drawer-action-btn-danger" data-title-active="삭제" title="삭제" aria-label="삭제">
+                <button type="button" id="detailDeleteBtn" class="drawer-action-btn drawer-action-btn-icon drawer-action-btn-danger hidden" data-title-active="삭제" title="삭제" aria-label="삭제">
                   <span data-icon="trash"></span>
                 </button>
               </div>

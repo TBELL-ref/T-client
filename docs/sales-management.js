@@ -7,6 +7,57 @@
     loadedAt: 0
   };
 
+  function parseTestPeriodList(raw) {
+    let list = raw;
+    if (typeof list === "string") {
+      try {
+        list = JSON.parse(list);
+      } catch {
+        return [];
+      }
+    }
+    if (!Array.isArray(list)) return [];
+    return list
+      .map((p, i) => ({
+        id: `${p?.id ?? ""}`.trim() || `tp_${i}`,
+        label: `${p?.label ?? p?.testPeriodLabel ?? ""}`.trim(),
+        startedAt: p?.startedAt ?? p?.testStartedAt ?? p?.test_started_at ?? null,
+        endedAt: p?.endedAt ?? p?.testEndedAt ?? p?.test_ended_at ?? null,
+        notes: `${p?.notes ?? p?.testNotes ?? p?.test_notes ?? ""}`.trim()
+      }))
+      .filter((p) => p.startedAt || p.endedAt || p.notes || p.label);
+  }
+
+  function resolveTestPeriods(raw = {}) {
+    const list = parseTestPeriodList(raw.testPeriods ?? raw.test_periods);
+    if (list.length) return list;
+    if (raw.testStartedAt || raw.test_started_at || raw.testEndedAt || raw.test_ended_at || raw.testNotes || raw.test_notes || raw.testPeriodLabel || raw.test_period_label) {
+      return [
+        {
+          id: "tp_legacy",
+          label: raw.testPeriodLabel ?? raw.test_period_label ?? "",
+          startedAt: raw.testStartedAt ?? raw.test_started_at ?? null,
+          endedAt: raw.testEndedAt ?? raw.test_ended_at ?? null,
+          notes: raw.testNotes ?? raw.test_notes ?? ""
+        }
+      ];
+    }
+    return [];
+  }
+
+  function mergeTestPeriodLists(a = [], b = []) {
+    const out = [...(Array.isArray(a) ? a : [])];
+    const keyOf = (p) => `${p.startedAt || ""}|${p.endedAt || ""}|${p.notes || ""}`;
+    const seen = new Set(out.map(keyOf));
+    for (const p of Array.isArray(b) ? b : []) {
+      const key = keyOf(p);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(p);
+    }
+    return out;
+  }
+
   function normalizeEntry(raw = {}) {
     const P = window.TPipeline;
     const pipe = P?.normalizePipelineRecord?.(raw) ?? {};
@@ -33,6 +84,7 @@
       testEndedAt: raw.testEndedAt ?? raw.test_ended_at ?? null,
       testPeriodLabel: raw.testPeriodLabel ?? raw.test_period_label ?? "",
       testNotes: raw.testNotes ?? raw.test_notes ?? "",
+      testPeriods: resolveTestPeriods(raw),
       recommendScoreReason: raw.recommendScoreReason ?? raw.recommend_score_reason ?? "",
       pilotDifficultyReason: raw.pilotDifficultyReason ?? raw.pilot_difficulty_reason ?? "",
       evaluationNotes: raw.evaluationNotes ?? raw.evaluation_notes ?? "",
@@ -86,6 +138,9 @@
       const n = Number.parseInt(`${out.notionPriority ?? 0}`, 10);
       out.notionPriority = Number.isFinite(n) ? Math.max(0, n) : 0;
     }
+    if ("testPeriods" in out) {
+      out.testPeriods = parseTestPeriodList(out.testPeriods);
+    }
     return out;
   }
 
@@ -120,6 +175,7 @@
       testEndedAt: row.testEndedAt ?? "",
       testPeriodLabel: row.testPeriodLabel ?? "",
       testNotes: row.testNotes ?? "",
+      testPeriods: resolveTestPeriods(row),
       recommendScoreReason: row.recommendScoreReason ?? "",
       pilotDifficultyReason: row.pilotDifficultyReason ?? "",
       evaluationNotes: row.evaluationNotes ?? ""
@@ -155,7 +211,10 @@
       pipelineStageAt: pickNonEmpty(t.pipelineStageAt, s.pipelineStageAt),
       memo: memos.join("\n---\n"),
       testPeriodLabel: pickNonEmpty(t.testPeriodLabel, s.testPeriodLabel),
-      testNotes: pickNonEmpty(t.testNotes, s.testNotes)
+      testNotes: pickNonEmpty(t.testNotes, s.testNotes),
+      testStartedAt: pickNonEmpty(t.testStartedAt, s.testStartedAt),
+      testEndedAt: pickNonEmpty(t.testEndedAt, s.testEndedAt),
+      testPeriods: mergeTestPeriodLists(t.testPeriods, s.testPeriods)
     });
   }
 
@@ -182,6 +241,7 @@
         testEndedAt: entry.testEndedAt,
         testPeriodLabel: entry.testPeriodLabel,
         testNotes: entry.testNotes,
+        testPeriods: entry.testPeriods,
         recommendScoreReason: entry.recommendScoreReason,
         pilotDifficultyReason: entry.pilotDifficultyReason,
         evaluationNotes: entry.evaluationNotes
@@ -279,6 +339,7 @@
       testEndedAt: sm.testEndedAt,
       testPeriodLabel: sm.testPeriodLabel,
       testNotes: sm.testNotes,
+      testPeriods: sm.testPeriods,
       recommendScoreReason: sm.recommendScoreReason,
       pilotDifficultyReason: sm.pilotDifficultyReason,
       evaluationNotes: sm.evaluationNotes,
