@@ -13,6 +13,10 @@ const state = {
   workspace: "home",
   homeView: "pool",
   homeWaitSort: "recent",
+  /** Extensible wait-tab filters. Add keys here as options grow. */
+  homeWaitFilters: {
+    hideManufacturing: true
+  },
   homePage: 1,
   homeEditMode: false,
   homeEditCell: null,
@@ -5373,6 +5377,30 @@ function waitCollectedAt(row) {
   return Date.parse(row.lastCollectedAt || row.firstCollectedAt || 0) || 0;
 }
 
+function defaultHomeWaitFilters() {
+  return { hideManufacturing: true };
+}
+
+function normalizeHomeWaitFilters(raw) {
+  const base = defaultHomeWaitFilters();
+  if (!raw || typeof raw !== "object") return base;
+  return {
+    hideManufacturing:
+      typeof raw.hideManufacturing === "boolean" ? raw.hideManufacturing : base.hideManufacturing
+  };
+}
+
+function countActiveHomeWaitFilters(filters = state.homeWaitFilters) {
+  const f = normalizeHomeWaitFilters(filters);
+  let n = 0;
+  if (f.hideManufacturing) n += 1;
+  return n;
+}
+
+function isManufacturingLikeRow(row) {
+  return Boolean(window.TClientIndustryFit?.isManufacturingLike?.(row));
+}
+
 function sortWaitHomeRows(rows) {
   const mode = state.homeWaitSort === "recommend" ? "recommend" : "recent";
   return [...rows].sort((a, b) => {
@@ -5389,8 +5417,10 @@ function sortWaitHomeRows(rows) {
 }
 
 function waitHomeRows({ applySearch = true } = {}) {
+  const filters = normalizeHomeWaitFilters(state.homeWaitFilters);
   const rows = state.rows.filter((row) => {
     if (!isWaitCompany(row)) return false;
+    if (filters.hideManufacturing && isManufacturingLikeRow(row)) return false;
     if (!applySearch) return true;
     const postHay = (row.posts ?? []).map((p) => `${p.title ?? ""} ${p.source ?? ""}`).join(" ");
     return matchesHomeSearch(row, postHay);
@@ -6095,6 +6125,26 @@ function applyHomeViewChrome() {
     sortEl.value = state.homeWaitSort === "recommend" ? "recommend" : "recent";
     syncCustomSelects();
   }
+  syncHomeWaitFilterUi();
+}
+
+function setHomeWaitFilterPanelOpen(open) {
+  const panel = byId("homeWaitFilterPanel");
+  const btn = byId("homeWaitFilterBtn");
+  panel?.classList.toggle("hidden", !open);
+  btn?.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function syncHomeWaitFilterUi() {
+  state.homeWaitFilters = normalizeHomeWaitFilters(state.homeWaitFilters);
+  const hideMfg = byId("homeWaitFilterHideMfg");
+  if (hideMfg) hideMfg.checked = Boolean(state.homeWaitFilters.hideManufacturing);
+  const badge = byId("homeWaitFilterBadge");
+  const active = countActiveHomeWaitFilters();
+  if (badge) {
+    badge.textContent = String(active);
+    badge.classList.toggle("hidden", active === 0);
+  }
 }
 
 function applyWorkspaceChrome({ updateHash = true } = {}) {
@@ -6129,6 +6179,7 @@ function persistNav() {
         workspace: state.workspace,
         homeView: state.homeView,
         homeWaitSort: state.homeWaitSort,
+        homeWaitFilters: normalizeHomeWaitFilters(state.homeWaitFilters),
         activeTab: state.activeTab
       })
     );
@@ -6144,6 +6195,14 @@ function restorePersistedNav() {
   }
   if (saved.homeWaitSort === "recommend" || saved.homeWaitSort === "recent") {
     state.homeWaitSort = saved.homeWaitSort;
+  }
+  if (saved.homeWaitFilters && typeof saved.homeWaitFilters === "object") {
+    state.homeWaitFilters = normalizeHomeWaitFilters(saved.homeWaitFilters);
+  } else if (typeof saved.homeWaitIncludeManufacturing === "boolean") {
+    // migrate old toggle: include=true → hideManufacturing=false
+    state.homeWaitFilters = {
+      hideManufacturing: !saved.homeWaitIncludeManufacturing
+    };
   }
   if (BOARD_TAB_IDS.includes(saved.activeTab)) state.activeTab = saved.activeTab;
   const hash = `${location.hash ?? ""}`.replace(/^#/, "");
@@ -6197,6 +6256,40 @@ function bindWorkspaceUi() {
     persistNav();
     renderHomeDb({ resetScroll: true });
   });
+
+  const applyWaitFiltersFromUi = () => {
+    state.homeWaitFilters = normalizeHomeWaitFilters({
+      hideManufacturing: Boolean(byId("homeWaitFilterHideMfg")?.checked)
+    });
+    state.homePage = 1;
+    if (!isHomeEditMode()) state.homeDraftIds = null;
+    syncHomeWaitFilterUi();
+    persistNav();
+    renderHomeDb({ resetScroll: true });
+  };
+
+  byId("homeWaitFilterBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const panel = byId("homeWaitFilterPanel");
+    const open = panel?.classList.contains("hidden");
+    setHomeWaitFilterPanelOpen(Boolean(open));
+  });
+  byId("homeWaitFilterHideMfg")?.addEventListener("change", applyWaitFiltersFromUi);
+  byId("homeWaitFilterReset")?.addEventListener("click", () => {
+    state.homeWaitFilters = defaultHomeWaitFilters();
+    syncHomeWaitFilterUi();
+    state.homePage = 1;
+    if (!isHomeEditMode()) state.homeDraftIds = null;
+    persistNav();
+    renderHomeDb({ resetScroll: true });
+  });
+  document.addEventListener("click", (e) => {
+    const root = byId("homeWaitFilter");
+    if (!root || root.contains(e.target)) return;
+    setHomeWaitFilterPanelOpen(false);
+  });
+  syncHomeWaitFilterUi();
+  hydrateIcons(byId("homeWaitFilterBtn"));
   bindExcelExportModal();
   hydrateIcons(byId("homeExportExcelBtn"));
   syncHomeModeToggle();
@@ -6822,7 +6915,7 @@ function renderHomeDb({ resetScroll = false, focusCompanyId = null } = {}) {
   const waitCountEl = byId("homeViewCountWait");
   const excludedCountEl = byId("homeViewCountExcluded");
   if (poolCountEl) poolCountEl.textContent = String(state.rows.filter((r) => isPoolCompany(r) && isMainTabLead(r)).length);
-  if (waitCountEl) waitCountEl.textContent = String(state.rows.filter((r) => isWaitCompany(r)).length);
+  if (waitCountEl) waitCountEl.textContent = String(waitHomeRows({ applySearch: false }).length);
   if (excludedCountEl) excludedCountEl.textContent = String(state.rows.filter(isShelvedLead).length);
   const rows = currentHomeRows();
   const empty =
