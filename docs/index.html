@@ -140,7 +140,7 @@
                   </button>
                   <div id="homeWaitFilterPanel" class="home-wait-filter-panel hidden" role="dialog" aria-label="대기 필터">
                     <div class="home-wait-filter-panel-head">대기 필터</div>
-                    <p class="home-wait-filter-hint">기본은 제조·연구를 숨깁니다. 나중에 조건을 더 추가할 수 있습니다.</p>
+                    <p class="home-wait-filter-hint">기본은 제조·연구를 숨깁니다. 공고 출처를 고르면 해당 소스가 있는 회사만 남깁니다.</p>
                     <label class="home-wait-filter-row">
                       <input type="checkbox" id="homeWaitFilterHideMfg" checked />
                       <span>
@@ -148,6 +148,11 @@
                         <small>조립·반도체·공장·연구소 등</small>
                       </span>
                     </label>
+                    <div class="home-wait-filter-section">
+                      <div class="home-wait-filter-section-title">공고 출처</div>
+                      <div id="homeWaitFilterSources" class="home-wait-filter-sources" role="group" aria-label="공고 출처"></div>
+                      <p class="home-wait-filter-hint home-wait-filter-hint-tight">선택 없음 = 전체 출처</p>
+                    </div>
                     <div class="home-wait-filter-panel-foot">
                       <button type="button" id="homeWaitFilterReset" class="home-wait-filter-reset">기본값</button>
                     </div>

@@ -15,7 +15,8 @@ const state = {
   homeWaitSort: "recent",
   /** Extensible wait-tab filters. Add keys here as options grow. */
   homeWaitFilters: {
-    hideManufacturing: true
+    hideManufacturing: true,
+    sources: []
   },
   homePage: 1,
   homeEditMode: false,
@@ -79,6 +80,48 @@ function hydrateIcons(root = document) {
 
 function displayName(row) {
   return row.companyNameKo || row.companyName || "-";
+}
+
+const POST_SOURCE_LABELS = {
+  greenhouse: "Greenhouse",
+  lever: "Lever",
+  ashby: "Ashby",
+  workday: "Workday",
+  wanted: "원티드",
+  jobkorea: "잡코리아",
+  saramin: "사람인",
+  jumpit: "점핏",
+  rocketpunch: "로켓펀치",
+  programmers: "프로그래머스",
+  groupby: "그룹바이",
+  linkareer: "링커리어",
+  jobplanet: "잡플래닛",
+  incruit: "인크루트",
+  catch: "캐치",
+  jasoseol: "자소설닷컴",
+  inthiswork: "인디스워크",
+  work24: "고용24",
+  career: "커리어",
+  theteams: "더팀스",
+  venturesquare: "벤처스퀘어",
+  inflab: "인프랩",
+  "ats-boards": "ATS",
+  "career-pages": "채용 페이지",
+  generic: "자사 홈페이지",
+  manual: "수동",
+  Careers: "자사 홈페이지",
+  Saramin: "사람인",
+  JobKorea: "잡코리아",
+  Wanted: "원티드"
+};
+
+function formatPostSourceLabel(post = {}) {
+  const source = `${post.source ?? ""}`.trim();
+  const label = `${post.sourceLabel ?? ""}`.trim();
+  if (POST_SOURCE_LABELS[source]) return POST_SOURCE_LABELS[source];
+  if (POST_SOURCE_LABELS[label]) return POST_SOURCE_LABELS[label];
+  if (label && !/^(saramin|jobkorea|wanted|generic)$/i.test(label)) return label;
+  return label || source || "-";
 }
 
 function pipelineLabels() {
@@ -4385,7 +4428,7 @@ function renderDetailBody(row, admin = false) {
                 (post) => `
               <tr>
                 <td class="post-cell-title">${escapeHtml(post.title)}</td>
-                <td><span class="post-source-chip">${escapeHtml(post.sourceLabel || post.source)}</span></td>
+                <td><span class="post-source-chip">${escapeHtml(formatPostSourceLabel(post))}</span></td>
                 <td class="cell-post-link">
                   <a class="post-action-link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer" title="열기">${iconSvg("external", 14)}</a>
                   ${
@@ -4415,7 +4458,7 @@ function renderDetailBody(row, admin = false) {
           <li class="post-card">
             <div class="post-card-main">
               <span class="post-card-title">${escapeHtml(post.title)}</span>
-              <span class="post-source-chip">${escapeHtml(post.sourceLabel || post.source)}</span>
+              <span class="post-source-chip">${escapeHtml(formatPostSourceLabel(post))}</span>
             </div>
             <div class="post-card-actions">
               <a class="post-action-link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer" title="공고 열기">${iconSvg("external", 14)}</a>
@@ -5255,7 +5298,7 @@ function renderAllPosts() {
               </td>
               <td><span class="badge grade-${row.leadGrade}">${row.leadGrade}</span></td>
               <td>${escapeHtml(post.title)}</td>
-              <td>${escapeHtml(post.sourceLabel || post.source)}</td>
+              <td>${escapeHtml(formatPostSourceLabel(post))}</td>
               <td title="${row.isNewFromLastCrawl ? "직전 크롤 신규 · " : ""}최근 공고 갱신: ${escapeAttr(formatDate(row.lastCollectedAt) || "-")}">${formatDate(displayCollectedAt(row))}${row.isNewFromLastCrawl ? ' <span class="muted">· New</span>' : ""}</td>
               <td><a class="link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${iconSvg("external", 14)}</a></td>
             </tr>`
@@ -5377,16 +5420,55 @@ function waitCollectedAt(row) {
   return Date.parse(row.lastCollectedAt || row.firstCollectedAt || 0) || 0;
 }
 
+/** Wait-tab source filter options. `match` maps UI id → post.source values. */
+const WAIT_SOURCE_FILTER_OPTIONS = [
+  { id: "saramin", label: "사람인", match: ["saramin"] },
+  { id: "jobkorea", label: "잡코리아", match: ["jobkorea"] },
+  { id: "wanted", label: "원티드", match: ["wanted"] },
+  { id: "jumpit", label: "점핏", match: ["jumpit"] },
+  {
+    id: "homepage",
+    label: "자사 홈페이지",
+    match: ["generic", "greenhouse", "lever", "ashby", "workday", "career-pages", "ats-boards", "career"]
+  },
+  { id: "linkareer", label: "링커리어", match: ["linkareer"] },
+  {
+    id: "other",
+    label: "기타 포털",
+    match: [
+      "rocketpunch",
+      "programmers",
+      "groupby",
+      "jobplanet",
+      "incruit",
+      "catch",
+      "jasoseol",
+      "inthiswork",
+      "work24",
+      "theteams",
+      "venturesquare",
+      "inflab",
+      "manual"
+    ]
+  }
+];
+
+const WAIT_SOURCE_FILTER_IDS = new Set(WAIT_SOURCE_FILTER_OPTIONS.map((o) => o.id));
+
 function defaultHomeWaitFilters() {
-  return { hideManufacturing: true };
+  return { hideManufacturing: true, sources: [] };
 }
 
 function normalizeHomeWaitFilters(raw) {
   const base = defaultHomeWaitFilters();
   if (!raw || typeof raw !== "object") return base;
+  const sources = Array.isArray(raw.sources)
+    ? [...new Set(raw.sources.map((id) => `${id}`.trim()).filter((id) => WAIT_SOURCE_FILTER_IDS.has(id)))]
+    : [];
   return {
     hideManufacturing:
-      typeof raw.hideManufacturing === "boolean" ? raw.hideManufacturing : base.hideManufacturing
+      typeof raw.hideManufacturing === "boolean" ? raw.hideManufacturing : base.hideManufacturing,
+    sources
   };
 }
 
@@ -5394,11 +5476,31 @@ function countActiveHomeWaitFilters(filters = state.homeWaitFilters) {
   const f = normalizeHomeWaitFilters(filters);
   let n = 0;
   if (f.hideManufacturing) n += 1;
+  n += f.sources.length;
   return n;
 }
 
 function isManufacturingLikeRow(row) {
   return Boolean(window.TClientIndustryFit?.isManufacturingLike?.(row));
+}
+
+function allowedSourcesFromFilter(filters) {
+  const selected = normalizeHomeWaitFilters(filters).sources;
+  if (!selected.length) return null;
+  const allowed = new Set();
+  for (const opt of WAIT_SOURCE_FILTER_OPTIONS) {
+    if (!selected.includes(opt.id)) continue;
+    for (const src of opt.match) allowed.add(src);
+  }
+  return allowed;
+}
+
+function rowMatchesWaitSourceFilter(row, filters) {
+  const allowed = allowedSourcesFromFilter(filters);
+  if (!allowed) return true;
+  const posts = row.posts ?? [];
+  if (!posts.length) return false;
+  return posts.some((post) => allowed.has(`${post.source ?? ""}`.toLowerCase()));
 }
 
 function sortWaitHomeRows(rows) {
@@ -5421,6 +5523,7 @@ function waitHomeRows({ applySearch = true } = {}) {
   const rows = state.rows.filter((row) => {
     if (!isWaitCompany(row)) return false;
     if (filters.hideManufacturing && isManufacturingLikeRow(row)) return false;
+    if (!rowMatchesWaitSourceFilter(row, filters)) return false;
     if (!applySearch) return true;
     const postHay = (row.posts ?? []).map((p) => `${p.title ?? ""} ${p.source ?? ""}`).join(" ");
     return matchesHomeSearch(row, postHay);
@@ -6135,10 +6238,34 @@ function setHomeWaitFilterPanelOpen(open) {
   btn?.setAttribute("aria-expanded", open ? "true" : "false");
 }
 
+function ensureHomeWaitSourceFilterUi() {
+  const root = byId("homeWaitFilterSources");
+  if (!root || root.dataset.ready === "1") return;
+  root.innerHTML = WAIT_SOURCE_FILTER_OPTIONS.map(
+    (opt) => `
+      <label class="home-wait-filter-chip">
+        <input type="checkbox" data-wait-source="${opt.id}" />
+        <span>${opt.label}</span>
+      </label>`
+  ).join("");
+  root.dataset.ready = "1";
+}
+
+function readHomeWaitSourcesFromUi() {
+  return [...document.querySelectorAll("#homeWaitFilterSources input[data-wait-source]:checked")]
+    .map((el) => el.getAttribute("data-wait-source"))
+    .filter((id) => WAIT_SOURCE_FILTER_IDS.has(id));
+}
+
 function syncHomeWaitFilterUi() {
   state.homeWaitFilters = normalizeHomeWaitFilters(state.homeWaitFilters);
+  ensureHomeWaitSourceFilterUi();
   const hideMfg = byId("homeWaitFilterHideMfg");
   if (hideMfg) hideMfg.checked = Boolean(state.homeWaitFilters.hideManufacturing);
+  const selected = new Set(state.homeWaitFilters.sources);
+  document.querySelectorAll("#homeWaitFilterSources input[data-wait-source]").forEach((el) => {
+    el.checked = selected.has(el.getAttribute("data-wait-source"));
+  });
   const badge = byId("homeWaitFilterBadge");
   const active = countActiveHomeWaitFilters();
   if (badge) {
@@ -6259,7 +6386,8 @@ function bindWorkspaceUi() {
 
   const applyWaitFiltersFromUi = () => {
     state.homeWaitFilters = normalizeHomeWaitFilters({
-      hideManufacturing: Boolean(byId("homeWaitFilterHideMfg")?.checked)
+      hideManufacturing: Boolean(byId("homeWaitFilterHideMfg")?.checked),
+      sources: readHomeWaitSourcesFromUi()
     });
     state.homePage = 1;
     if (!isHomeEditMode()) state.homeDraftIds = null;
@@ -6275,6 +6403,9 @@ function bindWorkspaceUi() {
     setHomeWaitFilterPanelOpen(Boolean(open));
   });
   byId("homeWaitFilterHideMfg")?.addEventListener("change", applyWaitFiltersFromUi);
+  byId("homeWaitFilterSources")?.addEventListener("change", (e) => {
+    if (e.target?.matches?.("input[data-wait-source]")) applyWaitFiltersFromUi();
+  });
   byId("homeWaitFilterReset")?.addEventListener("click", () => {
     state.homeWaitFilters = defaultHomeWaitFilters();
     syncHomeWaitFilterUi();
