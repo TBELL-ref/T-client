@@ -4427,7 +4427,11 @@ function renderDetailBody(row, admin = false) {
               .map(
                 (post) => `
               <tr>
-                <td class="post-cell-title">${escapeHtml(post.title)}</td>
+                <td class="post-cell-title">${
+                  post.url
+                    ? `<a class="post-cell-title-link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${escapeHtml(post.title)}<span class="home-job-link-arrow" aria-hidden="true">↗</span></a>`
+                    : escapeHtml(post.title)
+                }</td>
                 <td><span class="post-source-chip">${escapeHtml(formatPostSourceLabel(post))}</span></td>
                 <td class="cell-post-link">
                   <a class="post-action-link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer" title="열기">${iconSvg("external", 14)}</a>
@@ -4457,7 +4461,11 @@ function renderDetailBody(row, admin = false) {
             (post) => `
           <li class="post-card">
             <div class="post-card-main">
-              <span class="post-card-title">${escapeHtml(post.title)}</span>
+              <span class="post-card-title">${
+                post.url
+                  ? `<a class="post-card-title-link" href="${escapeAttr(post.url)}" target="_blank" rel="noreferrer">${escapeHtml(post.title)}<span class="home-job-link-arrow" aria-hidden="true">↗</span></a>`
+                  : escapeHtml(post.title)
+              }</span>
               <span class="post-source-chip">${escapeHtml(formatPostSourceLabel(post))}</span>
             </div>
             <div class="post-card-actions">
@@ -5746,7 +5754,7 @@ function homeJobCell(row) {
     return `<span class="cell-prose home-job-text" title="${escapeAttr(text)}">${escapeHtml(text)}</span>`;
   }
   const abs = /^https?:\/\//i.test(href) ? href : `https://${href}`;
-  return `<a class="link cell-prose home-job-link" href="${escapeAttr(abs)}" target="_blank" rel="noreferrer" title="${escapeAttr(text || abs)}">${escapeHtml(text || shortUrl(abs))}</a>`;
+  return `<a class="link cell-prose home-job-link" href="${escapeAttr(abs)}" target="_blank" rel="noreferrer" title="${escapeAttr(text || abs)}">${escapeHtml(text || shortUrl(abs))}<span class="home-job-link-arrow" aria-hidden="true">↗</span></a>`;
 }
 
 function homeServiceUrlCell(row) {
