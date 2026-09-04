@@ -696,11 +696,19 @@
 
   async function initDoc({ migrate = true } = {}) {
     await syncSession();
+    ensureDoc();
+    await loadSalesAndEdits();
+    if (migrate && isUnlocked()) await afterAuth({ reloadFirst: false });
+    return state.doc;
+  }
+
+  /** Sync bootstrap so applyToRow never touches a null doc before CRM hydrate. */
+  function ensureDoc() {
+    if (state.doc) return state.doc;
     state.doc = emptyDoc();
     const local = loadLocal();
     state.doc.customCompanies = local.customCompanies ?? [];
-    await loadSalesAndEdits();
-    if (migrate && isUnlocked()) await afterAuth({ reloadFirst: false });
+    state.doc.deletedCompanyIds = local.deletedCompanyIds ?? state.doc.deletedCompanyIds ?? [];
     return state.doc;
   }
 
@@ -749,7 +757,7 @@
   }
 
   function isCustomCompany(companyId) {
-    return (state.doc.customCompanies ?? []).some((r) => r.companyId === companyId);
+    return (state.doc?.customCompanies ?? []).some((r) => r.companyId === companyId);
   }
 
   function updateCustomCompany(companyId, patch) {
@@ -1423,6 +1431,7 @@
 
   window.TClientAdmin = {
     initDoc,
+    ensureDoc,
     afterAuth,
     initKeywords,
     applyToRow,

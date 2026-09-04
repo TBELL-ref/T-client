@@ -7922,7 +7922,19 @@ function bindBootUi() {
 async function boot() {
   showBootLoading();
   try {
-    const snapshot = await loadLeadSnapshot();
+    // Doc must exist before applyToRow / bindAdmin (CRM hydrate stays in background).
+    window.TClientAdmin?.ensureDoc?.();
+
+    const snapshotPromise = loadLeadSnapshot();
+    const hydratePromise = (async () => {
+      await window.TClientAdmin.initDoc({ migrate: false });
+      await Promise.all([
+        window.TCompanyUserState?.loadAll?.(true),
+        window.TClientAdmin.initKeywords?.()
+      ]);
+    })();
+
+    const snapshot = await snapshotPromise;
     if (!snapshot?.rows) throw new Error("스냅샷이 비어 있습니다. Lead Collector를 먼저 실행하세요.");
     applySnapshot(snapshot);
     reloadRowsWithAdmin();
@@ -7935,15 +7947,8 @@ async function boot() {
     }
     updateNotionReorderUi();
 
-    // Snapshot first paint is enough to use the board. CRM/edits hydrate in background
-    // so T-Client stays independent of Offer and doesn't stall on large RPCs.
-    void (async () => {
-      try {
-        await window.TClientAdmin.initDoc({ migrate: false });
-        await Promise.all([
-          window.TCompanyUserState?.loadAll?.(true),
-          window.TClientAdmin.initKeywords?.()
-        ]);
+    void hydratePromise
+      .then(async () => {
         reloadRowsWithAdmin();
         refreshViews();
         updateNotionReorderUi();
@@ -7952,17 +7957,18 @@ async function boot() {
           reloadRowsWithAdmin();
           refreshViews();
         }
-      } catch (err) {
-        console.warn("[boot] background hydrate", err);
-      }
-    })();
+      })
+      .catch((err) => console.warn("[boot] background hydrate", err));
   } catch (err) {
+    console.error("[boot]", err);
     byId("meta").textContent = "로드 실패";
-    const msg = `<div class="empty-state">${escapeHtml(err.message)}</div>`;
+    const msg = `<div class="empty-state">${escapeHtml(err.message || err)}</div>`;
     ["new", "recommended", "in_progress", "leads", "posts", "excluded"].forEach((id) => {
       const el = byId(id);
       if (el) el.innerHTML = msg;
     });
+    const home = byId("homeDbTable");
+    if (home) home.innerHTML = msg;
   }
 }
 
