@@ -7863,13 +7863,19 @@ function applySnapshot(snapshot) {
 async function loadLeadSnapshot() {
   try {
     const published = await window.TSupabase.getPublishedSnapshot();
-    if (published?.rows?.length) return published;
+    if (Array.isArray(published?.rows) && published.rows.length) return published;
   } catch (err) {
     console.warn("[boot] published snapshot failed", err);
+    throw new Error(
+      `게시 스냅샷을 불러오지 못했습니다. (${err?.message || err}) private-t-client에서 npm run publish:snapshot 후 새로고침하세요.`
+    );
   }
-  const live = await window.TSupabase.getLeadDashboard();
-  if (!live?.rows) throw new Error("스냅샷이 비어 있습니다. Lead Collector를 먼저 실행하세요.");
-  return live;
+
+  // Do not call get_lead_dashboard on boot — it rebuilds the full board and
+  // regularly hits Postgres statement_timeout (57014 / HTTP 500).
+  throw new Error(
+    "게시 스냅샷이 비어 있습니다. private-t-client에서 npm run publish:snapshot 실행 후 새로고침하세요."
+  );
 }
 
 function bindBootUi() {

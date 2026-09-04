@@ -25,11 +25,28 @@
       headers.Authorization = `Bearer ${anonKey}`;
     }
 
-    const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body ?? {})
-    });
+    const timeoutMs = Number(options.timeoutMs) || 0;
+    const ctrl = timeoutMs > 0 ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+    let res;
+    try {
+      res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body ?? {}),
+        signal: ctrl?.signal
+      });
+    } catch (err) {
+      if (err?.name === "AbortError") {
+        const e = new Error(`Supabase ${fn} 실패 (timeout). canceling statement due to statement timeout`);
+        e.status = 57014;
+        e.detail = "client abort";
+        throw e;
+      }
+      throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
       const err = new Error(`Supabase ${fn} 실패 (${res.status}). ${detail}`);
@@ -117,7 +134,7 @@
 
   window.TSupabase = {
     getPublishedSnapshot: () => rpc("get_published_snapshot"),
-    getLeadDashboard: () => rpc("get_lead_dashboard"),
+    getLeadDashboard: (opts = {}) => rpc("get_lead_dashboard", {}, { timeoutMs: opts.timeoutMs }),
     getOverridesDoc: () => rpc("get_overrides_doc"),
     getCompanyEditsAll: () => rpc("get_company_edits_all"),
     getSalesManagementAll: () => rpc("get_sales_management_all"),
