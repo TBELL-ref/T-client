@@ -132,8 +132,55 @@
     }
   }
 
+  const SNAP_IDB = "tclient-published-snap-v1";
+  const SNAP_STORE = "snap";
+  const SNAP_KEY = "published";
+
+  function openSnapDb() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(SNAP_IDB, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(SNAP_STORE)) db.createObjectStore(SNAP_STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function readCachedPublishedSnapshot() {
+    try {
+      const db = await openSnapDb();
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction(SNAP_STORE, "readonly");
+        const req = tx.objectStore(SNAP_STORE).get(SNAP_KEY);
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror = () => reject(req.error);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async function writeCachedPublishedSnapshot(doc) {
+    if (!Array.isArray(doc?.rows) || !doc.rows.length) return;
+    try {
+      const db = await openSnapDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(SNAP_STORE, "readwrite");
+        tx.objectStore(SNAP_STORE).put(doc, SNAP_KEY);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch {
+      /* quota / private mode */
+    }
+  }
+
   window.TSupabase = {
     getPublishedSnapshot: () => rpc("get_published_snapshot"),
+    readCachedPublishedSnapshot,
+    writeCachedPublishedSnapshot,
     getLeadDashboard: (opts = {}) => rpc("get_lead_dashboard", {}, { timeoutMs: opts.timeoutMs }),
     getOverridesDoc: () => rpc("get_overrides_doc"),
     getCompanyEditsAll: () => rpc("get_company_edits_all"),

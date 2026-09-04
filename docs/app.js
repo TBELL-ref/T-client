@@ -7860,22 +7860,44 @@ function applySnapshot(snapshot) {
   state.gradeSummary = snapshot.gradeSummary ?? {};
 }
 
-async function loadLeadSnapshot() {
+async function fetchPublishedSnapshotNetwork() {
   try {
     const published = await window.TSupabase.getPublishedSnapshot();
-    if (Array.isArray(published?.rows) && published.rows.length) return published;
+    if (Array.isArray(published?.rows) && published.rows.length) {
+      // Pages UI never uses merge-dedupe payload; drop before IDB to save quota/CPU.
+      if (published.dedupeCandidates?.length) published.dedupeCandidates = [];
+      if (published.crawlStats) published.crawlStats = null;
+      void window.TSupabase.writeCachedPublishedSnapshot?.(published);
+      return published;
+    }
   } catch (err) {
     console.warn("[boot] published snapshot failed", err);
     throw new Error(
       `게시 스냅샷을 불러오지 못했습니다. (${err?.message || err}) private-t-client에서 npm run publish:snapshot 후 새로고침하세요.`
     );
   }
-
-  // Do not call get_lead_dashboard on boot — it rebuilds the full board and
-  // regularly hits Postgres statement_timeout (57014 / HTTP 500).
   throw new Error(
     "게시 스냅샷이 비어 있습니다. private-t-client에서 npm run publish:snapshot 실행 후 새로고침하세요."
   );
+}
+
+function paintBootFromSnapshot(snapshot, { bindUi }) {
+  applySnapshot(snapshot);
+  reloadRowsWithAdmin();
+  paintMetaBanner();
+  if (bindUi) {
+    bindBootUi();
+    const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
+    if (tabFromUrl && byId(tabFromUrl) && BOARD_TAB_IDS.includes(tabFromUrl)) {
+      switchTab(tabFromUrl, { resetFilters: true });
+    } else {
+      switchTab(state.activeTab, { resetFilters: false });
+    }
+    updateNotionReorderUi();
+  } else {
+    refreshViews();
+    updateNotionReorderUi();
+  }
 }
 
 function bindBootUi() {
@@ -7931,7 +7953,6 @@ async function boot() {
     // Doc must exist before applyToRow / bindAdmin (CRM hydrate stays in background).
     window.TClientAdmin?.ensureDoc?.();
 
-    const snapshotPromise = loadLeadSnapshot();
     const hydratePromise = (async () => {
       await window.TClientAdmin.initDoc({ migrate: false });
       await Promise.all([
@@ -7940,18 +7961,43 @@ async function boot() {
       ]);
     })();
 
-    const snapshot = await snapshotPromise;
-    if (!snapshot?.rows) throw new Error("스냅샷이 비어 있습니다. Lead Collector를 먼저 실행하세요.");
-    applySnapshot(snapshot);
-    reloadRowsWithAdmin();
-    bindBootUi();
-    const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
-    if (tabFromUrl && byId(tabFromUrl) && BOARD_TAB_IDS.includes(tabFromUrl)) {
-      switchTab(tabFromUrl, { resetFilters: true });
-    } else {
-      switchTab(state.activeTab, { resetFilters: false });
+    const networkPromise = fetchPublishedSnapshotNetwork();
+    const cached = await window.TSupabase.readCachedPublishedSnapshot?.();
+    let paintedFromCache = false;
+    if (Array.isArray(cached?.rows) && cached.rows.length) {
+      paintBootFromSnapshot(cached, { bindUi: true });
+      paintedFromCache = true;
+      const meta = byId("meta");
+      if (meta?.querySelector?.(".meta-updated")) {
+        meta.insertAdjacentHTML("beforeend", ` <span class="meta-cache-hint">· 최신 확인 중…</span>`);
+      }
     }
-    updateNotionReorderUi();
+
+    let snapshot;
+    try {
+      snapshot = await networkPromise;
+    } catch (err) {
+      if (paintedFromCache) {
+        console.warn("[boot] network refresh failed; keeping cache", err);
+        snapshot = cached;
+      } else {
+        throw err;
+      }
+    }
+
+    if (!snapshot?.rows?.length) {
+      throw new Error("스냅샷이 비어 있습니다. Lead Collector를 먼저 실행하세요.");
+    }
+
+    const sameAsCache =
+      paintedFromCache && cached?.generatedAt && snapshot.generatedAt === cached.generatedAt;
+    if (!paintedFromCache) {
+      paintBootFromSnapshot(snapshot, { bindUi: true });
+    } else if (!sameAsCache) {
+      paintBootFromSnapshot(snapshot, { bindUi: false });
+    } else {
+      byId("meta")?.querySelector(".meta-cache-hint")?.remove();
+    }
 
     void hydratePromise
       .then(async () => {
