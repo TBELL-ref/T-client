@@ -426,9 +426,14 @@
     if (companyId) delete state.map[companyId];
   }
 
+  function getMap() {
+    return state.map;
+  }
+
   window.TSalesManagement = {
     loadAll,
     get,
+    getMap,
     upsert,
     batchSetNotionPriorities,
     hide,

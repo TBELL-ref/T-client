@@ -2716,6 +2716,32 @@ function reloadRowsWithAdmin() {
     const applied = window.TClientAdmin ? window.TClientAdmin.applyToRow(enriched) : enriched;
     return withFormattedProfileBizNo(applied);
   });
+
+  // Snapshot is post-only; re-attach recommended CRM companies with 0 Client posts
+  // (unified crawl may have moved alba/short-term posts to T-Offer).
+  const present = new Set(state.rows.map((r) => r.companyId));
+  const smMap = window.TSalesManagement?.getMap?.() || {};
+  for (const [companyId, sm] of Object.entries(smMap)) {
+    if (present.has(companyId)) continue;
+    if (!sm?.isRecommended && !sm?.isHidden) continue;
+    if (window.TClientAdmin?.isCompanyDeleted?.(companyId)) continue;
+    const stub = {
+      companyId,
+      companyName: companyId,
+      companyNameKo: companyId,
+      domain: "",
+      leadGrade: "C",
+      priorityScore: "0",
+      posts: [],
+      hasSalesManagement: true,
+      excluded: false,
+      profile: {}
+    };
+    const applied = window.TSalesManagement.applyToRow(stub);
+    const withAdmin = window.TClientAdmin ? window.TClientAdmin.applyToRow(applied) : applied;
+    state.rows.push(withFormattedProfileBizNo(withAdmin));
+  }
+
   state.rows = refreshManualScores(state.rows);
 }
 
@@ -7927,7 +7953,8 @@ async function boot() {
       await window.TClientAdmin.initDoc({ migrate: false });
       await Promise.all([
         window.TCompanyUserState?.loadAll?.(true),
-        window.TClientAdmin.initKeywords?.()
+        window.TClientAdmin.initKeywords?.(),
+        window.TSalesManagement?.loadAll?.(true)
       ]);
     })();
 

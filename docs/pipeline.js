@@ -115,10 +115,13 @@
    */
   function poolClassOf(row = {}) {
     if (row.userHidden || row.isHidden) return "hidden";
-    if ((row.posts?.length ?? 0) === 0) return "hidden";
     const stage = resolvePipelineStage(row.pipelineStage ?? row.stage);
-    if (isInProgressStage(stage)) return "in_progress";
+    // Recommended / in-progress stay visible even with 0 Client posts
+    // (unified crawl may route alba/short-term posts to T-Offer only).
+    if (row.isRecommended && isInProgressStage(stage)) return "in_progress";
     if (row.isRecommended) return "recommended";
+    if ((row.posts?.length ?? 0) === 0) return "hidden";
+    if (isInProgressStage(stage)) return "in_progress";
     return "normal";
   }
 
@@ -195,9 +198,11 @@
 
   function rowMatchesExcludedTab(row) {
     if (!row) return false;
-    if ((row.posts?.length ?? 0) === 0) return true;
     if (row.userHidden || row.isHidden) return true;
     if (row.excluded) return true;
+    // Recommended (incl. Offer-routed, 0 Client posts) stays out of 제외
+    if (row.isRecommended) return false;
+    if ((row.posts?.length ?? 0) === 0) return true;
     return false;
   }
 
