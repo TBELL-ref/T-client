@@ -7953,8 +7953,7 @@ async function boot() {
       await window.TClientAdmin.initDoc({ migrate: false });
       await Promise.all([
         window.TCompanyUserState?.loadAll?.(true),
-        window.TClientAdmin.initKeywords?.(),
-        window.TSalesManagement?.loadAll?.(true)
+        window.TClientAdmin.initKeywords?.()
       ]);
     })();
 
@@ -7975,6 +7974,14 @@ async function boot() {
     reloadRowsWithAdmin();
     refreshViews();
     updateNotionReorderUi();
+
+    // Don't block first paint on full CRM RPC — hydrate 0-post recommended in background.
+    void window.TSalesManagement?.loadAll?.(true)
+      .then(() => {
+        reloadRowsWithAdmin();
+        refreshViews();
+      })
+      .catch((err) => console.warn("[boot] sales_management", err));
 
     if (window.TClientAdmin?.isUnlocked?.()) {
       window.TClientAdmin.afterAuth?.({ reloadFirst: false })
