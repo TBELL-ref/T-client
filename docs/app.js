@@ -2716,32 +2716,6 @@ function reloadRowsWithAdmin() {
     const applied = window.TClientAdmin ? window.TClientAdmin.applyToRow(enriched) : enriched;
     return withFormattedProfileBizNo(applied);
   });
-
-  // Snapshot is post-only; re-attach recommended CRM companies with 0 Client posts
-  // (unified crawl may have moved alba/short-term posts to T-Offer).
-  const present = new Set(state.rows.map((r) => r.companyId));
-  const smMap = window.TSalesManagement?.getMap?.() || {};
-  for (const [companyId, sm] of Object.entries(smMap)) {
-    if (present.has(companyId)) continue;
-    if (!sm?.isRecommended && !sm?.isHidden) continue;
-    if (window.TClientAdmin?.isCompanyDeleted?.(companyId)) continue;
-    const stub = {
-      companyId,
-      companyName: companyId,
-      companyNameKo: companyId,
-      domain: "",
-      leadGrade: "C",
-      priorityScore: "0",
-      posts: [],
-      hasSalesManagement: true,
-      excluded: false,
-      profile: {}
-    };
-    const applied = window.TSalesManagement.applyToRow(stub);
-    const withAdmin = window.TClientAdmin ? window.TClientAdmin.applyToRow(applied) : applied;
-    state.rows.push(withFormattedProfileBizNo(withAdmin));
-  }
-
   state.rows = refreshManualScores(state.rows);
 }
 
@@ -7948,16 +7922,7 @@ function bindBootUi() {
 async function boot() {
   showBootLoading();
   try {
-    const snapshotPromise = loadLeadSnapshot();
-    const extrasPromise = (async () => {
-      await window.TClientAdmin.initDoc({ migrate: false });
-      await Promise.all([
-        window.TCompanyUserState?.loadAll?.(true),
-        window.TClientAdmin.initKeywords?.()
-      ]);
-    })();
-
-    const snapshot = await snapshotPromise;
+    const snapshot = await loadLeadSnapshot();
     if (!snapshot?.rows) throw new Error("스냅샷이 비어 있습니다. Lead Collector를 먼저 실행하세요.");
     applySnapshot(snapshot);
     reloadRowsWithAdmin();
@@ -7970,27 +7935,27 @@ async function boot() {
     }
     updateNotionReorderUi();
 
-    await extrasPromise;
-    reloadRowsWithAdmin();
-    refreshViews();
-    updateNotionReorderUi();
-
-    // Don't block first paint on full CRM RPC — hydrate 0-post recommended in background.
-    void window.TSalesManagement?.loadAll?.(true)
-      .then(() => {
+    // Snapshot first paint is enough to use the board. CRM/edits hydrate in background
+    // so T-Client stays independent of Offer and doesn't stall on large RPCs.
+    void (async () => {
+      try {
+        await window.TClientAdmin.initDoc({ migrate: false });
+        await Promise.all([
+          window.TCompanyUserState?.loadAll?.(true),
+          window.TClientAdmin.initKeywords?.()
+        ]);
         reloadRowsWithAdmin();
         refreshViews();
-      })
-      .catch((err) => console.warn("[boot] sales_management", err));
-
-    if (window.TClientAdmin?.isUnlocked?.()) {
-      window.TClientAdmin.afterAuth?.({ reloadFirst: false })
-        .then(() => {
+        updateNotionReorderUi();
+        if (window.TClientAdmin?.isUnlocked?.()) {
+          await window.TClientAdmin.afterAuth?.({ reloadFirst: false });
           reloadRowsWithAdmin();
           refreshViews();
-        })
-        .catch((err) => console.warn("[boot] afterAuth", err));
-    }
+        }
+      } catch (err) {
+        console.warn("[boot] background hydrate", err);
+      }
+    })();
   } catch (err) {
     byId("meta").textContent = "로드 실패";
     const msg = `<div class="empty-state">${escapeHtml(err.message)}</div>`;

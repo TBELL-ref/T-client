@@ -433,7 +433,6 @@
   window.TSalesManagement = {
     loadAll,
     get,
-    getMap,
     upsert,
     batchSetNotionPriorities,
     hide,
